@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Subtitle template font families resolve to Next.js Google Font CSS vars */
+.tpl-font-Heebo { font-family: var(--font-heebo), system-ui, sans-serif; }
+.tpl-font-Rubik { font-family: var(--font-rubik), system-ui, sans-serif; }
+.tpl-font-Assistant { font-family: var(--font-assistant), system-ui, sans-serif; }
+.tpl-font-Varela-Round { font-family: var(--font-varela), system-ui, sans-serif; }
+.tpl-font-Secular-One { font-family: var(--font-secular), system-ui, sans-serif; }
+.tpl-font-Suez-One { font-family: var(--font-suez), system-ui, sans-serif; }
+.tpl-font-Frank-Ruhl-Libre { font-family: var(--font-frank), system-ui, sans-serif; }
+.tpl-font-Bellefair { font-family: var(--font-bellefair), system-ui, sans-serif; }
+
+/* ── Subtitle entrance animations ─────────────────────────────────────── */
+/* Each keyframe corresponds to an ASS animation curve in subtitleAnimations.ts */
+
+@keyframes sub-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Regular pop: 80% → 108% → 100% */
+@keyframes sub-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  45% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Emphasis pop: bigger overshoot 70% → 120% → 100% */
+@keyframes sub-pop-strong {
+  0% { transform: scale(0.7); opacity: 0; }
+  40% { transform: scale(1.20); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Bounce: elastic settle */
+@keyframes sub-bounce {
+  0% { transform: scale(0.6); opacity: 0; }
+  28% { transform: scale(1.15); opacity: 1; }
+  52% { transform: scale(0.9); }
+  80% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Slide up: enter from below */
+@keyframes sub-slide-up {
+  0% { transform: translateY(40%) scale(0.95); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Slide left/right: enter from side */
+@keyframes sub-slide-left {
+  0% { transform: translateX(-40%) scale(0.95); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes sub-slide-right {
+  0% { transform: translateX(40%) scale(0.95); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* Zoom burst: starts huge, snaps to normal */
+@keyframes sub-zoom-burst {
+  0% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Wave: gentle wobble */
+@keyframes sub-wave {
+  0% { transform: scaleX(0.95) scaleY(1.05); opacity: 0; }
+  25% { transform: scaleX(1.05) scaleY(0.95); opacity: 1; }
+  50% { transform: scaleX(0.98) scaleY(1.02); }
+  75% { transform: scaleX(1.02) scaleY(0.98); }
+  100% { transform: scale(1); }
+}
+
+/* Whip-zoom transition overlay flash */
+@keyframes whip-flash {
+  0% { opacity: 0; transform: scale(1); }
+  20% { opacity: 0.9; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* Emphasis moment glow — subtle warm pulse */
+@keyframes emphasis-glow {
+  0% { opacity: 0; }
+  35% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+/* Element/brand overlay entrance — simple, stable, no bounce.
+   Scales in from 70% → 100% with fade. Does not loop. */
+@keyframes element-enter {
+  0%   { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Dynamic background patterns (Phase 13) ──────────────────────────── */
+
+@keyframes bg-sunset {
+  0%, 100% {
+    background: linear-gradient(135deg, #FF7E5F 0%, #FEB47B 50%, #FF6B9D 100%);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    background: linear-gradient(135deg, #FF6B9D 0%, #FF7E5F 50%, #FEB47B 100%);
+    filter: hue-rotate(20deg);
+  }
+}
+
+@keyframes bg-cyber {
+  0%, 100% { filter: hue-rotate(0deg) saturate(1.5); }
+  50% { filter: hue-rotate(60deg) saturate(1.7); }
+}
+
+@keyframes bg-bokeh {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.05) rotate(2deg); }
+}
+
+@keyframes bg-wave {
+  0%, 100% { filter: hue-rotate(0deg); transform: translate(0, 0); }
+  50% { filter: hue-rotate(40deg); transform: translate(5%, -5%); }
+}
+
+@keyframes bg-particles {
+  0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+  100% { background-position: 100% 100%, -100% -50%, 50% -100%, 0% 0%; }
+}
+
+@keyframes bg-mesh {
+  0%, 100% { filter: hue-rotate(0deg) saturate(1.5); }
+  33% { filter: hue-rotate(120deg) saturate(1.7); }
+  66% { filter: hue-rotate(240deg) saturate(1.6); }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0a0a0f;
+  color: #fff;
+  min-height: 100vh;
+}
+
+body {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #15151f;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a3a4e;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a5e;
+}
+
+/* Range input styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  background: #252535;
+  height: 6px;
+  border-radius: 3px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  background: #7c3aed;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
+}
+
+/* Card glow on hover */
+.card-glow {
+  transition: all 0.2s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
+  border-color: rgba(124, 58, 237, 0.4);
+}
