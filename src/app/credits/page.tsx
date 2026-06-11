@@ -2,28 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Coins, Sparkles, AlertTriangle, Zap, Crown, Rocket, Film,
-  Check, Shield, RefreshCw, Subtitles, Wand2, Mic, Layers,
+  Sparkles, AlertTriangle, Shield, RefreshCw,
+  Subtitles, Wand2, Mic, Layers, ArrowRight,
 } from "lucide-react";
 import { getCredits, addCredits } from "@/lib/credits";
+import { getProfile } from "@/lib/userStore";
 import { useContent } from "@/lib/useContent";
-
-// Visual personality per package id. Falls back to the "starter" theme for
-// unknown CMS-added packages.
-const THEME: Record<string, {
-  icon: React.ComponentType<{ className?: string }>;
-  gradient: string;
-  glow: string;
-  iconBg: string;
-  emoji: string;
-  hint: string;
-}> = {
-  mini:     { icon: Zap,    gradient: "from-sky-500/20 to-cyan-500/5",          glow: "shadow-sky-500/10",     iconBg: "bg-sky-500/20 text-sky-300",     emoji: "✨", hint: "לטעימה — 2-3 סרטונים" },
-  starter:  { icon: Film,   gradient: "from-violet-500/25 to-purple-500/5",     glow: "shadow-violet-500/20",  iconBg: "bg-violet-500/20 text-violet-300", emoji: "🎬", hint: "המתאים לרוב היוצרים" },
-  pro:      { icon: Rocket, gradient: "from-fuchsia-500/25 to-pink-500/5",      glow: "shadow-fuchsia-500/20", iconBg: "bg-fuchsia-500/20 text-fuchsia-300", emoji: "🚀", hint: "לעבודה שוטפת" },
-  business: { icon: Crown,  gradient: "from-amber-400/25 to-orange-500/5",      glow: "shadow-amber-500/30",   iconBg: "bg-amber-400/20 text-amber-300",  emoji: "👑", hint: "סטודיו מקצועי" },
-};
-const FALLBACK_THEME = THEME.starter;
+import PremiumPkgCard, { SharedFeatures } from "@/components/PremiumPkgCard";
+import PackagesCarousel from "@/components/PackagesCarousel";
+import MasterCoin from "@/components/MasterCoin";
+import LogoMark from "@/components/LogoMark";
+import SiteHeader from "@/components/SiteHeader";
 
 export default function CreditsPage() {
   const [credits, setCreditsLocal] = useState(0);
@@ -36,6 +25,22 @@ export default function CreditsPage() {
   const costPodcast   = useContent("pricing.cost.podcast");
   const costAdvanced  = useContent("pricing.cost.advanced_effects");
   const costMulti     = useContent("pricing.cost.multi_video");
+  const currency      = (useContent("brand.currencyName") as string) || "קרדיטים";
+  const appName       = useContent("brand.appName") as string;
+  const tagline       = useContent("brand.tagline") as string;
+  const logoSize      = Number(useContent("brand.headerLogoSize") ?? 56);
+  // Hoisted CMS strings — must run unconditionally on every render. They
+  // used to be inlined inside the JSX below, but combined with the early
+  // `if (!hydrated) return ...` they fired in different orders pre/post
+  // hydration → React Hooks-order error.
+  const balanceLabel  = useContent("credits.balanceLabel");
+  const calcCalcLabel = useContent("credits.calcCalcLabel");
+  const eyebrow       = useContent("credits.eyebrow");
+  const title         = useContent("credits.title");
+  const subtitle      = useContent("credits.subtitle");
+  const calcEyebrow   = useContent("credits.calcEyebrow");
+  const calcTitle     = useContent("credits.calcTitle");
+  const calcSubtitle  = useContent("credits.calcSubtitle");
 
   useEffect(() => {
     setCreditsLocal(getCredits());
@@ -57,7 +62,7 @@ export default function CreditsPage() {
       const j = await res.json();
       if (j.mode === "dev-stub") {
         addCredits(j.creditsToAdd);
-        setMsg(`✓ נוספו ${j.creditsToAdd} קרדיט (מצב פיתוח — בלי תשלום)`);
+        setMsg(`✓ נוספו ${j.creditsToAdd} ${currency} לחשבון שלך!`);
       } else if (j.url) {
         window.location.href = j.url;
       } else {
@@ -77,10 +82,10 @@ export default function CreditsPage() {
     advanced:  Math.floor(credits / costAdvanced),
   }), [credits, costSubtitles, costEffects, costAdvanced]);
 
-  if (!hydrated) return <div className="min-h-screen bg-bg" />;
+  if (!hydrated) return <div className="min-h-screen" />;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-bg text-white">
+    <div dir="rtl" className="min-h-screen text-white">
       {/* Soft animated brand glow background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-[480px] h-[480px] bg-violet-500/15 rounded-full blur-[120px]" />
@@ -88,27 +93,25 @@ export default function CreditsPage() {
       </div>
 
       <div className="relative max-w-5xl mx-auto px-6 py-8">
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 text-[11px] text-amber-200 flex items-center gap-2 mb-6 justify-center">
-          <AlertTriangle className="w-3.5 h-3.5" />
-          מצב פיתוח · Stripe יופעל אחרי המעבר ל-Lovable
-        </div>
+        {/* Shared SiteHeader for cross-page consistency */}
+        <div className="mb-8"><SiteHeader /></div>
 
-        {/* ── Balance + calculator in one compact strip ── */}
-        <div className="bg-gradient-to-br from-violet-500/20 via-bg-card to-cyan-500/10 border border-white/10 rounded-2xl p-5 mb-8 flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex items-center gap-3 md:border-l md:border-white/10 md:pl-6">
-            <div className="p-2.5 rounded-xl bg-yellow-400/20">
-              <Coins className="w-6 h-6 text-yellow-300" />
-            </div>
-            <div>
-              <div className="text-[11px] text-white/50 uppercase tracking-wider">היתרה שלך</div>
-              <div className="text-3xl font-bold leading-none mt-0.5">
-                {credits.toLocaleString()} <span className="text-sm text-white/40 font-normal">קרדיט</span>
+        {/* ── Balance + calculator in one strip — fully centered, mobile-friendly ── */}
+        <div className="bg-gradient-to-br from-violet-500/20 via-bg-card to-cyan-500/10 border border-white/10 rounded-2xl p-5 mb-8 flex flex-col md:flex-row md:items-center md:justify-center gap-5 text-center">
+          {/* Mobile: coins stacked on top. Desktop: coins on the RIGHT, balance to its left. */}
+          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 md:border-l md:border-white/10 md:pl-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/master-coins.png" alt="מאסטרים" className="h-12 sm:h-14 w-auto object-contain drop-shadow-[0_3px_12px_rgba(251,191,36,0.45)] select-none pointer-events-none shrink-0" draggable={false} />
+            <div className="md:text-right">
+              <div className="text-[11px] text-white/50 uppercase tracking-wider">{balanceLabel}</div>
+              <div className="text-4xl font-black leading-none mt-0.5">
+                {credits.toLocaleString()} <span className="text-sm text-white/40 font-normal">{currency}</span>
               </div>
             </div>
           </div>
-          <div className="flex-1">
-            <div className="text-[11px] text-white/50 mb-1.5">איתם את יכולה לעשות:</div>
-            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          <div className="md:text-right">
+            <div className="text-[11px] text-white/50 mb-1.5">{calcCalcLabel}</div>
+            <div className="flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-1 text-sm">
               <span className="flex items-center gap-1.5"><span className="text-violet-300 font-bold">{calc.subtitles}</span><span className="text-white/60">סרטוני כתוביות</span></span>
               <span className="text-white/20">·</span>
               <span className="flex items-center gap-1.5"><span className="text-fuchsia-300 font-bold">{calc.effects}</span><span className="text-white/60">עם אפקטים</span></span>
@@ -120,119 +123,49 @@ export default function CreditsPage() {
 
         {/* ── Header ── */}
         <div className="text-center mb-8">
-          <div className="inline-block text-[11px] uppercase tracking-widest text-violet-300 font-bold mb-2">חבילות קרדיט</div>
-          <h2 className="text-3xl font-black mb-2">בחרי את הקצב שלך</h2>
-          <p className="text-sm text-white/50">חיוב חד-פעמי · קרדיט תקף ללא הגבלת זמן · אין מנוי חודשי</p>
+          <div className="inline-block text-[11px] uppercase tracking-widest text-violet-300 font-bold mb-2">{eyebrow}</div>
+          <h2 className="text-3xl font-black mb-2">{title}</h2>
+          <p className="text-sm text-white/50">{subtitle}</p>
         </div>
 
-        {/* ── Packages grid ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {packages.map((p) => {
-            const t = THEME[p.id] ?? FALLBACK_THEME;
-            const Icon = t.icon;
-            const isPopular = p.highlight === "הכי נמכר";
-            const isBestValue = p.highlight === "הכי משתלם";
-            const elevated = isPopular || isBestValue;
-            const isBusy = busy === p.id;
-
-            return (
-              <div key={p.id}
-                className={`relative rounded-2xl p-6 flex flex-col bg-gradient-to-br ${t.gradient} border transition-all
-                  ${elevated
-                    ? `border-white/25 shadow-xl ${t.glow} lg:scale-[1.04] z-10`
-                    : "border-white/10 hover:border-white/20"}`}>
-                {p.highlight && (
-                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap
-                    ${isBestValue ? "bg-amber-400 text-amber-900" : "bg-violet-500 text-white"}`}>
-                    {isBestValue ? "👑 " : isPopular ? "🔥 " : ""}{p.highlight}
-                  </div>
-                )}
-
-                {/* Top: icon + name */}
-                <div className="flex items-center gap-2.5 mb-5">
-                  <div className={`p-2 rounded-xl ${t.iconBg}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm leading-tight">{p.label}</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">{t.hint}</div>
-                  </div>
-                </div>
-
-                {/* Hero number: credits */}
-                <div className="mb-4">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-5xl font-black tracking-tight">{p.credits}</span>
-                    <span className="text-sm text-white/40">קרדיט</span>
-                  </div>
-                </div>
-
-                {/* What you get bullets — keep tight, 2 lines */}
-                <ul className="space-y-1.5 text-[11px] text-white/60 mb-5 flex-1">
-                  <li className="flex items-center gap-1.5">
-                    <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                    עד {Math.floor(p.credits / costSubtitles)} סרטוני כתוביות
-                  </li>
-                  <li className="flex items-center gap-1.5">
-                    <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                    עד {Math.floor(p.credits / costEffects)} עם אפקטים
-                  </li>
-                </ul>
-
-                {/* Price + CTA */}
-                <div className="pt-4 border-t border-white/10">
-                  <div className="text-center mb-3">
-                    <span className="text-4xl font-black">{p.priceIls}</span>
-                    <span className="text-lg text-white/40 mr-1">₪</span>
-                  </div>
-                  <button
-                    disabled={isBusy}
-                    onClick={() => buy(p.id)}
-                    className={`w-full py-3 rounded-xl font-bold text-sm transition-all
-                      ${elevated
-                        ? "bg-white text-bg shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                        : "bg-white/10 text-white hover:bg-white/20"}
-                      disabled:opacity-50 disabled:translate-y-0`}>
-                    {isBusy ? "מעבד..." : `קנייה ב-₪${p.priceIls}`}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        {/* Mobile: hero-center carousel. Desktop: 4-up grid. */}
+        <PackagesCarousel packages={packages} onBuy={buy} busyId={busy} />
+        <div className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-5 mt-8 items-stretch">
+          {packages.map((p) => (
+            <PremiumPkgCard key={p.id} pkg={p} onBuy={buy} busy={busy === p.id} />
+          ))}
         </div>
+        <SharedFeatures />
 
         {/* ── Per-video pricing breakdown ── */}
         <div className="mt-12">
           <div className="text-center mb-5">
-            <div className="inline-block text-[11px] uppercase tracking-widest text-cyan-300 font-bold mb-1.5">שקיפות תמחור</div>
-            <h3 className="text-2xl font-black">כמה שווה סרטון?</h3>
-            <p className="text-xs text-white/40 mt-1">מספר הקרדיט יורד מהיתרה רק בלחיצה על &quot;ייצוא&quot;</p>
+            <div className="inline-block text-[11px] uppercase tracking-widest text-cyan-300 font-bold mb-1.5">{calcEyebrow}</div>
+            <h3 className="text-2xl font-black">{calcTitle}</h3>
+            <p className="text-xs text-white/40 mt-1">{calcSubtitle}</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: Subtitles, name: "כתוביות בלבד",    cost: costSubtitles, desc: "תמלול + עיצוב",              color: "from-slate-500/20 to-slate-700/5",   ring: "ring-slate-400/30" },
-              { icon: Wand2,     name: "אפקטים בסיסיים",  cost: costEffects,   desc: "+ צבע + זום עדין",            color: "from-cyan-500/20 to-blue-500/5",     ring: "ring-cyan-400/30" },
-              { icon: Mic,       name: "פודקאסט",         cost: costPodcast,   desc: "+ חיתוך שתיקות + כתוביות גדולות", color: "from-emerald-500/20 to-teal-500/5", ring: "ring-emerald-400/30" },
-              { icon: Sparkles,  name: "אפקטים מתקדמים",  cost: costAdvanced,  desc: "+ אנימציות + Lottie + SFX",     color: "from-fuchsia-500/25 to-purple-500/5","ring": "ring-fuchsia-400/30" },
-              { icon: Layers,    name: "מולטי-וידאו",     cost: costMulti,     desc: "כמה סרטונים + תסריט → סרטון אחד", color: "from-amber-400/25 to-orange-500/5", ring: "ring-amber-400/30" },
+              { icon: Subtitles, name: "כתוביות בלבד",    cost: costSubtitles, desc: "תמלול + אנימציות + תבניות",        iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
+              { icon: Mic,       name: "פודקאסט",         cost: costPodcast,   desc: "+ חיתוך שתיקות + אמוג'ים",          iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
+              { icon: Sparkles,  name: "אפקטים מתקדמים",  cost: costAdvanced,  desc: "הכל — אנימציות + Lottie + SFX",     iconColor: "text-fuchsia-200",iconBg: "bg-fuchsia-500/30", grad: "from-fuchsia-500/25 to-pink-700/5",    border: "border-fuchsia-400/30", num: "text-fuchsia-200" },
+              { icon: Layers,    name: "חיבור סרטונים",   cost: costMulti,     desc: "כמה סרטונים + תסריט → סרטון אחד",   iconColor: "text-amber-200",  iconBg: "bg-amber-500/30",   grad: "from-amber-400/20 to-orange-700/5",    border: "border-amber-400/30",   num: "text-amber-200" },
             ].map((m) => (
               <div key={m.name}
-                className={`bg-gradient-to-br ${m.color} border border-white/10 hover:border-white/20 rounded-2xl p-4 text-center transition-all hover:-translate-y-0.5 group`}>
-                <div className={`inline-flex p-2 rounded-xl bg-white/10 mb-2 ring-1 ${m.ring}`}>
+                className={`bg-gradient-to-br ${m.grad} border ${m.border} hover:brightness-110 rounded-2xl p-5 text-center transition-all hover:-translate-y-1 hover:shadow-xl group h-full flex flex-col`}>
+                <div className={`inline-flex p-2.5 rounded-xl ${m.iconBg} ${m.iconColor} mx-auto mb-3`}>
                   <m.icon className="w-5 h-5" />
                 </div>
-                <div className="text-xs font-bold mb-1">{m.name}</div>
-                <div className="text-[10px] text-white/40 mb-3 h-7 leading-tight">{m.desc}</div>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-3xl font-black">{m.cost}</span>
-                  <span className="text-[10px] text-white/40">קרדיט</span>
+                <div className="text-sm font-bold mb-1">{m.name}</div>
+                <div className="text-[10px] text-white/50 mb-4 leading-tight flex-1">{m.desc}</div>
+                {/* Hero credit number — matches package-card hierarchy: big credits */}
+                <div className="flex items-baseline justify-center gap-1.5 pt-3 border-t border-white/10">
+                  <span className={`text-4xl font-black tracking-tight ${m.num}`}>{m.cost}</span>
+                  <span className="text-[11px] text-white/50 font-bold">{currency}</span>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-white/30 text-center mt-3">
-            המחירים נקבעים לפי המאמץ העיבודי · ניתן לעדכן דרך פאנל הניהול
-          </p>
         </div>
 
         {/* ── Trust row ── */}
@@ -255,7 +188,7 @@ export default function CreditsPage() {
             <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300"><Sparkles className="w-4 h-4" /></div>
             <div>
               <div className="text-xs font-bold">תקף לתמיד</div>
-              <div className="text-[10px] text-white/40">קרדיט לא פג</div>
+              <div className="text-[10px] text-white/40">לא פג לעולם</div>
             </div>
           </div>
         </div>

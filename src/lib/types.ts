@@ -20,14 +20,71 @@ export type VideoEffects = {
   faceCenterY?: number;
   /** Cinematic color grading (warm highlights, lift shadows, +saturation) */
   cinematicColor?: boolean;
+  /** Preset color filter applied to the whole video. CSS-only in preview;
+   *  burned with FFmpeg vf chain at export. "none" = passthrough. */
+  colorFilter?: "none" | "sunset" | "cyberpunk" | "vhs" | "y2k" | "mono" | "vivid";
+  /** Drama Mode — when the speaker says a "can't believe this" line
+   *  ("אני לא מאמין" / "זה לא קורה לי" / "אין מצב"), the video flashes
+   *  to B&W for ~1.2s and a dramatic sting plays. Israeli reels trope. */
+  dramaMode?: boolean;
+  /** Intro animation — plays once in the first ~500-900ms. See
+   *  introAnimations.ts for the curve per preset. */
+  introAnimation?:
+    | "none" | "punchZoom" | "shake" | "dropZoom" | "whipPan"
+    | "bounceIn" | "flashWhite" | "irisOpen" | "slideUp" | "fadeIn";
+  /** Sound effect to play in sync with the intro animation. "none" mutes,
+   *  undefined = no sound. Plays at t=0 alongside the visual intro. */
+  introSfxId?: string;
+  /** Background music — overlay audio mixed under the video's own audio. */
+  bgMusicUrl?: string;
+  /** Background music gain 0..1. Defaults to 0.25 (gentle bed). */
+  bgMusicVolume?: number;
+  /** Video's own-audio gain 0..1. Defaults to 1.0. */
+  videoVolume?: number;
+  /** Master gain applied to ALL sound effects (auto-elements, manual emojis,
+   *  intro SFX, logo SFX, Lottie SFX) so the user can balance speech vs SFX
+   *  with one knob. Defaults to 1.0. */
+  sfxMasterVolume?: number;
   /** Timestamps (sec) where punch zooms should fire — from analysis */
   emphasisMoments?: number[];
+  /** Beat-drop zoom — punch in ~3% on power-words ("וואו", "אש", "חייבים"...).
+   *  Detected from the speech transcript; rendered as a short scale-up
+   *  (~250ms) around the spoken word in the preview + burned in export.
+   *  Only meaningful when the mode allows zoom (caps.faceZoom). */
+  beatDropZoom?: boolean;
+  /** Particle Burst — short sparkle/confetti pulse on the same power-words.
+   *  Pure overlay (no video math), so it works in every mode. */
+  particleBurst?: boolean;
+  /** Punch-shake — micro screen shake on detected impact moments
+   *  (SFX boom / cha-ching). Subtle, ~120ms, looks cinematic. */
+  punchShake?: boolean;
   /** Subtitle entrance animation — see subtitleAnimations.ts */
   subtitleAnimation?:
     | "none" | "pop" | "bounce" | "slide-up" | "slide-left"
     | "slide-right" | "zoom-burst" | "wave" | "auto-mix";
   /** Auto-add emoji elements + matching SFX at keyword timestamps */
   contextualElements?: boolean;
+  /** Auto-overlay brand logos when speaker mentions known brands (Amazon,
+   *  AliExpress, Apple…). Default true — undefined treated as on for
+   *  back-compat. Independent of contextualElements so user can turn brand
+   *  logos off without losing emoji auto-detect. */
+  brandLogosDetect?: boolean;
+  /** Per-brand-occurrence size in px. Key = "<brandId>-<round(time*10)>" so
+   *  each appearance of the same brand can be tuned independently. */
+  brandSizePx?: Record<string, number>;
+  /** Per-brand-occurrence position override. Default position is upper-right. */
+  brandPosition?: Record<string,
+    "top-right" | "top-left" | "bottom-right" | "bottom-left"
+    | "top-center" | "bottom-center"
+  >;
+  /** Per-AI-element size in px (matches the emoji-element key from
+   *  AiDetectedPanel: "<categoryId>-<round(time*10)>"). */
+  elementSizePx?: Record<string, number>;
+  /** Per-AI-element position override. */
+  elementPosition?: Record<string,
+    "top-right" | "top-left" | "bottom-right" | "bottom-left"
+    | "top-center" | "bottom-center"
+  >;
   /**
    * User overrides for detected element emojis. Key = element key
    * ("<categoryId>-<roundedTime>"), value = custom emoji string.
@@ -85,6 +142,9 @@ export type VideoEffects = {
     transparent: boolean;
     /** Visual size on screen: S=small (~7%), M=medium (~10%), L=large (~14%) */
     size?: "S" | "M" | "L";
+    /** Exact pixel height of the logo. When set, overrides `size`. Lets the
+     *  user dial in a precise size like "24px" instead of S/M/L only. */
+    sizePx?: number;
     /** SFX asset id played at appearance time. "none" mutes. Unset = no SFX. */
     sfxId?: string;
   }>;
@@ -162,7 +222,25 @@ export const DEFAULT_EFFECTS: VideoEffects = {
 
 // Effects defaults per editing mode
 export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
-  subtitles_only: { ...DEFAULT_EFFECTS },
+  // Subtitles-only mode: ONLY transcription + subtitle styling. The mode
+  // card promises "בלי אפקטים/אמוג'ים/סאונד". Default-true contextual flags
+  // were leaking in via the spread — user saw רכב emoji + sound on a
+  // "subtitles-only" video. Explicit `false` everywhere fixes that.
+  subtitles_only: {
+    ...DEFAULT_EFFECTS,
+    contextualElements: false,
+    contextualSfx: false,
+    brandLogosDetect: false,
+    cutSilence: false,
+    zoomEffect: "none",
+    cinematicColor: false,
+    beatDropZoom: false,
+    particleBurst: false,
+    punchShake: false,
+    dramaMode: false,
+    introAnimation: "none",
+    colorFilter: "none",
+  },
   basic_effects: {
     ...DEFAULT_EFFECTS,
     cutSilence: true,
@@ -172,29 +250,54 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
     contextualElements: true,
     contextualSfx: true,
   },
+  // Podcast (20 מאסטרים — fixed): match the mode-card bullets exactly:
+  // חיתוך 9:16/1:1/16:9, תמלול+אנימציה, חיתוך אוטומטי של שתיקות, לוגו אישי,
+  // סאונד אפקט, אמוג'י/איקונים, צבע, אנימציית כניסה, מוזיקת רקע.
+  // NO face zoom, NO WOW effects — those belong to "advanced".
   podcast: {
     ...DEFAULT_EFFECTS,
-    // NO automatic crop — keep the full original frame. Cropping to 9:16 was
-    // cutting the speaker out of frame. The user's videos are already vertical,
-    // so "original" shows them in full. 9:16 stays available as a manual choice.
-    aspectRatio: "original",
+    aspectRatio: "original",       // ratio chooser exposed; default keeps full frame
     cutSilence: true,
     zoomEffect: "none",
     cinematicColor: true,
     subtitleAnimation: "pop",
-    contextualElements: true,
-    contextualSfx: true,
+    contextualElements: true,      // אמוג'י/איקונים — auto-suggest
+    contextualSfx: true,           // סאונד אפקט — auto
+    brandLogosDetect: true,
+    introAnimation: "fadeIn",      // אנימציית כניסה
+    // bgMusic — user uploads manually, no default
+    // WOW + drama OFF for podcast (advanced-only)
+    beatDropZoom: false,
+    particleBurst: false,
+    punchShake: false,
+    dramaMode: false,
+    colorFilter: "none",
   },
+  // Advanced (25–40 מאסטרים, dynamic): GIVES ACCESS to every effect, but
+  // Liat: "המקסימום זה 40 אם ישתמש ברוב האפקטים" — start with a sensible
+  // baseline (face zoom, basic auto-detect, color, intro). User opts in
+  // to the heavy WOW pack one effect at a time, each lifting cost via
+  // calcDynamicCost. Reaches the 40 cap only when most are on.
   advanced_effects: {
     ...DEFAULT_EFFECTS,
-    aspectRatio: "original", // no auto-crop — full frame
+    aspectRatio: "original",
     cutSilence: true,
-    zoomEffect: "none",
+    zoomEffect: "punch",           // זיהוי פנים + זום אוטומטי — the headline feature
     cinematicColor: true,
     subtitleAnimation: "auto-mix",
     contextualElements: true,
     contextualSfx: true,
+    brandLogosDetect: true,
+    introAnimation: "fadeIn",      // gentle default — user upgrades to punchZoom/shake
     backgroundDepth: false,
+    // WOW pack OFF by default — user opts in, each one costs +2 credits.
+    // This matches Liat's vision: starting cost low (~25-27), reaches 40
+    // only when most WOW toggles are also on.
+    beatDropZoom: false,
+    particleBurst: false,
+    punchShake: false,
+    dramaMode: false,
+    colorFilter: "none",
   },
 };
 
@@ -244,6 +347,9 @@ export type Subtitle = {
   end: number;
   text: string;
   words?: Array<{ word: string; start: number; end: number }>;
+  /** Sound effect to play at this subtitle's start — without needing an
+   *  emoji or Lottie attached. "none" mutes, undefined = no SFX. */
+  sfxId?: string;
   /** Manually-added emojis attached to this subtitle by the user */
   manualEmojis?: Array<{
     /** Emoji character (for emoji-type) OR empty for lottie-type */

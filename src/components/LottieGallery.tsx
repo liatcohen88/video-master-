@@ -6,6 +6,9 @@ import { Volume2, VolumeX, X } from "lucide-react";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
+import { useEffectiveLotties } from "@/lib/useEffectiveLotties";
+import { stripLottieBg } from "@/lib/lottieBgStrip";
+import { useContent } from "@/lib/useContent";
 import { getSfxAsset } from "@/lib/sfxLibrary";
 import SfxPicker from "./SfxPicker";
 import type { VideoEffects } from "@/lib/types";
@@ -34,17 +37,37 @@ export default function LottieGallery({
   const [sfxPickerIdx, setSfxPickerIdx] = useState<number | null>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const sfxBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const bgRemoved = useContent("lottie.bgRemoved") as Record<string, true>;
 
+  function jsonFor(id: string): unknown {
+    const raw = jsons[id];
+    if (!raw) return null;
+    return bgRemoved?.[id] ? stripLottieBg(raw) : raw;
+  }
+
+  // Visible-in-picker list (admin can hide / rename / recolor / upload from
+  // /admin → Lottie). Already-added elements that reference a now-hidden icon
+  // still look up via the full LOTTIE_ICONS list below so old videos aren't
+  // broken.
+  const visible = useEffectiveLotties();
+
+  // Stable dep — visible is a fresh array every render (useEffectiveLotties
+  // merges CMS), so depending on it directly caused a fetch loop. We track
+  // only the IDs we already requested.
+  const requested = useRef(new Set<string>());
   useEffect(() => {
-    LOTTIE_ICONS.forEach((icon) => {
-      if (jsons[icon.id]) return;
+    for (const icon of visible) {
+      if (requested.current.has(icon.id)) continue;
+      requested.current.add(icon.id);
       fetch(icon.jsonPath).then((r) => r.json())
-        .then((j) => setJsons((p) => ({ ...p, [icon.id]: j }))).catch(() => {});
-    });
-  }, [jsons]);
+        .then((j) => setJsons((p) => ({ ...p, [icon.id]: j })))
+        .catch(() => requested.current.delete(icon.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible.map((v) => v.id).join("|")]);
 
   function add(iconId: string) {
-    const icon = LOTTIE_ICONS.find((i) => i.id === iconId);
+    const icon = visible.find((i) => i.id === iconId);
     onChange([
       ...elements,
       {
@@ -70,24 +93,18 @@ export default function LottieGallery({
         אלמנטים מונפשים — נראים גם בתצוגה וגם בייצוא. מחר נוסיף עוד ~30 שמתאימים.
       </p>
 
-      {/* Gallery */}
+      {/* Gallery — Lottie animations play on HOVER only. Looping all 25+
+          icons simultaneously was freezing low-RAM machines (each Lottie
+          runs its own rAF + canvas paint). Static frame on idle, animate
+          on hover when the user is actually deciding which one to pick. */}
       <div className="grid grid-cols-4 gap-2">
-        {LOTTIE_ICONS.map((icon) => (
-          <button
-            key={icon.id}
+        {visible.map((icon) => (
+          <LottieGalleryItem
+            key={`${icon.id}-${bgRemoved?.[icon.id] ? "nb" : "b"}`}
+            icon={icon}
+            json={jsonFor(icon.id)}
             onClick={() => add(icon.id)}
-            className="bg-bg-input border border-white/10 rounded-lg p-1.5 hover:border-brand/50 hover:scale-105 transition-all"
-            title={`הוסף ${icon.name}`}
-          >
-            <div className="w-full aspect-square">
-              {jsons[icon.id] ? (
-                <Lottie animationData={jsons[icon.id] as object} loop style={{ width: "100%", height: "100%" }} />
-              ) : (
-                <div className="w-full h-full bg-bg-card rounded animate-pulse" />
-              )}
-            </div>
-            <div className="text-[10px] text-white/50 mt-0.5 truncate">{icon.name}</div>
-          </button>
+          />
         ))}
       </div>
 
@@ -95,13 +112,14 @@ export default function LottieGallery({
       {elements.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-white/5">
           {elements.map((el, i) => {
-            const icon = LOTTIE_ICONS.find((c) => c.id === el.iconId);
+            const icon = visible.find((c) => c.id === el.iconId)
+              ?? LOTTIE_ICONS.find((c) => c.id === el.iconId);
             return (
               <div key={i} className="bg-bg-input border border-white/10 rounded-lg p-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 flex-shrink-0">
-                    {jsons[el.iconId] && (
-                      <Lottie animationData={jsons[el.iconId] as object} loop style={{ width: "100%", height: "100%" }} />
+                    {jsonFor(el.iconId) && (
+                      <Lottie animationData={jsonFor(el.iconId) as object} loop style={{ width: "100%", height: "100%" }} />
                     )}
                   </div>
                   <span className="text-xs font-medium flex-1">{icon?.name ?? el.iconId}</span>
@@ -163,5 +181,42 @@ export default function LottieGallery({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * One gallery cell — Lottie animation paused on idle, plays on hover.
+ * Keeps the gallery scrollable at 60fps even with 25+ icons.
+ */
+function LottieGalleryItem({
+  icon, json, onClick,
+}: {
+  icon: { id: string; name: string };
+  json: unknown;
+  onClick: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="bg-bg-input border border-white/10 rounded-lg p-1.5 hover:border-brand/50 hover:scale-105 transition-all"
+      title={`הוסף ${icon.name}`}
+    >
+      <div className="w-full aspect-square">
+        {json ? (
+          <Lottie
+            animationData={json as object}
+            loop={hover}
+            autoplay={hover}
+            style={{ width: "100%", height: "100%" }}
+          />
+        ) : (
+          <div className="w-full h-full bg-bg-card rounded animate-pulse" />
+        )}
+      </div>
+      <div className="text-[10px] text-white/50 mt-0.5 truncate">{icon.name}</div>
+    </button>
   );
 }

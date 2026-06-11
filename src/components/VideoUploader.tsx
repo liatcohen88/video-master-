@@ -1,28 +1,60 @@
 "use client";
 
-import { Upload, Film } from "lucide-react";
+import { Upload, Film, Clock } from "lucide-react";
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
+import { toast } from "@/components/Toaster";
 
 type Props = {
   onVideoSelected: (file: File) => void;
 };
 
+// Launch-window cap: keeps each export under the Vercel Pro 60s function
+// timeout. Bump (or remove the check entirely) once render moves to a
+// dedicated queue post-launch — see task #135 / #136.
+const MAX_VIDEO_SECONDS = 60;
+
+function probeDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.src = url;
+    const cleanup = () => URL.revokeObjectURL(url);
+    v.onloadedmetadata = () => { const d = v.duration; cleanup(); resolve(d); };
+    v.onerror = () => { cleanup(); resolve(0); };
+  });
+}
+
 export default function VideoUploader({ onVideoSelected }: Props) {
   const [isDragging, setIsDragging] = useState(false);
+  const [checking, setChecking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  async function accept(file: File) {
+    if (!file.type.startsWith("video/")) return;
+    setChecking(true);
+    const dur = await probeDuration(file);
+    setChecking(false);
+    if (dur > MAX_VIDEO_SECONDS + 0.5) {
+      toast.error(
+        `הסרטון ארוך מ-${MAX_VIDEO_SECONDS} שניות (${Math.round(dur)} שנ׳). ` +
+          `כרגע מעלים סרטונים עד דקה — חתכי או קצרי ונסי שוב.`,
+      );
+      return;
+    }
+    onVideoSelected(file);
+  }
 
   function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("video/")) {
-      onVideoSelected(file);
-    }
+    if (file) void accept(file);
   }
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) onVideoSelected(file);
+    if (file) void accept(file);
   }
 
   return (
@@ -62,11 +94,18 @@ export default function VideoUploader({ onVideoSelected }: Props) {
         </div>
         <div>
           <h3 className="text-2xl font-bold mb-2">
-            {isDragging ? "שחררי כאן" : "גררי את הסרטון לכאן"}
+            {checking ? "בודק..." : isDragging ? "שחרר כאן" : "גרור את הסרטון לכאן"}
           </h3>
           <p className="text-white/60 text-sm">
-            או לחצי לבחירת קובץ • MP4, MOV, AVI, MKV
+            או לחץ לבחירת קובץ • MP4, MOV, AVI, MKV
           </p>
+        </div>
+
+        {/* Launch-window notice. Remove the entire pill once we lift the
+            duration cap (post-launch render queue). */}
+        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs">
+          <Clock className="w-3.5 h-3.5" />
+          <span>כרגע ניתן לעלות סרטונים עד דקה — בקרוב יוכלו יותר</span>
         </div>
       </div>
     </div>

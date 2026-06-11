@@ -4,6 +4,7 @@ import { writeFile, mkdir, rm, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildFilterChain, cinematicColorFilter } from "@/lib/ffmpegFilter";
+import { buildColorFilterFfmpeg } from "@/lib/colorFilterFfmpeg";
 import {
   detectSilences,
   buildKeepIntervals,
@@ -27,16 +28,14 @@ import { DEFAULT_EFFECTS } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 1800;
 
-function ffmpegPath(): string {
-  return process.env.FFMPEG_PATH || "ffmpeg";
-}
-function ffprobePath(): string {
-  return ffmpegPath().replace(/ffmpeg(\.exe)?$/i, (m) => m.replace("ffmpeg", "ffprobe"));
-}
+import { getFfmpegPath, getFfprobePath } from "@/lib/ffmpegBinaries";
+const ffmpegPath = getFfmpegPath;
+const ffprobePath = getFfprobePath;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
+  const bgMusicFile = formData.get("bgMusic") as File | null;
   const subtitlesJson = formData.get("subtitles") as string | null;
   const styleJson = formData.get("style") as string | null;
   const effectsJson = formData.get("effects") as string | null;
@@ -67,6 +66,15 @@ export async function POST(req: NextRequest) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(inputPath, buffer);
+
+    // Background music: client uploads it as a separate field because the
+    // editor stores it as a blob: URL the server can't fetch. Optional.
+    let bgMusicPath: string | null = null;
+    if (bgMusicFile && bgMusicFile.size > 0) {
+      const bgExt = (bgMusicFile.name.match(/\.[a-zA-Z0-9]+$/)?.[0] || ".mp3").toLowerCase();
+      bgMusicPath = join(workDir, `bgmusic${bgExt}`);
+      await writeFile(bgMusicPath, Buffer.from(await bgMusicFile.arrayBuffer()));
+    }
 
     const { width, height, duration } = await probeVideo(inputPath);
 
@@ -104,6 +112,7 @@ export async function POST(req: NextRequest) {
     if (effects.cinematicColor) {
       baseVideoFilters.push(...cinematicColorFilter(emphasisRetimed));
     }
+    baseVideoFilters.push(...buildColorFilterFfmpeg(effects));
 
     // ── Build overlays: ONE baked track MOV (subs+emoji+brand) + logos + Lottie
     const overlaysEffects: VideoEffects = { ...effects, emphasisMoments: emphasisRetimed };
@@ -140,6 +149,11 @@ export async function POST(req: NextRequest) {
     if (trackMov) args.push("-i", trackMov);
     for (const ov of overlays) args.push("-i", ov.pngPath);
     for (const lot of lottieOverlays) args.push("-i", lot.movPath);
+    // Background music — `-stream_loop -1` makes ffmpeg loop the file if it's
+    // shorter than the video; we trim back to duration in the audio graph.
+    if (bgMusicPath) {
+      args.push("-stream_loop", "-1", "-i", bgMusicPath);
+    }
 
     const parts: string[] = [];
     // Base video chain (silence cut → crop/scale/zoom/color)
@@ -180,18 +194,51 @@ export async function POST(req: NextRequest) {
       );
       finalLabel = next;
     });
+    // Advance the cursor past the Lottie inputs — required so the bgMusic
+    // input index below points to the right ffmpeg input. Was latent before
+    // bgMusic existed because nothing read inputCursor after this loop.
+    inputCursor += lottieOverlays.length;
+
+    // bgMusic input index — it's the LAST input we appended.
+    const bgMusicIdx = bgMusicPath ? inputCursor : -1;
+    if (bgMusicPath) inputCursor++;
 
     // Audio chain
-    const hasAudioGraph = silenceCut || sfxTriggers.length > 0;
+    const videoVol = Math.max(0, Math.min(1, effects.videoVolume ?? 1));
+    const bgVol = Math.max(0, Math.min(1, effects.bgMusicVolume ?? 0.25));
+    const hasAudioGraph = silenceCut || sfxTriggers.length > 0 || bgMusicPath || videoVol !== 1;
     let aoutLabel = "aout";
     if (hasAudioGraph) {
-      parts.push(`[0:a]${silenceCut ? silenceCut.audio : "anull"}[abase]`);
+      // Apply video-track volume FIRST so subsequent silence-cut keeps it scaled.
+      // When videoVol === 1, skip the explicit volume filter to keep the graph
+      // clean and avoid losing the silence-cut benefit.
+      const v0Filter = silenceCut
+        ? silenceCut.audio
+        : (videoVol !== 1 ? `volume=${videoVol.toFixed(3)}` : "anull");
+      parts.push(`[0:a]${v0Filter}[abase]`);
+
+      // Background music: trim to video duration so the looped track doesn't
+      // bleed past the end, then scale to user's volume.
+      let bgLabel: string | null = null;
+      if (bgMusicPath) {
+        bgLabel = "abg";
+        parts.push(
+          `[${bgMusicIdx}:a]atrim=0:${duration.toFixed(3)},asetpts=N/SR/TB,` +
+            `volume=${bgVol.toFixed(3)}[${bgLabel}]`,
+        );
+      }
+
       if (sfxTriggers.length > 0) {
         const { parts: sfxParts, outLabel } = buildSfxAudioGraph(
-          sfxTriggers, "abase", /* sfxInputStartIdx */ 1,
+          sfxTriggers, "abase", /* sfxInputStartIdx */ 1, bgLabel,
+          effects.sfxMasterVolume ?? 1,
         );
         parts.push(...sfxParts);
         aoutLabel = outLabel;
+      } else if (bgLabel) {
+        // Just bg music + video — no SFX. Mix the two directly.
+        // Weights keep speech (3) clearly above music (1).
+        parts.push(`[abase][${bgLabel}]amix=inputs=2:duration=first:dropout_transition=0:weights='3 1':normalize=1[aout]`);
       } else {
         parts.push(`[abase]acopy[aout]`);
       }

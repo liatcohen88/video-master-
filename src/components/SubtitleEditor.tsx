@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Plus, Sparkles, X, Volume2, VolumeX, Clock } from "lucide-react";
+import { Pencil, Trash2, Plus, Sparkles, X, Volume2, VolumeX, Clock, Smile } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { Subtitle } from "@/lib/types";
@@ -41,6 +41,8 @@ type Props = {
   disabledElements?: string[];
   elementSfxOverrides?: Record<string, string>;
   onAutoElementChange?: (key: string, override: AutoElementOverride) => void;
+  /** When false (e.g. "כתוביות בלבד" mode) emojis/icons are disabled entirely. */
+  allowElements?: boolean;
 };
 
 function fmt(t: number) {
@@ -63,12 +65,17 @@ export default function SubtitleEditor({
   elementOverrides = {}, positionOverrides = {}, disabledElements = [],
   elementSfxOverrides = {},
   onAutoElementChange,
+  allowElements = true,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickerForSub, setPickerForSub] = useState<string | null>(null);
   const [pickerForAuto, setPickerForAuto] = useState<string | null>(null);
   const [sfxPickerFor, setSfxPickerFor] = useState<{ subId: string; idx: number } | null>(null);
   const [sfxPickerForAuto, setSfxPickerForAuto] = useState<string | null>(null);
+  // SFX picker for a WHOLE subtitle (no emoji/Lottie required) — Liat
+  // specifically asked for sound-only attachments via the subtitle row.
+  const [sfxPickerForSub, setSfxPickerForSub] = useState<string | null>(null);
+  const [sfxPickerAnchor, setSfxPickerAnchor] = useState<DOMRect | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const addBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -85,7 +92,9 @@ export default function SubtitleEditor({
   // Auto-detected elements globally (so dedup logic stays correct),
   // then grouped by subtitle for inline display.
   const elementsBySub = useMemo(() => {
-    const all = detectElements(subtitles);
+    // In modes without elements (e.g. subtitles-only) skip auto-detection
+    // entirely so no emojis/icons appear or get suggested.
+    const all = allowElements ? detectElements(subtitles) : [];
     const map = new Map<string, { categoryId: string; emoji: string; defaultPos: ManualEmojiPos; matched: string; time: number; }[]>();
     for (const el of all) {
       const sub = subtitles.find(
@@ -180,11 +189,21 @@ export default function SubtitleEditor({
   };
 
   return (
-    <div className="bg-bg-panel border border-white/10 rounded-2xl overflow-hidden">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <h3 className="text-lg font-bold">עריכת כתוביות</h3>
-        <span className="text-xs text-white/40">{subtitles.length} כתוביות</span>
-      </div>
+    <details className="bg-bg-panel border border-white/10 rounded-2xl overflow-hidden group">
+      <summary className="p-4 border-b border-white/10 flex items-center justify-between cursor-pointer select-none list-none hover:bg-white/[0.02]">
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <span className="text-white/40 group-open:rotate-90 transition-transform inline-block">›</span>
+            עריכת כתוביות
+          </h3>
+          <p className="text-[11px] text-white/40 mt-0.5 mr-6">
+            {allowElements
+              ? "פותחים כדי לערוך טקסט, ולהוסיף אמוג'ים, אלמנטים, סאונדים ומיקום צדדים לכל שורה"
+              : "פותחים כדי לערוך את הטקסט והתזמון של כל שורה"}
+          </p>
+        </div>
+        <span className="text-xs text-white/40 shrink-0">{subtitles.length} כתוביות</span>
+      </summary>
 
       <div className="max-h-[500px] overflow-y-auto divide-y divide-white/5">
         {subtitles.length === 0 && (
@@ -210,17 +229,39 @@ export default function SubtitleEditor({
                   <span>{fmt(sub.end)}</span>
                 </div>
                 <div className="flex-1" />
+                {/* SFX-only button (no Lottie needed) — Liat liked the original
+                    icon-only design. Don't change. */}
                 <button
-                  ref={(el) => { if (el) addBtnRefs.current.set(sub.id, el); }}
                   onClick={(e) => {
-                    setPickerForSub(sub.id);
-                    setPickerAnchor(e.currentTarget.getBoundingClientRect());
+                    setSfxPickerForSub(sub.id);
+                    setSfxPickerAnchor(e.currentTarget.getBoundingClientRect());
                   }}
-                  className="p-1.5 hover:bg-fuchsia-500/20 rounded-md text-white/60 hover:text-fuchsia-300"
-                  title="הוסף אמוג'י או אנימציה"
+                  className={`p-1.5 rounded-md ${
+                    sub.sfxId && sub.sfxId !== "none"
+                      ? "bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25"
+                      : "hover:bg-white/10 text-white/60 hover:text-white"
+                  }`}
+                  title={sub.sfxId === "none" ? "צליל מבוטל"
+                    : sub.sfxId ? `צליל: ${getSfxAsset(sub.sfxId)?.label ?? sub.sfxId}`
+                    : "הוסף סאונד אפקט"}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  {sub.sfxId && sub.sfxId !== "none"
+                    ? <Volume2 className="w-3.5 h-3.5" />
+                    : <VolumeX className="w-3.5 h-3.5" />}
                 </button>
+                {allowElements && (
+                  <button
+                    ref={(el) => { if (el) addBtnRefs.current.set(sub.id, el); }}
+                    onClick={(e) => {
+                      setPickerForSub(sub.id);
+                      setPickerAnchor(e.currentTarget.getBoundingClientRect());
+                    }}
+                    className="p-1.5 hover:bg-fuchsia-500/20 rounded-md text-white/60 hover:text-fuchsia-300"
+                    title="הוסף אמוג'י לכתובית"
+                  >
+                    <Smile className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => setEditingId(isEditing ? null : sub.id)}
                   className="p-1.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white"
@@ -456,6 +497,20 @@ export default function SubtitleEditor({
           anchorRect={pickerAnchor}
         />
       )}
-    </div>
+
+      {sfxPickerForSub && (() => {
+        const sub = subtitles.find((s) => s.id === sfxPickerForSub);
+        return (
+          <SfxPicker
+            open={true}
+            currentSfxId={sub?.sfxId}
+            defaultLabel="ללא צליל"
+            onSelect={(id) => update(sfxPickerForSub, { sfxId: id })}
+            onClose={() => setSfxPickerForSub(null)}
+            anchorRect={sfxPickerAnchor}
+          />
+        );
+      })()}
+    </details>
   );
 }

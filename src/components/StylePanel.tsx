@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Palette, Type, MoveVertical, ChevronDown, Layout, Sparkles, Wand2 } from "lucide-react";
-import type { SubtitleStyle, SubtitlePosition, VideoEffects } from "@/lib/types";
+import type { SubtitleStyle, SubtitlePosition, VideoEffects, Subtitle } from "@/lib/types";
 import { HEBREW_FONTS } from "@/lib/types";
 import { TEMPLATES, type SubtitleTemplate } from "@/lib/templates";
 import { fontClassFor } from "@/lib/fonts";
 import EffectsPanel from "./EffectsPanel";
+import type { EditMode } from "@/lib/types";
 
 type Props = {
   style: SubtitleStyle;
@@ -19,12 +20,17 @@ type Props = {
   topSlot?: React.ReactNode;
   /** Hide the AI-effects accordion entirely (used for "subtitles only" mode) */
   hideEffects?: boolean;
+  /** Edit mode → which effect sections are exposed (advanced vs podcast). */
+  mode?: EditMode;
+  /** Subtitles — forwarded to EffectsPanel so the "לוגואים" tab can list
+   *  detected brand mentions with PX + position controls per occurrence. */
+  subtitles?: Subtitle[];
 };
 
 type SectionId = "templates" | "effects" | "typography" | "colors" | "background" | "position";
 
 export default function StylePanel({
-  style, onChange, templateId, onTemplateChange, effects, onEffectsChange, topSlot, hideEffects,
+  style, onChange, templateId, onTemplateChange, effects, onEffectsChange, topSlot, hideEffects, mode, subtitles,
 }: Props) {
   const [openSection, setOpenSection] = useState<SectionId | null>("templates");
 
@@ -40,7 +46,7 @@ export default function StylePanel({
     <div className="bg-bg-panel border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
       <div className="flex items-center gap-2 p-4">
         <Palette className="w-5 h-5 text-accent-pink" />
-        <h3 className="text-lg font-bold flex-1">עיצוב הכתוביות</h3>
+        <h3 className="text-lg font-bold flex-1">עריכת הסרטון</h3>
       </div>
 
       {topSlot && <div className="p-4 border-t border-white/5">{topSlot}</div>}
@@ -102,12 +108,21 @@ export default function StylePanel({
       {effects && onEffectsChange && !hideEffects && (
         <Accordion
           icon={<Wand2 className="w-4 h-4" />}
-          title="אפקטי AI"
-          subtitle={effectsSubtitle(effects)}
+          // Renamed from "אפקטי AI" — Liat: users thought the AI was applying
+          // these automatically. They're MANUAL toggles you opt into and
+          // each one adds to the master count. Title now signals that
+          // explicitly: "אפקטים נוספים (כל אפקט = +2 מאסטרים)".
+          title="אפקטים נוספים"
+          subtitle={`${effectsSubtitle(effects)} · כל אפקט מוסיף 2-3 מאסטרים`}
           open={openSection === "effects"}
           onToggle={() => toggle("effects")}
         >
-          <EffectsPanel effects={effects} onChange={onEffectsChange} />
+          <div className="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11px] text-amber-200/90 leading-relaxed">
+            💡 <strong>תוספת אופציונלית</strong> — ה-AI לא מפעיל אותם אוטומטית.
+            תוכלי לבחור בכל אחד מהם, ולשלם רק עבור מה שבחרת.
+            המחיר מתעדכן בזמן אמת על כפתור הייצוא.
+          </div>
+          <EffectsPanel effects={effects} onChange={onEffectsChange} mode={mode} subtitles={subtitles} />
         </Accordion>
       )}
 

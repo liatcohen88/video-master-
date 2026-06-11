@@ -6,10 +6,16 @@ import { ASPECT_RATIO_INFO } from "@/lib/types";
 import { fontClassFor } from "@/lib/fonts";
 import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
+import { detectBeatDrops, beatDropZoomAt } from "@/lib/wowEffects";
+import { colorFilterCss } from "@/lib/colorFilters";
+import { detectDramaMoments, dramaActiveAt, pickDramaSting } from "@/lib/dramaEffects";
+import { introFrameAt } from "@/lib/introAnimations";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "@/lib/sfxLibrary";
+import { playSfxCapped } from "@/lib/playSfxCapped";
 import { detectBrands, brandLogoCdnUrl, type BrandEvent } from "@/lib/brandLogos";
 import { DYNAMIC_BG_MAP } from "@/lib/dynamicBackgrounds";
 import LottiePreviewOverlay from "./LottiePreviewOverlay";
+import WowOverlay from "./WowOverlay";
 
 type Props = {
   videoUrl: string;
@@ -56,6 +62,11 @@ export default function VideoPreview({
       }
     }
     for (const sub of subtitles) {
+      // Subtitle-level SFX (no emoji/Lottie needed) — fires once at start
+      if (sub.sfxId && sub.sfxId !== "none") {
+        const url = getSfxAsset(sub.sfxId)?.url;
+        if (url) triggers.push({ time: sub.start, url });
+      }
       for (const em of sub.manualEmojis ?? []) {
         if (!em.sfxId || em.sfxId === "none") continue;
         const url = getSfxAsset(em.sfxId)?.url;
@@ -76,24 +87,30 @@ export default function VideoPreview({
     if (triggers.length === 0) return;
     triggers.sort((a, b) => a.time - b.time);
 
-    const audios = triggers.map((t) => {
-      const a = new Audio(t.url);
-      a.preload = "auto";
-      a.volume = 0.6;
-      return a;
-    });
+    // Per-trigger live handle from playSfxCapped — lets us stop a still-
+    // playing instance before re-firing on a seek-back, and guarantees the
+    // 3.5s cap + fade-out (no more 10-second loops drowning out the video).
+    const handles = new Map<number, { stop: () => void }>();
     const played = new Set<number>();
     let lastTime = v.currentTime;
 
     const onTime = () => {
       const t = v.currentTime;
-      if (t < lastTime - 0.4) played.clear(); // backward scrub → re-arm
+      if (t < lastTime - 0.4) {
+        // Backward scrub → re-arm everything and stop anything mid-play.
+        played.clear();
+        handles.forEach((h) => h.stop());
+        handles.clear();
+      }
       lastTime = t;
-      if (v.paused) return; // never blast SFX while scrubbing paused
+      if (v.paused) return;
       triggers.forEach((trig, i) => {
         if (played.has(i)) return;
         if (t >= trig.time && t < trig.time + 0.3) {
-          try { audios[i].currentTime = 0; audios[i].play().catch(() => {}); } catch {}
+          // Stop any prior handle for this index (re-arm path) and start
+          // a fresh capped play.
+          handles.get(i)?.stop();
+          handles.set(i, playSfxCapped(trig.url, 0.6 * (effects?.sfxMasterVolume ?? 1)));
           played.add(i);
         }
       });
@@ -101,7 +118,8 @@ export default function VideoPreview({
     v.addEventListener("timeupdate", onTime);
     return () => {
       v.removeEventListener("timeupdate", onTime);
-      audios.forEach((a) => { try { a.pause(); } catch {} });
+      handles.forEach((h) => h.stop());
+      handles.clear();
     };
   }, [
     subtitles,
@@ -141,6 +159,52 @@ export default function VideoPreview({
       ro.disconnect();
     };
   }, [onTimeUpdate]);
+
+  // --- Background music — mirrors video play/pause/seek/volume ----------
+  // The user uploads a track (URL stored as object-URL in effects.bgMusicUrl).
+  // We mount a hidden <audio> and shadow the video's transport so the BG
+  // music stays in lockstep with playback. Two independent volume sliders:
+  // videoVolume for the video's own audio, bgMusicVolume for the bed.
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    // Always apply the video's own-audio volume
+    v.volume = Math.max(0, Math.min(1, effects?.videoVolume ?? 1));
+    const a = bgAudioRef.current;
+    if (!a) return;
+    a.volume = Math.max(0, Math.min(1, effects?.bgMusicVolume ?? 0.25));
+  }, [effects?.videoVolume, effects?.bgMusicVolume, effects?.bgMusicUrl]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    const a = bgAudioRef.current;
+    if (!v || !a || !effects?.bgMusicUrl) return;
+    const sync = () => {
+      // Keep BG music in time with the video. Allow ~0.15s drift before a
+      // hard seek (browsers stutter if we re-seek every frame).
+      if (Math.abs(a.currentTime - v.currentTime) > 0.15) {
+        try { a.currentTime = v.currentTime; } catch {/* noop */}
+      }
+    };
+    const onPlay  = () => { sync(); a.play().catch(() => {}); };
+    const onPause = () => { a.pause(); };
+    const onSeek  = () => { sync(); };
+    const onEnded = () => { a.pause(); a.currentTime = 0; };
+    v.addEventListener("play",  onPlay);
+    v.addEventListener("pause", onPause);
+    v.addEventListener("seeked", onSeek);
+    v.addEventListener("ended", onEnded);
+    // If the video is already playing when this mounts, kick BG.
+    if (!v.paused) onPlay();
+    return () => {
+      v.removeEventListener("play",  onPlay);
+      v.removeEventListener("pause", onPause);
+      v.removeEventListener("seeked", onSeek);
+      v.removeEventListener("ended", onEnded);
+      a.pause();
+    };
+  }, [effects?.bgMusicUrl]);
 
   // --- Silence skip during playback --------------------------------------
   // Compute "silent gaps" = stretches with no subtitle that exceed the
@@ -205,16 +269,127 @@ export default function VideoPreview({
   const smartFramingScale = 1;
   const smartFramingOrigin = "center center";
 
+  // --- Beat-Drop Zoom (wow) — detected once per subtitle change ---------
+  const beatDrops = useMemo(
+    () => effects?.beatDropZoom ? detectBeatDrops(subtitles) : [],
+    [effects?.beatDropZoom, subtitles],
+  );
+
+  // --- Drama Mode — B&W flash + sting on "אני לא מאמין" lines ----------
+  const dramaMoments = useMemo(
+    () => effects?.dramaMode ? detectDramaMoments(subtitles) : [],
+    [effects?.dramaMode, subtitles],
+  );
+  const activeDrama = effects?.dramaMode ? dramaActiveAt(currentTime, dramaMoments) : null;
+
+  // --- Intro animation — first ~0.5-0.9s of the video ------------------
+  // Architecture decision: the intro animation lives on a SEPARATE wrapper
+  // div around the video. React keeps writing zoom/pan transform on the
+  // video element. The wrapper handles intro scale/translate/rotate via
+  // direct DOM (rAF loop) — no React re-render, no fighting transforms.
+  // GPU composes them naturally (parent scale × child scale).
+  //
+  // Why this design:
+  //  - timeupdate is 4-66Hz (choppy). rAF is 60Hz (smooth).
+  //  - React state inside rAF would re-render this entire heavy component
+  //    every frame → stutter from JS work, not from the animation itself.
+  //  - Direct DOM writes on a dedicated wrapper cost ~0ms and isolate the
+  //    animation from React's render cycle.
+  //  - On animation pick: rewind to 0 + play so the user actually sees
+  //    what they chose ("שיתחיל את הסרטון מהתחלה").
+  const introWrapperRef = useRef<HTMLDivElement>(null);
+  const introOverlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const v = videoRef.current;
+    const wrapper = introWrapperRef.current;
+    const overlay = introOverlayRef.current;
+    const id = effects?.introAnimation;
+    if (!v || !wrapper) return;
+
+    // Wipe any stale intro state from a previous selection.
+    wrapper.style.transform = "";
+    wrapper.style.transformOrigin = "center center";
+    v.style.removeProperty("clip-path");
+    if (overlay) {
+      overlay.style.opacity = "0";
+      overlay.style.background = "transparent";
+    }
+
+    if (!id || id === "none") return;
+
+    // Rewind + play so the user sees the intro from frame 0.
+    try {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    } catch { /* ignore */ }
+
+    // Intro SFX — fire ONCE at the start, alongside the visual animation.
+    // Capped at 3.5s like all other SFX in the editor for consistency.
+    if (effects?.introSfxId && effects.introSfxId !== "none") {
+      const url = getSfxAsset(effects.introSfxId)?.url;
+      if (url) {
+        playSfxCapped(url, 0.85 * (effects?.sfxMasterVolume ?? 1));
+      }
+    }
+
+    let raf = 0;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      const t = v.currentTime;
+      const f = introFrameAt(t, id);
+
+      // Apply transform to the wrapper (NOT the video). Composes via GPU
+      // with the React-written transform on the video element.
+      wrapper.style.transform = `scale(${f.scaleMul}) translate(${f.translateX}%, ${f.translateY}%) rotate(${f.rotate}deg)`;
+      wrapper.style.opacity = String(f.opacity);
+      if (f.clipPath) v.style.clipPath = f.clipPath;
+      else v.style.removeProperty("clip-path");
+
+      if (overlay) {
+        if (f.overlayBg && (f.overlayOpacity ?? 0) > 0) {
+          overlay.style.background = f.overlayBg;
+          overlay.style.opacity = String(f.overlayOpacity);
+        } else {
+          overlay.style.opacity = "0";
+        }
+      }
+
+      const stillRunning = t < 1.2;
+      if (stillRunning) raf = requestAnimationFrame(tick);
+      else {
+        // Reset to passthrough after intro ends.
+        wrapper.style.transform = "";
+        wrapper.style.opacity = "1";
+        v.style.removeProperty("clip-path");
+        if (overlay) overlay.style.opacity = "0";
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { stopped = true; cancelAnimationFrame(raf); };
+  }, [effects?.introAnimation, effects?.introSfxId, videoUrl]);
+
+  // Drama Mode is now VISUAL ONLY (B&W flash). The auto-sting was removed
+  // 2026-06-11 — every sting we tried was either too long ("אותו סאונד 5
+  // שניות") or repeated unpredictably. Better UX: let the user attach their
+  // own SFX per subtitle via the 🔊 button on each subtitle row. That gives
+  // creative control, no surprises.
+  //
+  // The visual side (grayscale filter via dramaActiveAt) stays — that's the
+  // good part of the trope and it costs zero CPU.
+
   // --- Zoom / Ken Burns / Punch -----------------------------------------
   const progress = duration > 0 ? currentTime / duration : 0;
   const zoomScale = useMemo(() => {
-    if (!effects || effects.zoomEffect === "none") return 1;
+    // Always add beat-drop pulses on top, even when zoomEffect is "none" —
+    // the wow feature stands on its own.
+    const beat = beatDropZoomAt(currentTime, beatDrops);
+    if (!effects || effects.zoomEffect === "none") return 1 + beat;
 
     if (effects.zoomEffect === "punch") {
       // Match the FFmpeg punch zoom curve: ramp-in (150ms) → hold (400ms)
       // → ramp-out (300ms) around each emphasis moment.
       const moments = effects.emphasisMoments ?? [];
-      if (moments.length === 0) return 1;
       const rampIn = 0.15, hold = 0.4, rampOut = 0.3;
       const t = currentTime;
       const peak = effects.zoomIntensity;
@@ -224,11 +399,11 @@ export default function VideoPreview({
         else if (t >= m && t < m + hold) add += peak;
         else if (t >= m + hold && t < m + hold + rampOut) add += peak * ((m + hold + rampOut) - t) / rampOut;
       }
-      return 1 + add;
+      return 1 + add + beat;
     }
 
-    return 1 + effects.zoomIntensity * progress;
-  }, [effects, progress, currentTime]);
+    return 1 + effects.zoomIntensity * progress + beat;
+  }, [effects, progress, currentTime, beatDrops]);
 
   const panX = useMemo(() => {
     if (effects?.zoomEffect !== "kenburns") return 0;
@@ -331,11 +506,16 @@ export default function VideoPreview({
     [elements, currentTime],
   );
 
-  // Brand logos — detected from subtitles, always on if contextualElements enabled
+  // Brand logos — detected from subtitles. Requires BOTH contextualElements
+  // (the global auto-add toggle) AND the explicit brand-logo flag. The flag
+  // defaults to ON (undefined treated as true for back-compat with old
+  // projects), but Liat can flip it off independently if she only wants
+  // emoji elements without brand badges.
   const brands = useMemo<BrandEvent[]>(() => {
     if (!effects?.contextualElements) return [];
+    if (effects.brandLogosDetect === false) return [];
     return detectBrands(subtitles);
-  }, [subtitles, effects?.contextualElements]);
+  }, [subtitles, effects?.contextualElements, effects?.brandLogosDetect]);
 
   const visibleBrands = useMemo(
     () => brands.filter(
@@ -360,10 +540,8 @@ export default function VideoPreview({
   return (
     <div className="space-y-3">
       {(effects && (effects.aspectRatio !== "original" || effects.zoomEffect !== "none" || effects.cutSilence)) && (
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 bg-brand/20 text-brand-light rounded-full font-medium">
-            📺 תצוגה מקדימה חיה עם אפקטים
-          </span>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-white/40 font-medium">חל על הסרטון:</span>
           {effects.aspectRatio !== "original" && (
             <span className="px-2 py-1 bg-white/10 text-white/70 rounded-full">
               חיתוך {effects.aspectRatio}
@@ -406,6 +584,14 @@ export default function VideoPreview({
               }}
             />
           )}
+        {/* Intro wrapper — receives scale/translate/rotate/opacity from the
+            rAF loop (direct DOM, no React re-render). The video inside keeps
+            its own zoom/pan from React render. GPU composes them. */}
+        <div
+          ref={introWrapperRef}
+          className="w-full h-full"
+          style={{ transformOrigin: "center center", willChange: "transform, opacity" }}
+        >
         <video
           ref={videoRef}
           src={videoUrl}
@@ -420,9 +606,16 @@ export default function VideoPreview({
             // FFmpeg eq=contrast=1.06:saturation=1.12:gamma=0.96 +
             // increase_contrast + warm-highlights grade so the user SEES the
             // effect change immediately (before it only showed in export).
-            filter: effects?.cinematicColor
-              ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)"
-              : undefined,
+            // Stack: drama flash (highest priority — when active, overrides
+            // the preset to mono) + color-filter preset + cinematic toggle.
+            // All pure CSS, GPU-accelerated. The drama flash takes over
+            // because B&W is the whole point of the moment.
+            filter: activeDrama
+              ? "grayscale(1) contrast(1.25) brightness(0.96)"
+              : ([
+                  colorFilterCss(effects?.colorFilter),
+                  effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
+                ].filter(Boolean).join(" ") || undefined),
             transition: "transform 0.08s linear, filter 0.3s ease",
             // The video sits just above the (usually absent) dynamic BG layer.
             // IMPORTANT: keep this z-index LOW so all overlays (subtitles,
@@ -430,6 +623,29 @@ export default function VideoPreview({
             position: "relative",
             zIndex: 1,
           }}
+        />
+        </div>{/* /introWrapper */}
+
+        {/* Background music — hidden audio element shadowing the video's
+            play/pause/seek. Volume managed via effects.bgMusicVolume. */}
+        {effects?.bgMusicUrl && (
+          <audio
+            ref={bgAudioRef}
+            src={effects.bgMusicUrl}
+            preload="auto"
+            loop
+            style={{ display: "none" }}
+          />
+        )}
+
+        {/* Intro flash/fade overlay — written to by the rAF loop (direct
+            DOM, no React re-render). Starts invisible, the loop animates
+            background + opacity for flashWhite / fadeIn presets. */}
+        <div
+          ref={introOverlayRef}
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 9, opacity: 0, background: "transparent" }}
+          aria-hidden
         />
 
         {currentSubtitle && (
@@ -484,16 +700,22 @@ export default function VideoPreview({
           />
         ))}
 
-        {/* Brand logos at brand mention timestamps */}
-        {visibleBrands.map((b, i) => (
+        {/* Brand logos at brand mention timestamps. Per-occurrence size /
+            position overrides come from AiDetectedPanel. Key shape matches
+            what the panel writes: "<brandId>-<round(time*10)>". */}
+        {visibleBrands.map((b, i) => {
+          const k = `${b.brand.id}-${Math.round(b.time * 10)}`;
+          return (
           <BrandOverlay
             key={`${b.brand.id}-${b.time}`}
             brand={b}
             containerHeight={containerHeight}
             slot={i}
             transparentBg={effects?.transparentLogoBg ?? false}
-          />
-        ))}
+            sizePxOverride={effects?.brandSizePx?.[k]}
+            positionOverride={effects?.brandPosition?.[k]}
+          /> );
+        })}
 
         {/* User-uploaded custom logos. Persistent ones show throughout the
             video; timed ones show only within their window. */}
@@ -534,6 +756,14 @@ export default function VideoPreview({
           currentTime={currentTime}
           containerHeight={containerHeight}
         />
+
+        {/* WOW layer — particle bursts + micro shake on power-words */}
+        <WowOverlay
+          subtitles={subtitles}
+          currentTime={currentTime}
+          enabled={effects?.particleBurst ?? false}
+          shake={effects?.punchShake ?? false}
+        />
         </div>
       </div>
     </div>
@@ -542,9 +772,21 @@ export default function VideoPreview({
 
 function BrandOverlay({
   brand, containerHeight, slot, transparentBg = false,
-}: { brand: BrandEvent; containerHeight: number; slot: number; transparentBg?: boolean }) {
+  sizePxOverride, positionOverride,
+}: {
+  brand: BrandEvent;
+  containerHeight: number;
+  slot: number;
+  transparentBg?: boolean;
+  sizePxOverride?: number;
+  positionOverride?: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
+}) {
   const [imgFailed, setImgFailed] = useState(false);
-  const logoSize = Math.max(64, containerHeight * 0.14);
+  // Exact-px overrides win over the default 14% scale. Min 16 so a typo'd
+  // 0 doesn't make the logo vanish.
+  const logoSize = typeof sizePxOverride === "number" && sizePxOverride > 0
+    ? Math.max(16, sizePxOverride)
+    : Math.max(64, containerHeight * 0.14);
   const cardPadding = logoSize * 0.18;
 
   // When transparentBg: float the logo+text directly over the video with
@@ -568,18 +810,35 @@ function BrandOverlay({
         gap: `${cardPadding * 0.7}px`,
       };
 
+  // Position override (from AiDetectedPanel popover). When unset, fall back
+  // to the original stacked top-right pattern so multiple brands don't
+  // overlap. Margin from edges is 8%.
+  const MARGIN = 8;
+  const corner: React.CSSProperties = (() => {
+    if (!positionOverride) {
+      return { top: `${10 + slot * 12}%`, right: `${8 + slot * 4}%` };
+    }
+    switch (positionOverride) {
+      case "top-right":     return { top: `${MARGIN}%`, right: `${MARGIN}%` };
+      case "top-left":      return { top: `${MARGIN}%`, left: `${MARGIN}%` };
+      case "top-center":    return { top: `${MARGIN}%`, left: "50%", transform: "translateX(-50%)" };
+      case "bottom-right":  return { bottom: `${MARGIN}%`, right: `${MARGIN}%` };
+      case "bottom-left":   return { bottom: `${MARGIN}%`, left: `${MARGIN}%` };
+      case "bottom-center": return { bottom: `${MARGIN}%`, left: "50%", transform: "translateX(-50%)" };
+    }
+  })();
+
   return (
     <div
       className="absolute pointer-events-none"
       style={{
-        top: `${10 + slot * 12}%`,
-        right: `${8 + slot * 4}%`,
+        ...corner,
         animation: "element-enter 320ms cubic-bezier(0.16,1,0.3,1) forwards",
         willChange: "transform, opacity",
       }}
     >
       <div style={containerStyle}>
-        {!imgFailed && (
+        {!imgFailed ? (
           <img
             src={brandLogoCdnUrl(brand.brand)}
             alt={brand.brand.name}
@@ -588,18 +847,23 @@ function BrandOverlay({
             onError={() => setImgFailed(true)}
             style={{ display: "block", width: logoSize, height: logoSize }}
           />
+        ) : (
+          // Image fallback ONLY when the CDN failed — never alongside the
+          // logo. Liat's note: "תראה אמזון זה לא תואם צריך שממש יהיה את
+          // האיקון הלוגו שלהם" — the text was a fallback meant for
+          // unavailable logos, not an addition to a working one.
+          <span
+            style={{
+              fontSize: `${logoSize * 0.42}px`,
+              fontWeight: 800,
+              color: transparentBg ? "#FFFFFF" : `#${brand.brand.color}`,
+              whiteSpace: "nowrap",
+              textShadow: transparentBg ? "0 2px 8px rgba(0,0,0,0.8)" : undefined,
+            }}
+          >
+            {brand.brand.name}
+          </span>
         )}
-        <span
-          style={{
-            fontSize: `${logoSize * 0.42}px`,
-            fontWeight: 800,
-            color: transparentBg ? "#FFFFFF" : `#${brand.brand.color}`,
-            whiteSpace: "nowrap",
-            textShadow: transparentBg ? "0 2px 8px rgba(0,0,0,0.8)" : undefined,
-          }}
-        >
-          {brand.brand.name}
-        </span>
       </div>
     </div>
   );
@@ -623,9 +887,12 @@ function CustomLogoOverlay({
     }
   })();
 
-  // Size as percentage of container height
+  // Exact px > S/M/L scale. If the user dialed in a specific size we trust
+  // it (clamped to a sane min so they can't accidentally zero it out).
   const sizeScale = logo.size === "S" ? 0.07 : logo.size === "L" ? 0.14 : 0.10;
-  const size = Math.max(40, containerHeight * sizeScale);
+  const size = typeof logo.sizePx === "number" && logo.sizePx > 0
+    ? Math.max(8, logo.sizePx)
+    : Math.max(40, containerHeight * sizeScale);
 
   return (
     <div

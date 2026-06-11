@@ -78,15 +78,24 @@ export async function buildExportOverlays(opts: {
   if (effects.contextualElements) {
     const overridesEmoji = effects.elementOverrides ?? {};
     const overridesPos = effects.elementPositionOverrides ?? {};
+    const overridesPxPerEl = effects.elementSizePx ?? {};
+    const overridesPosPerEl = effects.elementPosition ?? {};
     const disabled = new Set(effects.disabledElements ?? []);
-    const emojiSize = Math.round(outputHeight * 0.10);
+    const baseEmojiSize = Math.round(outputHeight * 0.10);
 
     const detected = detectElements(subtitles);
     for (const el of detected) {
       const key = `${el.category.id}-${Math.round(el.time * 10)}`;
       if (disabled.has(key)) continue;
       const emoji = overridesEmoji[key] ?? el.category.emoji;
-      const pos = overridesPos[key] ?? el.category.position;
+      // Per-element overrides (Liat's tap-to-edit popover): position from
+      // the new map first, then fall back to the legacy overridesPos, then
+      // category default.
+      const pos = overridesPosPerEl[key] ?? overridesPos[key] ?? el.category.position;
+      const px = overridesPxPerEl[key];
+      const emojiSize = typeof px === "number" && px > 0
+        ? Math.max(16, Math.min(px, outputHeight))
+        : baseEmojiSize;
       const png = await getEmojiPng(emoji, emojiSize).catch(() => null);
       if (!png) continue;
       const r = POS_RATIO[pos] ?? POS_RATIO["top-right"];
@@ -110,28 +119,52 @@ export async function buildExportOverlays(opts: {
       }
     }
 
-    // Brand cards (capped size, centered upper area)
-    const brands = detectBrands(subtitles);
+    // Brand cards (capped size, centered upper area). Respect Liat's
+    // brand-logo toggle — if she turned it off, skip the detect entirely.
+    const brands = effects.brandLogosDetect === false ? [] : detectBrands(subtitles);
     if (brands.length > 0) {
       const sharp = (await import("sharp")).default;
       const cardHeight = Math.round(outputHeight * 0.10);
       const maxW = Math.round(outputWidth * 0.55);
-      const maxH = Math.round(outputHeight * 0.12);
-      const cards = await prepareBrandCards(brands, cardHeight);
+      const defaultMaxH = Math.round(outputHeight * 0.12);
+      const cards = await prepareBrandCards(brands, cardHeight, effects.transparentLogoBg ?? false);
+      const brandPxMap = effects.brandSizePx ?? {};
+      const brandPosMap = effects.brandPosition ?? {};
       let bi = 0;
       for (const b of brands) {
         const card = cards.get(b.brand.id);
         if (!card) continue;
-        const scale = Math.min(maxW / card.width, maxH / card.height, 1);
+        const bKey = `${b.brand.id}-${Math.round(b.time * 10)}`;
+        // Per-occurrence size override (matches the popover in
+        // AiDetectedPanel). When set, use it as the bounding HEIGHT —
+        // width follows the card's natural aspect ratio.
+        const pxOverride = brandPxMap[bKey];
+        const targetMaxH = typeof pxOverride === "number" && pxOverride > 0
+          ? Math.max(16, Math.min(pxOverride, outputHeight))
+          : defaultMaxH;
+        const scale = Math.min(maxW / card.width, targetMaxH / card.height, 1);
         const w = Math.max(1, Math.round(card.width * scale));
         const h = Math.max(1, Math.round(card.height * scale));
         const fitted = join(workDir, `brand-${bi++}.png`);
         try { await sharp(card.path).resize(w, h, { fit: "fill" }).png().toFile(fitted); }
         catch { continue; }
+        // Position override — default keeps the centered-upper layout.
+        const margin = Math.round(outputHeight * 0.08);
+        const posOverride = brandPosMap[bKey];
+        let bx: number, by: number;
+        switch (posOverride) {
+          case "top-left":      bx = margin;                       by = margin; break;
+          case "top-right":     bx = outputWidth - w - margin;     by = margin; break;
+          case "top-center":    bx = Math.round((outputWidth - w) / 2); by = margin; break;
+          case "bottom-left":   bx = margin;                       by = outputHeight - h - margin; break;
+          case "bottom-right":  bx = outputWidth - w - margin;     by = outputHeight - h - margin; break;
+          case "bottom-center": bx = Math.round((outputWidth - w) / 2); by = outputHeight - h - margin; break;
+          default:
+            bx = Math.round((outputWidth - w) / 2);
+            by = Math.round(outputHeight * 0.10);
+        }
         trackBrand.push({
-          pngPath: fitted, w, h,
-          x: Math.round((outputWidth - w) / 2),
-          y: Math.round(outputHeight * 0.10),
+          pngPath: fitted, w, h, x: bx, y: by,
           start: b.time, end: b.time + b.durationSec,
         });
       }
@@ -152,7 +185,11 @@ export async function buildExportOverlays(opts: {
     const rel = logo.src.replace(/^\//, "");
     const pngPath = join(process.cwd(), "public", rel);
     const sizeScale = logo.size === "S" ? 0.07 : logo.size === "L" ? 0.14 : 0.10;
-    const target = Math.round(outputHeight * sizeScale);
+    // Exact-px size overrides the S/M/L scale. Clamped to a sane min and to
+    // outputHeight so users can't request a logo larger than the canvas.
+    const target = typeof logo.sizePx === "number" && logo.sizePx > 0
+      ? Math.max(8, Math.min(logo.sizePx, outputHeight))
+      : Math.round(outputHeight * sizeScale);
     // Resize the logo to a temp PNG so overlay dims are predictable
     const sized = join(workDir, `logo-${overlays.length}.png`);
     try {

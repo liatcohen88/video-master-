@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX, Play } from "lucide-react";
+import { Volume2, VolumeX, Play, Search } from "lucide-react";
 import { listSfxByCategory, getSfxAsset, SFX_CATEGORY_LABEL } from "@/lib/sfxLibrary";
+import { playSfxCapped, type CappedPlayHandle } from "@/lib/playSfxCapped";
 import { useContent } from "@/lib/useContent";
 
 type Props = {
@@ -21,10 +22,34 @@ export default function SfxPicker({
   open, currentSfxId, defaultLabel, onSelect, onClose, anchorRect,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const handleRef = useRef<CappedPlayHandle | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const labelOverrides = useContent("sfx.labels");
+  const hiddenSfx = useContent("sfx.hidden") as Record<string, true>;
+  const categoryOrder = useContent("sfx.categoryOrder") as string[];
+  const customCategories = useContent("sfx.customCategories") as Array<{ id: string; label: string }>;
+  const categoryLabels = useContent("sfx.categoryLabels") as Record<string, string>;
+  // Per-SFX category moves Liat sets in admin (e.g. takes "Sound Effect #5"
+  // out of "clicks" and into "notifications"). Was missing here, so the
+  // picker showed sounds in their ORIGINAL category regardless of moves.
+  const categoryOverrides = useContent("sfx.categoryOverrides") as Record<string, string>;
   const labelFor = (id: string, fallback: string) => labelOverrides[id] ?? fallback;
+  const catTitle = (c: string) => {
+    if (categoryLabels?.[c]) return categoryLabels[c];
+    const custom = customCategories?.find((x) => x.id === c);
+    if (custom) return custom.label;
+    return SFX_CATEGORY_LABEL[c as keyof typeof SFX_CATEGORY_LABEL] ?? c;
+  };
+  // Reset search whenever the picker re-opens so it's never sticky.
+  useEffect(() => { if (!open) setQuery(""); }, [open]);
+  // Hebrew/English substring match over the displayed label. We compare in
+  // lowercase + trim so partial words like "ציוץ" match "ציוץ ציפור".
+  function matches(label: string): boolean {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return label.toLowerCase().includes(q);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -62,18 +87,20 @@ export default function SfxPicker({
   }
 
   function play(id: string) {
-    if (audioRef.current) audioRef.current.pause();
+    if (handleRef.current) handleRef.current.stop();
     const url = getSfxAsset(id)?.url;
     if (!url) return;
-    const a = new Audio(url);
-    a.volume = 0.7;
-    a.play().catch(() => {});
-    a.onended = () => setPlayingId((p) => (p === id ? null : p));
-    audioRef.current = a;
+    const h = playSfxCapped(url, 0.7);
+    h.audio.addEventListener("ended", () => setPlayingId((p) => (p === id ? null : p)), { once: true });
+    handleRef.current = h;
     setPlayingId(id);
   }
 
-  const groups = listSfxByCategory();
+  const groups = listSfxByCategory({
+    order: categoryOrder,
+    customCategoryIds: (customCategories ?? []).map((c) => c.id),
+    categoryOverrides: categoryOverrides ?? {},
+  });
 
   const currentLabel =
     currentSfxId === "none"
@@ -91,6 +118,19 @@ export default function SfxPicker({
     >
       <div className="text-xs text-white/40 mb-2 text-center">
         בחרי צליל (נוכחי: <span className="text-white/70">{currentLabel}</span>)
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="חיפוש צליל (למשל: ציוץ, פיצוץ, מעבר)..."
+          className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
+          dir="rtl"
+          autoFocus
+        />
       </div>
 
       {/* Default + mute */}
@@ -111,10 +151,29 @@ export default function SfxPicker({
         </button>
       </div>
 
-      {groups.map((g) => (
+      {(() => {
+        const filtered = groups
+          .map((g) => ({
+            ...g,
+            items: g.items
+              // Admin-hidden SFX never appear in the picker.
+              .filter((a) => !hiddenSfx?.[a.id])
+              .filter((a) => matches(labelFor(a.id, a.label))
+                || matches(catTitle(g.category))),
+          }))
+          .filter((g) => g.items.length > 0);
+        if (filtered.length === 0) {
+          return (
+            <div className="text-center text-xs text-white/40 py-6">
+              לא נמצאו צלילים ל-״{query}״
+              <div className="text-[10px] text-white/30 mt-1">תוכלי לעדכן שמות צלילים ב-/admin → SFX</div>
+            </div>
+          );
+        }
+        return filtered.map((g) => (
         <div key={g.category} className="mb-3">
           <div className="text-[10px] uppercase tracking-wider text-white/30 mb-1 px-1">
-            {SFX_CATEGORY_LABEL[g.category]}
+            {catTitle(g.category)}
           </div>
           <div className="grid grid-cols-1 gap-1">
             {g.items.map((a) => {
@@ -145,7 +204,8 @@ export default function SfxPicker({
             })}
           </div>
         </div>
-      ))}
+        ));
+      })()}
     </div>
   );
 }

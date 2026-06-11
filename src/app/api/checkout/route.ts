@@ -15,10 +15,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CREDIT_PACKAGES } from "@/lib/credits";
 import { createPaymentLink, isConfigured as payplusConfigured } from "@/lib/payplus";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  // Block abuse: max 10 checkout attempts per IP per minute
+  const limited = rateLimit(req, { key: "checkout", max: 10, windowSec: 60 });
+  if (limited) return limited;
+
   const { packageId, packageOverride, customerEmail } = await req.json().catch(() => ({}));
 
   let pkg: { id: string; credits: number; priceIls: number } | undefined =

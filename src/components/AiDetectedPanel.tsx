@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Eye, ImagePlus, Pencil, Volume2, VolumeX, X } from "lucide-react";
 import type { Subtitle } from "@/lib/types";
 import { detectElements } from "@/lib/keywordElements";
@@ -9,15 +9,41 @@ import { DEFAULT_SFX_FOR_KIND, getSfxAsset } from "@/lib/sfxLibrary";
 import EmojiPicker from "./EmojiPicker";
 import SfxPicker from "./SfxPicker";
 
+type PosId = "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
+
 type Props = {
   subtitles: Subtitle[];
   elementOverrides?: Record<string, string>;
   disabledElements?: string[];
   elementSfxOverrides?: Record<string, string>;
+  /** Per-element px size + position overrides — Liat wants every auto-detected
+   *  element treated like a manual emoji (tap to resize, reposition). */
+  elementSizePx?: Record<string, number>;
+  elementPosition?: Record<string, PosId>;
+  brandSizePx?: Record<string, number>;
+  brandPosition?: Record<string, PosId>;
   onOverrideChange?: (key: string, emoji: string) => void;
   onDisable?: (key: string) => void;
   onSfxOverrideChange?: (key: string, sfxId: string | undefined) => void;
+  onElementSizeChange?: (key: string, px: number | undefined) => void;
+  onElementPositionChange?: (key: string, pos: PosId | undefined) => void;
+  onBrandSizeChange?: (key: string, px: number | undefined) => void;
+  onBrandPositionChange?: (key: string, pos: PosId | undefined) => void;
 };
+
+/** Key for a brand occurrence (matches what VideoPreview / exportCompositor use). */
+function brandKey(brandId: string, time: number): string {
+  return `${brandId}-${Math.round(time * 10)}`;
+}
+
+const POSITIONS: { id: PosId; icon: string; title: string }[] = [
+  { id: "top-left",      icon: "↖", title: "שמאל למעלה" },
+  { id: "top-center",    icon: "↑", title: "מרכז למעלה" },
+  { id: "top-right",     icon: "↗", title: "ימין למעלה" },
+  { id: "bottom-left",   icon: "↙", title: "שמאל למטה" },
+  { id: "bottom-center", icon: "↓", title: "מרכז למטה" },
+  { id: "bottom-right",  icon: "↘", title: "ימין למטה" },
+];
 
 /** Stable key for an element event = category + rounded time */
 export function elementKey(categoryId: string, time: number): string {
@@ -33,8 +59,16 @@ export function elementKey(categoryId: string, time: number): string {
 export default function AiDetectedPanel({
   subtitles, elementOverrides = {}, disabledElements = [],
   elementSfxOverrides = {},
+  elementSizePx = {}, elementPosition = {},
+  brandSizePx = {}, brandPosition = {},
   onOverrideChange, onDisable, onSfxOverrideChange,
+  onElementSizeChange, onElementPositionChange,
+  onBrandSizeChange, onBrandPositionChange,
 }: Props) {
+  // Which chip currently has its inline edit popover open. Single instance
+  // means selecting one auto-closes the previous — no confusion about which
+  // size/position you're editing.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const allElements = useMemo(() => detectElements(subtitles), [subtitles]);
   const elements = useMemo(
     () => allElements.filter(
@@ -99,29 +133,44 @@ export default function AiDetectedPanel({
             🏷️ לוגואי מותגים
           </div>
           <div className="flex flex-wrap gap-2">
-            {brands.map((b, i) => (
-              <div
-                key={`${b.brand.id}-${i}`}
-                className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 shadow-md"
-              >
-                <img
-                  src={brandLogoCdnUrl(b.brand)}
-                  alt={b.brand.name}
-                  width={20}
-                  height={20}
-                  style={{ width: 20, height: 20 }}
-                />
-                <span
-                  className="text-xs font-bold"
-                  style={{ color: `#${b.brand.color}` }}
-                >
-                  {b.brand.name}
-                </span>
-                <span className="text-[10px] text-black/40 font-mono">
-                  {b.time.toFixed(1)}s
-                </span>
-              </div>
-            ))}
+            {brands.map((b, i) => {
+              const bKey = brandKey(b.brand.id, b.time);
+              const editing = editingKey === `brand:${bKey}`;
+              const curPx = brandSizePx[bKey];
+              const curPos = brandPosition[bKey] ?? "top-right";
+              return (
+                <div key={`${b.brand.id}-${i}`} className="relative">
+                  <button
+                    onClick={() => setEditingKey(editing ? null : `brand:${bKey}`)}
+                    className={`flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 shadow-md hover:ring-2 hover:ring-brand/40 transition ${
+                      editing ? "ring-2 ring-brand" : ""
+                    }`}
+                    title="לחיצה לעריכת גודל ומיקום"
+                  >
+                    <img src={brandLogoCdnUrl(b.brand)} alt={b.brand.name}
+                      width={20} height={20} style={{ width: 20, height: 20 }} />
+                    <span className="text-xs font-bold" style={{ color: `#${b.brand.color}` }}>
+                      {b.brand.name}
+                    </span>
+                    <span className="text-[10px] text-black/40 font-mono">{b.time.toFixed(1)}s</span>
+                    {(curPx || brandPosition[bKey]) && (
+                      <span className="text-[9px] text-brand-dark/70 bg-brand/15 rounded-sm px-1">
+                        {curPx ? `${curPx}px` : "✓"}
+                      </span>
+                    )}
+                  </button>
+                  {editing && (
+                    <ElementEditorPopover
+                      onClose={() => setEditingKey(null)}
+                      sizePx={curPx}
+                      position={curPos}
+                      onSize={(px) => onBrandSizeChange?.(bKey, px)}
+                      onPosition={(p) => onBrandPositionChange?.(bKey, p)}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -212,10 +261,33 @@ export default function AiDetectedPanel({
                       <X className="w-3 h-3" />
                     </button>
                   )}
+                  {/* Size + position controls — opens a popover under the
+                      chip with px input and 6 corner buttons. Same UX as
+                      brand chips below. */}
+                  {(onElementSizeChange || onElementPositionChange) && (
+                    <button
+                      onClick={() => setEditingKey(editingKey === `el:${key}` ? null : `el:${key}`)}
+                      className={`px-1.5 py-1.5 hover:bg-white/20 text-white/70 hover:text-white border-l border-white/10 ${
+                        editingKey === `el:${key}` ? "bg-white/20 text-white" : ""
+                      }`}
+                      title="גודל ומיקום"
+                    >
+                      <span className="text-[9px] font-mono">{elementSizePx[key] ?? "px"}</span>
+                    </button>
+                  )}
                   {customEmoji && (
                     <span className="absolute -top-1 -right-1 bg-white text-black text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold pointer-events-none">
                       ✓
                     </span>
+                  )}
+                  {editingKey === `el:${key}` && (
+                    <ElementEditorPopover
+                      onClose={() => setEditingKey(null)}
+                      sizePx={elementSizePx[key]}
+                      position={elementPosition[key] ?? "top-right"}
+                      onSize={(px) => onElementSizeChange?.(key, px)}
+                      onPosition={(p) => onElementPositionChange?.(key, p)}
+                    />
                   )}
                 </div>
               );
@@ -257,6 +329,84 @@ export default function AiDetectedPanel({
           anchorRect={anchorRect}
         />
       )}
+    </div>
+  );
+}
+
+/** Inline popover under an auto-detected chip — px size + 6 corner buttons.
+ *  Lives in absolute position so it floats over the layout without pushing
+ *  other chips around. Click anywhere outside closes via the parent's
+ *  setEditingKey(null) wired by the chip itself, but we also catch a
+ *  global click here for safety. */
+function ElementEditorPopover({
+  onClose, sizePx, position, onSize, onPosition,
+}: {
+  onClose: () => void;
+  sizePx?: number;
+  position: PosId;
+  onSize: (px: number | undefined) => void;
+  onPosition: (p: PosId | undefined) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    // Defer so the click that opened us doesn't immediately close us.
+    const id = window.setTimeout(() => document.addEventListener("mousedown", onClick), 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full mt-2 right-0 z-40 bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3 min-w-[220px]"
+      dir="rtl"
+    >
+      <div className="text-[10px] text-white/40 mb-1">גודל (PX)</div>
+      <div className="flex items-center gap-1 mb-3">
+        <input
+          type="number" min={12} max={512} step={1} placeholder="auto"
+          value={typeof sizePx === "number" ? sizePx : ""}
+          onChange={(e) => {
+            const raw = e.target.value;
+            onSize(raw === "" ? undefined : Math.max(12, parseInt(raw, 10) || 0));
+          }}
+          className="flex-1 bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm font-mono text-center text-white focus:outline-none focus:border-brand/50"
+        />
+        <span className="text-[10px] text-white/40">PX</span>
+        {typeof sizePx === "number" && (
+          <button onClick={() => onSize(undefined)}
+            className="text-[10px] text-white/50 hover:text-white px-1.5"
+            title="ברירת מחדל">
+            ✕
+          </button>
+        )}
+      </div>
+      <div className="text-[10px] text-white/40 mb-1">מיקום</div>
+      <div className="grid grid-cols-3 gap-1">
+        {POSITIONS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => onPosition(p.id)}
+            className={`py-1.5 rounded text-sm border transition-colors ${
+              position === p.id
+                ? "border-brand bg-brand/25 text-white"
+                : "border-white/10 bg-bg-input text-white/50 hover:border-white/30"
+            }`}
+            title={p.title}
+          >
+            {p.icon}
+          </button>
+        ))}
+      </div>
+      <button onClick={onClose}
+        className="w-full mt-3 text-[10px] text-white/40 hover:text-white py-1">
+        סגור
+      </button>
     </div>
   );
 }

@@ -36,11 +36,8 @@ export const LOTTIE_ICONS: LottieIcon[] = [
     patterns: [heWord("מדהים"), heWord("מושלם"), heWord("הכי"), /\bstar\b/i],
     defaultColor: "#FFD700",
   },
-  {
-    id: "rocket", name: "רקטה", jsonPath: "/lottie/rocket.json",
-    patterns: [heWord("מהיר"), heWord("צמיחה"), heWord("התקדמות"), heWord("עולה"), heWord("השקה"), /\brocket\b/i],
-    defaultColor: "#7C3AED",
-  },
+  // rocket REMOVED 2026-06-11 — Liat: "תעיף" (low quality / not modern enough)
+  // Original file preserved at public/lottie/rocket.json in case we re-enable.
   // New batch (downloaded 2026-06-07 via scripts/download-lottie.cjs)
   {
     id: "trophy", name: "גביע", jsonPath: "/lottie/trophy.json",
@@ -142,4 +139,12 @@ export const LOTTIE_ICONS: LottieIcon[] = [
     patterns: [heWord("ניקיון"), heWord("חיטוי"), heWord("נקי"), heWord("היגיינה"), /\bclean\b/i],
     defaultColor: "#67E8F9",
   },
+  // 2026 trend batch (downloaded 2026-06-11)
+  {
+    id: "bell-notify", name: "פעמון התראה", jsonPath: "/lottie/bell-notify.json",
+    patterns: [heWord("התראה"), heWord("התראות"), heWord("פעמון"), heWord("שימו\\s+לב"), heWord("הכי\\s+חשוב"), /\bnotify\b/i, /\balert\b/i],
+    defaultColor: "#FACC15",
+  },
+  // sparkle-burst REMOVED 2026-06-11 — 600KB raster-heavy file froze the
+  // admin grid on low-RAM machines. Will replace with a vector version.
 ];

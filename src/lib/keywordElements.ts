@@ -272,11 +272,19 @@ export type ElementEvent = {
  */
 export function detectElements(subtitles: Subtitle[]): ElementEvent[] {
   const events: ElementEvent[] = [];
+  // VARIETY: each emoji/category may appear at most ONCE in the whole video.
+  // Repeating the same emoji several times looks amateurish, so once a
+  // category fires we never use it again — other subtitles get DIFFERENT
+  // emojis (or none) instead.
+  const usedCategoryIds = new Set<string>();
 
   for (const sub of subtitles) {
     if (!sub.text.trim()) continue;
 
     for (const cat of KEYWORD_CATEGORIES) {
+      if (usedCategoryIds.has(cat.id)) continue; // already used → keep it varied
+
+      let matched = false;
       for (const pattern of cat.patterns) {
         const m = sub.text.match(pattern);
         if (!m) continue;
@@ -296,20 +304,12 @@ export function detectElements(subtitles: Subtitle[]): ElementEvent[] {
           if (wordHit) time = wordHit.start;
         }
 
-        // De-dupe: skip if same category fired within the last 2 seconds
-        const recent = events.find(
-          (e) => e.category.id === cat.id && Math.abs(e.time - time) < 2,
-        );
-        if (recent) continue;
-
-        events.push({
-          time,
-          durationSec: 0.9,
-          category: cat,
-          matchedText: m[0],
-        });
-        break; // one match per category per subtitle
+        events.push({ time, durationSec: 0.9, category: cat, matchedText: m[0] });
+        usedCategoryIds.add(cat.id);
+        matched = true;
+        break; // one pattern match is enough
       }
+      if (matched) break; // one emoji per subtitle, then move on
     }
   }
 

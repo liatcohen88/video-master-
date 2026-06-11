@@ -134,5 +134,23 @@ export function getStats() {
     const t = done + failed;
     return t === 0 ? 100 : Math.round((done / t) * 100);
   })();
-  return { totalRevenue, activeUsers, videosLast24h, successRate };
+  // ── Site traffic ──────────────────────────────────────────────
+  // PLACEHOLDER metrics until a real analytics provider is connected
+  // (Vercel Analytics / Plausible / GA — wired after deploy). Derived
+  // deterministically from existing data so the dashboard looks alive
+  // without inventing random noise. Replace getTraffic() with a real
+  // fetch once analytics is live.
+  const totalVideos = s.videos.length;
+  const base = activeUsers * 40 + totalVideos * 6 + 120;
+  const traffic = {
+    isReal: false,                                   // ← flip true when analytics is wired
+    visitors7d: base,
+    pageViews7d: base * 3,
+    signups7d: Math.max(1, Math.round(activeUsers * 0.7)),
+    conversionRate: base > 0 ? Math.round((activeUsers / base) * 1000) / 10 : 0, // %
+    // 7-day visitor trend (deterministic shape, newest last)
+    trend7d: [0.62, 0.7, 0.55, 0.8, 0.74, 0.9, 1].map((f) => Math.round(base * f / 7)),
+  };
+
+  return { totalRevenue, activeUsers, videosLast24h, successRate, traffic };
 }

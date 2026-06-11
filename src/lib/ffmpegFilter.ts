@@ -13,6 +13,7 @@
 
 import type { VideoEffects } from "./types";
 import { ASPECT_RATIO_INFO } from "./types";
+import { buildIntroAnimationFilters } from "./introAnimationFilter";
 
 type FilterChain = {
   videoFilters: string[];
@@ -252,6 +253,15 @@ export function buildFilterChain(
         `(iw-${outputWidth})/2 + sin(t/${T.toFixed(3)}*PI)*iw*0.04:` +
         `(ih-${outputHeight})/2 + cos(t/${T.toFixed(3)}*PI)*ih*0.02`,
     );
+  }
+
+  // Intro animation — appended AFTER geometric filters so the animation
+  // runs on a frame already in target output dimensions. Otherwise the
+  // pad/crop math in introAnimationFilter (which uses outputW/outputH)
+  // would misalign against the raw source dims.
+  if (effects.introAnimation && effects.introAnimation !== "none") {
+    const introFilters = buildIntroAnimationFilters(effects, outputWidth, outputHeight);
+    videoFilters.push(...introFilters);
   }
 
   // 3. Silence removal — DISABLED in this iteration.

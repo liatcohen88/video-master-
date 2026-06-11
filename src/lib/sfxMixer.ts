@@ -79,13 +79,23 @@ export function collectSfxTriggers(
     }
   }
 
-  // 3. Custom logos — only the timed (non-persistent) variant
+  // 3. Custom logos — timed OR persistent (both can carry an SFX).
+  // Persistent logos appear at t=0, so fire their SFX at 0; timed ones
+  // fire at their declared time. Previously only timed logos were emitted,
+  // which made a logo's sfx never play in MP4 when "show throughout" was on.
   for (const logo of effects.customLogos ?? []) {
-    if (logo.persistent !== false) continue;
     if (!logo.sfxId || logo.sfxId === "none") continue;
-    if (typeof logo.time !== "number") continue;
+    const isPersistent = logo.persistent !== false;
+    const t = isPersistent ? 0 : (typeof logo.time === "number" ? logo.time : 0);
     const path = idToPath(logo.sfxId);
-    if (path) triggers.push({ time: logo.time, filePath: path });
+    if (path) triggers.push({ time: t, filePath: path });
+  }
+
+  // 3b. Intro animation SFX — plays once at t=0 alongside the intro reveal.
+  // Matches what the live preview fires (playSfxCapped on intro start).
+  if (effects.introSfxId && effects.introSfxId !== "none") {
+    const path = idToPath(effects.introSfxId);
+    if (path) triggers.push({ time: 0, filePath: path });
   }
 
   // 4. Lottie elements
@@ -124,22 +134,35 @@ export function buildSfxAudioGraph(
   triggers: SfxTrigger[],
   abaseLabel: string,
   sfxInputStartIdx: number,
+  /** Optional pre-built bg-music label to include in the amix. */
+  bgMusicLabel?: string | null,
+  /** Master multiplier (0..2) applied to every SFX volume. */
+  sfxMaster = 1,
 ): { parts: string[]; outLabel: string } {
-  if (triggers.length === 0) return { parts: [], outLabel: abaseLabel };
+  if (triggers.length === 0 && !bgMusicLabel) {
+    return { parts: [], outLabel: abaseLabel };
+  }
 
   const parts: string[] = [];
+  // 1.2 is the per-trigger base gain (slightly hot so individual SFX cut
+  // through the mix); sfxMaster lets the user scale all SFX together.
+  const perVol = (1.2 * Math.max(0, Math.min(2, sfxMaster))).toFixed(3);
   triggers.forEach((t, i) => {
     const delayMs = Math.max(0, Math.round(t.time * 1000));
     parts.push(
-      `[${sfxInputStartIdx + i}:a]adelay=${delayMs}|${delayMs},volume=1.2[s${i}]`,
+      `[${sfxInputStartIdx + i}:a]adelay=${delayMs}|${delayMs},volume=${perVol}[s${i}]`,
     );
   });
-  const mixIns = `[${abaseLabel}]` + triggers.map((_, i) => `[s${i}]`).join("");
-  // weights: keep speech at ~3x SFX so dialogue stays clearly on top
-  const weights = `3 ${triggers.map(() => "1").join(" ")}`;
+  // amix inputs: speech base, optional bg music, then each SFX. Weights keep
+  // speech at ~3x and bg at ~1x so dialogue + SFX stay on top of the bed.
+  const extras: string[] = [];
+  const weights: string[] = ["3"];
+  if (bgMusicLabel) { extras.push(`[${bgMusicLabel}]`); weights.push("1"); }
+  triggers.forEach((_, i) => { extras.push(`[s${i}]`); weights.push("1"); });
+  const mixIns = `[${abaseLabel}]` + extras.join("");
   parts.push(
-    `${mixIns}amix=inputs=${triggers.length + 1}:duration=first:` +
-      `dropout_transition=0:weights='${weights}':normalize=1[aout]`,
+    `${mixIns}amix=inputs=${1 + extras.length}:duration=first:` +
+      `dropout_transition=0:weights='${weights.join(" ")}':normalize=1[aout]`,
   );
   return { parts, outLabel: "aout" };
 }

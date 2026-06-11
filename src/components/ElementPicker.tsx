@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
-import { Smile, Sparkles } from "lucide-react";
-import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
-
-const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
+import { useEffect, useRef } from "react";
+// Lottie picker hidden from end-users (per Liat 2026-06-11) — animations
+// quality isn't where we want it for the launch. Lottie metadata/admin
+// stays intact in code so we can flip it back on with one line later.
+// import dynamic from "next/dynamic";
+// import { Sparkles } from "lucide-react";
+// import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
+// const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
 const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
-  { name: "פופולרי",     emojis: ["💎","🔥","⚡","✨","💥","🌟","💯","🚀","💪","👑","🎯","🎉"] },
-  { name: "כסף ועסקים", emojis: ["💰","💵","💸","💳","📈","📊","💼","🏦","🤑","💲","🪙","💎"] },
-  { name: "רגשות",       emojis: ["❤️","💕","😍","🥰","😎","🤩","😱","🤯","😂","🥹","😭","🙏"] },
-  { name: "פעולה",       emojis: ["👆","👇","👈","👉","👍","👎","👏","🙌","✋","🤝","💪","👀"] },
-  { name: "אובייקטים",  emojis: ["🎁","🛒","📱","💻","⌚","📷","🎬","🎵","🎮","🏆","🥇","💡"] },
-  { name: "סמלים",       emojis: ["❓","❗","‼️","⭕","✅","❌","⚠️","📌","🔔","🔒","🔓","💡"] },
+  { name: "פופולרי",     emojis: ["💎","🔥","⚡","✨","💥","🌟","💯","🚀","💪","👑","🎯","🎉","🤯","😱","👀","🙌","✅","❤️"] },
+  { name: "כסף ועסקים", emojis: ["💰","💵","💸","💳","📈","📊","💼","🏦","🤑","💲","🪙","🧾","🏷️","🛍️","💎","📉","🏧","💹"] },
+  { name: "רגשות",       emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","💕","💗","😍","🥰","😎","🤩","😱","🤯","😂","🤣","🥹","😭","🙏","😅","😇","🥳","😮"] },
+  { name: "פנים",        emojis: ["😀","😃","😄","😁","😊","🙂","😉","😏","😬","🙄","😴","🤔","🤨","😐","😶","🤐","🤫","🤭","😜","😝","🤪","😤","😡","🥺"] },
+  { name: "ידיים ופעולה",emojis: ["👆","👇","👈","👉","👍","👎","👏","🙌","✋","🤝","💪","👀","🤙","🤞","✌️","🤟","👌","🫶","👋","🫰","🙏","💅"] },
+  { name: "אוכל",        emojis: ["🍕","🍔","🍟","🌭","🍿","🥤","☕","🍩","🍪","🎂","🍰","🍫","🍦","🍓","🍌","🥑","🍷","🍻","🥗","🍜","🌮","🧋"] },
+  { name: "אובייקטים",  emojis: ["🎁","🛒","📱","💻","⌚","📷","🎬","🎵","🎮","🏆","🥇","💡","📦","✉️","📢","🔑","🛎️","🎤","🎧","📺","⏰","🔋"] },
+  { name: "טבע וזמן",    emojis: ["☀️","🌙","⭐","🌈","⛅","🌧️","❄️","🌊","🌸","🌹","🌺","🍀","🔥","💧","⚡","🎇","🌴","🦋","🐶","🐱","🦄","🌍"] },
+  { name: "סמלים",       emojis: ["❓","❗","‼️","⭕","✅","❌","⚠️","📌","🔔","🔒","🔓","💡","➡️","⬅️","⬆️","⬇️","♾️","🔝","🆕","🆓","💢","🚫"] },
 ];
 
 export type PickedElement =
@@ -28,9 +33,7 @@ type Props = {
 };
 
 export default function ElementPicker({ open, onSelect, onClose, anchorRect }: Props) {
-  const [tab, setTab] = useState<"emoji" | "lottie">("emoji");
   const ref = useRef<HTMLDivElement>(null);
-  const [jsons, setJsons] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -43,16 +46,6 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
       document.removeEventListener("keydown", esc);
     };
   }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open || tab !== "lottie") return;
-    LOTTIE_ICONS.forEach((icon) => {
-      if (jsons[icon.id]) return;
-      fetch(icon.jsonPath).then((r) => r.json())
-        .then((j) => setJsons((p) => ({ ...p, [icon.id]: j })))
-        .catch(() => {});
-    });
-  }, [open, tab, jsons]);
 
   if (!open) return null;
 
@@ -71,26 +64,12 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
       className="bg-bg-card border border-white/15 rounded-2xl shadow-2xl shadow-black/60 w-[340px] max-h-[460px] flex flex-col"
       dir="rtl"
     >
-      {/* Tabs */}
-      <div className="flex border-b border-white/10">
-        <button
-          onClick={() => setTab("emoji")}
-          className={`flex-1 py-2.5 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 -mb-px
-            ${tab === "emoji" ? "border-brand text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
-        >
-          <Smile className="w-4 h-4" /> אמוג'י
-        </button>
-        <button
-          onClick={() => setTab("lottie")}
-          className={`flex-1 py-2.5 text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 -mb-px
-            ${tab === "lottie" ? "border-brand text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
-        >
-          <Sparkles className="w-4 h-4" /> אנימציה
-        </button>
+      <div className="px-3 py-2.5 border-b border-white/10 text-xs text-white/70 text-center">
+        בחרי אמוג'י להוספה לכתובית
       </div>
 
       <div className="overflow-y-auto p-3 flex-1">
-        {tab === "emoji" && EMOJI_CATEGORIES.map((cat) => (
+        {EMOJI_CATEGORIES.map((cat) => (
           <div key={cat.name} className="mb-3">
             <div className="text-[10px] uppercase tracking-wider text-white/30 mb-1 px-1">{cat.name}</div>
             <div className="grid grid-cols-6 gap-1">
@@ -104,25 +83,6 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
             </div>
           </div>
         ))}
-
-        {tab === "lottie" && (
-          <div className="grid grid-cols-3 gap-2">
-            {LOTTIE_ICONS.map((icon) => (
-              <button key={icon.id}
-                onClick={() => { onSelect({ kind: "lottie", iconId: icon.id, color: icon.defaultColor }); onClose(); }}
-                className="bg-bg-input border border-white/10 rounded-lg p-1.5 hover:border-brand/50 transition-all">
-                <div className="w-full aspect-square">
-                  {jsons[icon.id] ? (
-                    <Lottie animationData={jsons[icon.id] as object} loop style={{ width: "100%", height: "100%" }} />
-                  ) : (
-                    <div className="w-full h-full bg-bg-card rounded animate-pulse" />
-                  )}
-                </div>
-                <div className="text-[10px] text-white/60 mt-0.5 truncate text-center">{icon.name}</div>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

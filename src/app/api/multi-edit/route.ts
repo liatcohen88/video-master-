@@ -2,14 +2,15 @@
  * Multi-video AI editor endpoint.
  *
  * Receives N videos + a script. Transcribes each video, aligns script
- * segments to source video clips by word-overlap, extracts each picked
- * clip with ffmpeg, concats them, then re-runs through the existing
- * render route to burn subtitles + apply effects.
+ * segments to source video clips (script-first: clip length = reading time,
+ * sequential footage when no speech match), cuts each clip, normalizes them
+ * all to a common canvas, then joins them — either with a HARD CUT (concat
+ * demuxer) or with BEAUTIFUL TRANSITIONS (xfade crossfades).
  *
- * The actual subtitle burning + style is handled in a second pass by
- * the client (POST to /api/render with the concatenated MP4 + the
- * computed script-as-subtitles). This route returns the bare concat plus
- * the subtitle structure so the user can preview/edit before final burn.
+ * To make the "add transitions" toggle fast, the client can send back the
+ * previously-computed `picks` JSON; when present we SKIP transcription +
+ * alignment and only re-cut + re-join. This keeps the toggle near-instant
+ * (no Whisper) instead of re-running the whole pipeline.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -20,6 +21,7 @@ import { join } from "node:path";
 import {
   alignScriptToVideos,
   buildOutputSubtitles,
+  readingDurationSec,
   type ClipPick,
   type VideoTranscript,
 } from "@/lib/multiVideo";
@@ -28,19 +30,23 @@ import type { Subtitle } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 1800;
 
-function ffmpegPath(): string {
-  return process.env.FFMPEG_PATH || "ffmpeg";
-}
-function ffprobePath(): string {
-  return ffmpegPath().replace(/ffmpeg(\.exe)?$/i, (m) => m.replace("ffmpeg", "ffprobe"));
-}
+// Curated, tasteful transition rotation — smooth and professional, not cheesy.
+const TRANSITIONS = ["fade", "smoothleft", "circleopen", "smoothright", "slideup"];
+const TRANSITION_DUR = 0.4; // seconds of crossfade between clips
+
+import { getFfmpegPath, getFfprobePath } from "@/lib/ffmpegBinaries";
+const ffmpegPath = getFfmpegPath;
+const ffprobePath = getFfprobePath;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const script = (formData.get("script") as string) || "";
-  if (!script.trim()) {
-    return NextResponse.json({ error: "חסר תסריט" }, { status: 400 });
-  }
+  const transitionsMode = ((formData.get("transitions") as string) || "none").toLowerCase();
+  const withTransitions = transitionsMode === "auto";
+  const picksJson = formData.get("picks") as string | null;
+  // When the user manually re-assigns which video fills a segment, the old
+  // srcStart/srcEnd belong to a DIFFERENT video and are stale — recompute.
+  const recompute = (formData.get("recomputeTiming") as string) === "1";
 
   // Accept video files under multiple `video` keys
   const files = formData.getAll("video").filter((v): v is File => v instanceof File);
@@ -49,6 +55,15 @@ export async function POST(req: NextRequest) {
   }
   if (files.length > 8) {
     return NextResponse.json({ error: "מקסימום 8 סרטונים" }, { status: 400 });
+  }
+
+  // When picks aren't supplied we need a script to compute them.
+  let prevPicks: ClipPick[] | null = null;
+  if (picksJson) {
+    try { prevPicks = JSON.parse(picksJson) as ClipPick[]; } catch { prevPicks = null; }
+  }
+  if (!prevPicks && !script.trim()) {
+    return NextResponse.json({ error: "חסר תסריט" }, { status: 400 });
   }
 
   const workDir = join(tmpdir(), "multi-edit", String(Date.now()));
@@ -64,37 +79,78 @@ export async function POST(req: NextRequest) {
       localPaths.push(p);
     }
 
-    // 2. Transcribe each video in parallel (Python whisper)
-    const transcribed = await Promise.all(
-      localPaths.map(async (p, idx) => {
-        const subs = await transcribe(p);
-        const dur = await probeDuration(p);
-        const t: VideoTranscript = { videoIdx: idx, durationSec: dur, subtitles: subs };
-        return t;
-      }),
-    );
+    // 2. Probe every source once (duration + audio presence + dimensions)
+    const infos = await Promise.all(localPaths.map((p) => probeInfo(p)));
 
-    // 3. Align script → clip picks
-    const picks = alignScriptToVideos(script, transcribed);
-    if (picks.length === 0) {
-      return NextResponse.json({ error: "התסריט ריק אחרי פילוח" }, { status: 400 });
+    // Common canvas = first source's dimensions (keeps the user's intended
+    // orientation; everything else is scaled+padded to fit). Guarantees
+    // identical dims so BOTH concat methods + xfade work reliably.
+    const canvasW = even(infos[0].width || 1080);
+    const canvasH = even(infos[0].height || 1920);
+
+    // 3. Compute picks — reuse cached ones (fast toggle) or align fresh.
+    let picks: ClipPick[];
+    if (prevPicks && prevPicks.length > 0) {
+      picks = prevPicks;
+      // Manual re-assignment: clamp each pick's time window to its (possibly
+      // new) video, distributing multiple segments on the same video via a
+      // moving cursor so they don't all start at 0.
+      if (recompute) {
+        const cursors = infos.map(() => 0);
+        picks = picks.map((p) => {
+          const want = readingDurationSec(p.scriptText);
+          const dur = infos[p.videoIdx]?.duration ?? 0;
+          let start = cursors[p.videoIdx] ?? 0;
+          if (start + Math.min(1, want) >= dur) start = 0;
+          const end = Math.min(dur, start + want);
+          cursors[p.videoIdx] = end;
+          return { ...p, srcStart: start, srcEnd: end, matchScore: 0, matchedSubText: "(בחירה ידנית)" };
+        });
+      }
+    } else {
+      const transcribed: VideoTranscript[] = await Promise.all(
+        localPaths.map(async (p, idx) => {
+          const subs = await transcribe(p);
+          return { videoIdx: idx, durationSec: infos[idx].duration, subtitles: subs };
+        }),
+      );
+      picks = alignScriptToVideos(script, transcribed);
+      if (picks.length === 0) {
+        return NextResponse.json({ error: "התסריט ריק אחרי פילוח" }, { status: 400 });
+      }
     }
 
-    // 4. Cut + concat
-    const concatOut = join(workDir, "concat.mp4");
-    await cutAndConcat(localPaths, picks, concatOut);
+    // 4. Cut each pick into a normalized clip (common canvas + guaranteed audio)
+    const clips = await cutClips(localPaths, infos, picks, workDir, canvasW, canvasH);
 
-    // 5. Read result
-    const buffer = await readFile(concatOut);
+    // 5. Join — hard cut or xfade transitions
+    const finalOut = join(workDir, "final.mp4");
+    if (withTransitions && clips.length >= 2) {
+      await concatXfade(clips, finalOut);
+    } else {
+      await concatHard(clips, workDir, finalOut);
+    }
+
+    // 6. Read result + extract one thumbnail per source video (for the
+    //    manual clip picker in the UI). Cheap single-frame grabs.
+    const buffer = await readFile(finalOut);
     const subs = buildOutputSubtitles(picks);
+    const hardDur = subs.length > 0 ? subs[subs.length - 1].end : 0;
+    const durationSec = withTransitions && clips.length >= 2
+      ? Math.max(0, hardDur - (clips.length - 1) * TRANSITION_DUR)
+      : hardDur;
 
-    // Returns a multipart-ish payload: JSON header with picks/subs +
-    // base64 video. Cleaner than splitting into two requests for MVP.
+    const thumbnails = await Promise.all(
+      localPaths.map((p, i) => extractThumb(p, workDir, i, infos[i].duration)),
+    );
+
     return NextResponse.json({
       videoBase64: buffer.toString("base64"),
       subtitles: subs,
       picks,
-      durationSec: subs.length > 0 ? subs[subs.length - 1].end : 0,
+      thumbnails,
+      durationSec,
+      transitions: withTransitions ? "auto" : "none",
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -103,6 +159,8 @@ export async function POST(req: NextRequest) {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/* ──────────────────────────── Transcription ──────────────────────────── */
 
 function transcribe(videoPath: string): Promise<Subtitle[]> {
   return new Promise((resolve, reject) => {
@@ -133,55 +191,168 @@ function transcribe(videoPath: string): Promise<Subtitle[]> {
   });
 }
 
-function probeDuration(path: string): Promise<number> {
-  return new Promise((resolve, reject) => {
+/* ──────────────────────────── Probing ──────────────────────────── */
+
+type SourceInfo = { duration: number; hasAudio: boolean; width: number; height: number };
+
+function probeInfo(path: string): Promise<SourceInfo> {
+  return new Promise((resolve) => {
     const proc = spawn(ffprobePath(), [
-      "-hide_banner", "-loglevel", "error",
+      "-v", "error",
+      "-show_entries", "stream=codec_type,width,height",
       "-show_entries", "format=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
+      "-of", "json",
       path,
     ]);
     let out = "";
     proc.stdout.on("data", (d) => (out += d.toString()));
-    proc.on("close", (code) => {
-      if (code !== 0) return reject(new Error(`ffprobe נכשל (${code})`));
-      resolve(parseFloat(out.trim()) || 0);
+    proc.on("close", () => {
+      try {
+        const j = JSON.parse(out) as {
+          streams?: { codec_type?: string; width?: number; height?: number }[];
+          format?: { duration?: string };
+        };
+        const streams = j.streams ?? [];
+        const v = streams.find((s) => s.codec_type === "video");
+        const hasAudio = streams.some((s) => s.codec_type === "audio");
+        resolve({
+          duration: parseFloat(j.format?.duration ?? "0") || 0,
+          hasAudio,
+          width: v?.width ?? 0,
+          height: v?.height ?? 0,
+        });
+      } catch {
+        resolve({ duration: 0, hasAudio: false, width: 0, height: 0 });
+      }
     });
+    proc.on("error", () => resolve({ duration: 0, hasAudio: false, width: 0, height: 0 }));
   });
 }
 
-async function cutAndConcat(
-  sources: string[], picks: ClipPick[], outputPath: string,
-): Promise<void> {
-  const concatList: string[] = [];
-  const workDir = join(outputPath, "..");
+/* ──────────────────────────── Thumbnails ──────────────────────────── */
 
-  // Cut each pick into a separate clip — re-encode so concat demuxer
-  // works regardless of source codecs (cheaper than full re-encode of the
-  // joined output because each clip is small).
+/** Grab one representative frame (~30% in) and return it as a base64 data URL. */
+async function extractThumb(src: string, workDir: string, idx: number, dur: number): Promise<string> {
+  const at = Math.min(Math.max(0.5, dur * 0.3), Math.max(0.5, dur - 0.2));
+  const thumbPath = join(workDir, `thumb-${idx}.jpg`);
+  try {
+    await runFfmpeg([
+      "-y", "-ss", at.toFixed(2), "-i", src,
+      "-frames:v", "1", "-vf", "scale=200:-1", "-q:v", "5",
+      thumbPath,
+    ]);
+    const b = await readFile(thumbPath);
+    return `data:image/jpeg;base64,${b.toString("base64")}`;
+  } catch {
+    return ""; // best-effort — UI falls back to a numbered placeholder
+  }
+}
+
+/* ──────────────────────────── Cutting + joining ──────────────────────────── */
+
+type Clip = { path: string; dur: number };
+
+function even(n: number): number {
+  const r = Math.round(n);
+  return r % 2 === 0 ? r : r + 1;
+}
+
+/**
+ * Cut each pick to a clip normalized to a common WxH canvas (scale to fit +
+ * black pad), 30fps, square pixels, AAC stereo audio (silent track injected
+ * for sources that have none — so xfade's acrossfade never fails).
+ */
+async function cutClips(
+  sources: string[],
+  infos: SourceInfo[],
+  picks: ClipPick[],
+  workDir: string,
+  W: number, H: number,
+): Promise<Clip[]> {
+  const clips: Clip[] = [];
+  const vf =
+    `scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+    `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,format=yuv420p`;
+
   for (let i = 0; i < picks.length; i++) {
     const p = picks[i];
+    const dur = Math.max(0.2, p.srcEnd - p.srcStart);
     const clipPath = join(workDir, `clip-${String(i).padStart(3, "0")}.mp4`);
-    await runFfmpeg([
-      "-y",
-      "-ss", p.srcStart.toFixed(3),
-      "-i", sources[p.videoIdx],
-      "-t", (p.srcEnd - p.srcStart).toFixed(3),
-      // Normalize: same SAR, fps, audio codec, so the demuxer concat works.
-      "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=30",
+    const hasAudio = infos[p.videoIdx]?.hasAudio;
+
+    const args: string[] = ["-y", "-ss", p.srcStart.toFixed(3), "-i", sources[p.videoIdx]];
+    if (!hasAudio) {
+      // Inject a silent stereo track so every clip has audio (xfade-safe).
+      args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
+    }
+    args.push(
+      "-t", dur.toFixed(3),
+      "-vf", vf,
+      "-map", "0:v:0",
+      "-map", hasAudio ? "0:a:0" : "1:a:0",
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-      "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+      "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+      "-shortest",
       clipPath,
-    ]);
-    concatList.push(`file '${clipPath.replace(/\\/g, "/")}'`);
+    );
+    await runFfmpeg(args);
+    clips.push({ path: clipPath, dur });
   }
+  return clips;
+}
 
+/** Hard-cut join via the concat demuxer (clips are already normalized). */
+async function concatHard(clips: Clip[], workDir: string, outputPath: string): Promise<void> {
+  const list = clips.map((c) => `file '${c.path.replace(/\\/g, "/")}'`).join("\n");
   const listPath = join(workDir, "concat-list.txt");
-  await writeFile(listPath, concatList.join("\n"));
-
+  await writeFile(listPath, list);
   await runFfmpeg([
     "-y", "-f", "concat", "-safe", "0", "-i", listPath,
     "-c", "copy", outputPath,
+  ]);
+}
+
+/**
+ * Crossfade join via chained xfade (video) + acrossfade (audio). Builds a
+ * filter_complex that overlaps each successive clip by TRANSITION_DUR using
+ * a rotating set of tasteful transitions.
+ */
+async function concatXfade(clips: Clip[], outputPath: string): Promise<void> {
+  const td = TRANSITION_DUR;
+  const inputs: string[] = [];
+  for (const c of clips) inputs.push("-i", c.path);
+
+  const filters: string[] = [];
+  let vLabel = "0:v";
+  let aLabel = "0:a";
+  let cumDur = clips[0].dur;
+
+  for (let i = 1; i < clips.length; i++) {
+    const offset = Math.max(0, cumDur - td);
+    const tr = TRANSITIONS[(i - 1) % TRANSITIONS.length];
+    const vOut = `v${i}`;
+    const aOut = `a${i}`;
+    filters.push(
+      `[${vLabel}][${i}:v]xfade=transition=${tr}:duration=${td.toFixed(3)}:offset=${offset.toFixed(3)}[${vOut}]`,
+    );
+    filters.push(
+      `[${aLabel}][${i}:a]acrossfade=d=${td.toFixed(3)}[${aOut}]`,
+    );
+    vLabel = vOut;
+    aLabel = aOut;
+    cumDur = cumDur + clips[i].dur - td;
+  }
+
+  await runFfmpeg([
+    "-y",
+    ...inputs,
+    "-filter_complex", filters.join(";"),
+    "-map", `[${vLabel}]`,
+    "-map", `[${aLabel}]`,
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+    "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+    "-movflags", "+faststart",
+    outputPath,
   ]);
 }
 

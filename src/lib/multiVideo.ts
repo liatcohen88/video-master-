@@ -39,16 +39,64 @@ export function tokenize(text: string): string[] {
     .filter((w) => w.length > 1 && !HE_STOPWORDS.has(w) && !EN_STOPWORDS.has(w));
 }
 
+// Hebrew discourse connectors that mark a NEW beat in the narration — we
+// break the script at these even without punctuation, because most people
+// type one long run-on sentence (e.g. "...שתיתי בכוס ואחר כך אכלתי עוגיות...").
+const HE_CONNECTORS = [
+  "ואחר כך", "אחר כך", "אחרי זה", "אחרי כן", "לאחר מכן", "אחרי ש",
+  "ואז", "ולבסוף", "לבסוף", "בסוף", "ובסוף",
+  "בהתחלה", "קודם כל", "קודם", "ראשית",
+  "וזהו", "וזה הכל", "אחר כך", "וגם", "בנוסף", "חוץ מזה",
+];
+
 /**
- * Split a script into segments. Hebrew speakers usually write either with
- * sentence punctuation or with line breaks. We honor both, plus collapse
- * runs of whitespace.
+ * Split a script into segments — robust to how real people type.
+ *
+ * Layered strategy:
+ *   1. Break on sentence punctuation (. ! ?) and line breaks.
+ *   2. Break on commas and Hebrew discourse connectors ("ואחר כך", "ואז"…),
+ *      so a punctuation-free run-on sentence still splits into beats.
+ *   3. If we STILL have fewer segments than `minSegments` (usually the number
+ *      of uploaded videos), rebalance by splitting into ~equal word-chunks so
+ *      every video gets a turn instead of showing just one clip.
  */
-export function splitScript(script: string): string[] {
-  return script
+export function splitScript(script: string, minSegments = 1): string[] {
+  // Layer 1+2: natural boundaries — punctuation, newlines, commas, connectors.
+  const connectorRe = new RegExp(`\\s+(?=(?:${HE_CONNECTORS.join("|")})\\b)`, "g");
+  let segs = script
     .split(/(?<=[.!?])\s+|\n+/g)
+    .flatMap((s) => s.split(/\s*[,،;]\s*/g))   // commas
+    .flatMap((s) => s.split(connectorRe))       // Hebrew connectors
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+
+  // Layer 3: not enough beats for the number of videos → keep the natural
+  // segments and repeatedly split the LONGEST one in half (at a word
+  // boundary) until we reach minSegments. Preserves phrase boundaries far
+  // better than a blind word-chunk, so subtitles never break mid-connector.
+  if (segs.length < minSegments && minSegments > 1) {
+    // Don't try to make more segments than there are words to fill them.
+    const totalWords = segs.reduce((n, s) => n + s.split(/\s+/).length, 0);
+    const target = Math.min(minSegments, totalWords);
+
+    while (segs.length < target) {
+      // Find the segment with the most words that can still be split.
+      let idx = -1, maxWords = 1;
+      for (let i = 0; i < segs.length; i++) {
+        const w = segs[i].split(/\s+/).length;
+        if (w > maxWords) { maxWords = w; idx = i; }
+      }
+      if (idx === -1) break; // nothing left to split
+
+      const words = segs[idx].split(/\s+/);
+      const mid = Math.ceil(words.length / 2);
+      const left = words.slice(0, mid).join(" ");
+      const right = words.slice(mid).join(" ");
+      segs.splice(idx, 1, left, right);
+    }
+  }
+
+  return segs;
 }
 
 export type VideoTranscript = {
@@ -96,36 +144,76 @@ function scoreMatch(scriptTokens: string[], subTokens: string[]): number {
 }
 
 /**
- * Main alignment. Returns one ClipPick per script segment.
+ * Estimate how long a script segment needs to stay on screen, based on
+ * Hebrew reading speed. This is the KEY to "follow the script": each clip's
+ * length is driven by the TEXT (reading time), not by whatever happened to
+ * match in a source transcript. A longer sentence → a longer clip.
+ */
+export function readingDurationSec(
+  text: string,
+  opts: { minSec?: number; maxSec?: number; charsPerSec?: number } = {},
+): number {
+  const min = opts.minSec ?? 2;
+  const max = opts.maxSec ?? 6;
+  const cps = opts.charsPerSec ?? 14; // comfortable Hebrew on-screen reading
+  const chars = text.replace(/\s+/g, "").length;
+  const raw = chars / cps + 0.6; // +0.6s base so very short lines still breathe
+  return Math.min(max, Math.max(min, raw));
+}
+
+/** A transcript match is "strong" only above this Jaccard score. Below it we
+ *  trust the script order + sequential footage instead of a weak coincidence. */
+const STRONG_MATCH = 0.2;
+
+/**
+ * Main alignment — SCRIPT-FIRST. Returns one ClipPick per script segment,
+ * strictly in script order.
  *
- * Strategy: greedy — score every (scriptSeg, sourceSub) pair, then for
- * each script segment pick the best unused source sub. If a script
- * segment has no matches at all, round-robin a fallback clip from the
- * next video (cycling), of duration = avg of matched clips (or 3s).
+ * For each segment, the desired on-screen duration comes from its reading
+ * time. We then choose WHICH footage fills that slot:
+ *
+ *   1. Strong transcript match — if the segment's words clearly appear in a
+ *      source clip's speech (score ≥ STRONG_MATCH), use that exact moment.
+ *      This keeps the smart behavior when the script IS the voice-over.
+ *
+ *   2. Otherwise — sequential footage. Each video has a moving cursor; we
+ *      round-robin across videos and pull the next unused chunk, advancing
+ *      the cursor so we never re-show the same opening seconds. This makes
+ *      pure B-roll (no matching speech) follow the script cleanly: segment 1
+ *      → video 1, segment 2 → video 2, segment 3 → video 1 (next chunk)…
+ *
+ * The clip length always equals the segment's reading time (clamped to what
+ * the source can still provide), so the output paces with the script.
  */
 export function alignScriptToVideos(
   script: string,
   transcripts: VideoTranscript[],
-  opts: { minClipSec?: number; maxClipSec?: number; defaultClipSec?: number } = {},
+  opts: { minClipSec?: number; maxClipSec?: number; charsPerSec?: number } = {},
 ): ClipPick[] {
-  const minClip = opts.minClipSec ?? 1.5;
-  const maxClip = opts.maxClipSec ?? 5;
-  const defaultClip = opts.defaultClipSec ?? 3;
+  const minClip = opts.minClipSec ?? 2;
+  const maxClip = opts.maxClipSec ?? 6;
 
-  const segments = splitScript(script);
+  // Ask for at least as many segments as there are videos, so every uploaded
+  // clip gets used instead of the whole script collapsing into one segment.
+  const segments = splitScript(script, transcripts.length);
   const scriptTokens = segments.map(tokenize);
   const picks: ClipPick[] = [];
-  const used = new Set<string>(); // `${videoIdx}:${subIdx}` to avoid reusing same clip
+  const usedSubs = new Set<string>();          // `${videoIdx}:${subIdx}`
+  const cursors = transcripts.map(() => 0);     // per-video playhead for sequential pulls
+  let rrPointer = 0;                            // round-robin pointer for sequential fallback
 
   for (let i = 0; i < segments.length; i++) {
-    let best: { score: number; videoIdx: number; subIdx: number; sub: Subtitle } | null = null;
+    const want = readingDurationSec(segments[i], {
+      minSec: minClip, maxSec: maxClip, charsPerSec: opts.charsPerSec,
+    });
 
+    // ── 1. Strong transcript match ──────────────────────────────
+    let best: { score: number; videoIdx: number; subIdx: number; sub: Subtitle } | null = null;
     for (const tr of transcripts) {
       tr.subtitles.forEach((sub, subIdx) => {
-        const key = `${tr.videoIdx}:${subIdx}`;
-        if (used.has(key)) return;
+        if (usedSubs.has(`${tr.videoIdx}:${subIdx}`)) return;
         const score = scoreMatch(scriptTokens[i], tokenize(sub.text));
-        if (score > 0 && (best === null || score > best.score)) {
+        if (score >= STRONG_MATCH && (best === null || score > best.score)) {
           best = { score, videoIdx: tr.videoIdx, subIdx, sub };
         }
       });
@@ -133,41 +221,42 @@ export function alignScriptToVideos(
 
     if (best !== null) {
       const b = best as { score: number; videoIdx: number; subIdx: number; sub: Subtitle };
-      used.add(`${b.videoIdx}:${b.subIdx}`);
-      const len = Math.max(minClip, Math.min(maxClip, b.sub.end - b.sub.start));
+      usedSubs.add(`${b.videoIdx}:${b.subIdx}`);
+      const dur = transcripts[b.videoIdx].durationSec;
+      const start = b.sub.start;
+      const end = Math.min(dur, start + want);
+      cursors[b.videoIdx] = Math.max(cursors[b.videoIdx], end);
       picks.push({
         scriptIdx: i,
         scriptText: segments[i],
         videoIdx: b.videoIdx,
-        srcStart: b.sub.start,
-        srcEnd: b.sub.start + len,
+        srcStart: start,
+        srcEnd: end,
         matchScore: b.score,
         matchedSubText: b.sub.text,
       });
-    } else {
-      // Fallback: round-robin across videos, take from a non-used position
-      const vIdx = i % transcripts.length;
-      const tr = transcripts[vIdx];
-      // pick a not-yet-used point — first unused subtitle in this video
-      let chosenStart = 0;
-      for (let s = 0; s < tr.subtitles.length; s++) {
-        if (!used.has(`${vIdx}:${s}`)) {
-          chosenStart = tr.subtitles[s].start;
-          used.add(`${vIdx}:${s}`);
-          break;
-        }
-      }
-      const len = Math.min(maxClip, Math.max(minClip, defaultClip));
-      picks.push({
-        scriptIdx: i,
-        scriptText: segments[i],
-        videoIdx: vIdx,
-        srcStart: chosenStart,
-        srcEnd: Math.min(tr.durationSec, chosenStart + len),
-        matchScore: 0,
-        matchedSubText: "(fallback)",
-      });
+      continue;
     }
+
+    // ── 2. Sequential footage (round-robin across videos) ───────
+    const vIdx = rrPointer % transcripts.length;
+    rrPointer++;
+    const tr = transcripts[vIdx];
+    let start = cursors[vIdx];
+    // If this video is near its end, wrap back to the start so we still
+    // have footage to show rather than an empty/too-short clip.
+    if (start + Math.min(1, want) >= tr.durationSec) start = 0;
+    const end = Math.min(tr.durationSec, start + want);
+    cursors[vIdx] = end;
+    picks.push({
+      scriptIdx: i,
+      scriptText: segments[i],
+      videoIdx: vIdx,
+      srcStart: start,
+      srcEnd: end,
+      matchScore: 0,
+      matchedSubText: "(רצף לפי התסריט)",
+    });
   }
 
   return picks;

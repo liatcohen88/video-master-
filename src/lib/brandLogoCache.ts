@@ -34,11 +34,16 @@ function escapeXml(s: string): string {
 export async function getBrandCardPng(
   brand: BrandLogo,
   cardHeight: number,
+  transparentBg = false,
 ): Promise<{ path: string; width: number; height: number }> {
   await mkdir(CACHE_DIR, { recursive: true });
 
   const sizeKey = Math.round(cardHeight);
-  const filename = `${brand.id}-${sizeKey}.png`;
+  // Transparent variants cached separately — otherwise a previous run with
+  // the white card sticks around forever and silently overrides the user's
+  // toggle. Suffix matches what Liat saw missing in the MP4 export.
+  const variant = transparentBg ? "t" : "w";
+  const filename = `${brand.id}-${sizeKey}-${variant}.png`;
   const cachePath = join(CACHE_DIR, filename);
 
   // Card dimensions
@@ -63,13 +68,19 @@ export async function getBrandCardPng(
   const logoSvgText = await res.text();
   const logoB64 = Buffer.from(logoSvgText).toString("base64");
 
-  // Brand name uses brand color (works against the white card background)
-  const textFill = `#${brand.color}`;
-  // Card background = white with soft shadow (approximated via filter)
+  // Text color depends on background. Opaque card = brand color on white.
+  // Transparent = white text with a dark drop shadow so it stays readable
+  // against any video frame (mirrors VideoPreview.tsx BrandOverlay logic).
+  const textFill = transparentBg ? "#FFFFFF" : `#${brand.color}`;
   const radius = sizeKey * 0.22;
+  const shadowStd = sizeKey * 0.04;
 
-  // Compose card SVG. Use system "Heebo, Rubik, sans-serif" so Hebrew names
-  // render correctly when sharp picks up a Hebrew-capable system font.
+  const backgroundLayer = transparentBg
+    ? ""
+    : `<rect x="0" y="0" width="${cardWidth}" height="${sizeKey}" rx="${radius}" ry="${radius}"
+            fill="#FFFFFF" filter="url(#shadow)" />`;
+  const textShadow = transparentBg ? ` filter="url(#textShadow)"` : "";
+
   const cardSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${sizeKey}" viewBox="0 0 ${cardWidth} ${sizeKey}">
   <defs>
@@ -79,9 +90,14 @@ export async function getBrandCardPng(
       <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="${shadowStd}" />
+      <feOffset dx="0" dy="${sizeKey * 0.025}" result="off" />
+      <feComponentTransfer><feFuncA type="linear" slope="0.75" /></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect x="0" y="0" width="${cardWidth}" height="${sizeKey}" rx="${radius}" ry="${radius}"
-        fill="#FFFFFF" filter="url(#shadow)" />
+  ${backgroundLayer}
   <image x="${padding}" y="${(sizeKey - logoSize) / 2}"
          width="${logoSize}" height="${logoSize}"
          href="data:image/svg+xml;base64,${logoB64}" />
@@ -89,7 +105,7 @@ export async function getBrandCardPng(
         font-family="Heebo, Rubik, Arial, sans-serif"
         font-weight="900"
         font-size="${fontSize}"
-        fill="${textFill}"
+        fill="${textFill}"${textShadow}
         dominant-baseline="central">${escapeXml(brand.name)}</text>
 </svg>`;
 
@@ -116,6 +132,7 @@ export async function getBrandCardPng(
 export async function prepareBrandCards(
   events: { brand: BrandLogo }[],
   cardHeight: number,
+  transparentBg = false,
 ): Promise<Map<string, { path: string; width: number; height: number }>> {
   const map = new Map<string, { path: string; width: number; height: number }>();
   // De-dupe by brand id (multiple events of same brand share one PNG)
@@ -124,7 +141,7 @@ export async function prepareBrandCards(
     if (seen.has(ev.brand.id)) continue;
     seen.add(ev.brand.id);
     try {
-      const r = await getBrandCardPng(ev.brand, cardHeight);
+      const r = await getBrandCardPng(ev.brand, cardHeight, transparentBg);
       map.set(ev.brand.id, r);
     } catch (err) {
       console.error(`Brand logo skipped for ${ev.brand.id}:`, err);

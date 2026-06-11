@@ -77,7 +77,11 @@ export const BRAND_LOGOS: BrandLogo[] = [
     slug: "facebook",
     color: "1877F2",
     patterns: [
-      heWord("פייסבוק"), heWord("פייסבוקי"), heWord("מטא"),
+      // Whisper transcribes "Facebook" multiple ways in Hebrew: double-yod
+      // "פייסבוק", single-yod "פיסבוק", and even no-yod "פסבוק". We list
+      // every common spelling so the logo always fires.
+      heWord("פייסבוק"), heWord("פייסבוקי"), heWord("פיסבוק"),
+      heWord("פסבוק"), heWord("מטא"),
       /\bfacebook\b/i, /\bfb\b/i, /\bmeta\b/i,
     ],
   },
@@ -87,7 +91,8 @@ export const BRAND_LOGOS: BrandLogo[] = [
     slug: "instagram",
     color: "E4405F",
     patterns: [
-      heWord("אינסטגרם"), heWord("אינסטה"),
+      // Whisper alt spellings: אינסטגרם / אינסטרגם / אינסטה / אינסטא
+      heWord("אינסטגרם"), heWord("אינסטרגם"), heWord("אינסטה"), heWord("אינסטא"),
       heWord("רילס"), heWord("רילסים"),
       /\binstagram\b/i, /\binsta\b/i, /\breels?\b/i,
     ],
@@ -97,7 +102,12 @@ export const BRAND_LOGOS: BrandLogo[] = [
     name: "TikTok",
     slug: "tiktok",
     color: "000000",
-    patterns: [heWord("טיקטוק"), /\btiktok\b/i, /\btik\s*tok\b/i],
+    patterns: [
+      // טיקטוק / טיק-טוק / טיק טוק / טיקטוקי
+      heWord("טיקטוק"), heWord("טיקטוקי"),
+      /\btiktok\b/i, /\btik\s*tok\b/i,
+      /טיק[\s\-]*טוק/u,
+    ],
   },
   {
     id: "youtube",

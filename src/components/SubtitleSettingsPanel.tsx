@@ -20,26 +20,43 @@ export default function SubtitleSettingsPanel({
     value: SubtitleSettings[K],
   ) => onChange({ ...settings, [key]: value });
 
-  // Editable model names via CMS
+  // Editable model names + all panel labels via CMS
   const hebrewName    = useContent("whisper.modelName.hebrew");
   const universalName = useContent("whisper.modelName.universal");
+  const hebrewDesc    = useContent("whisper.modelDesc.hebrew") as string;
+  const universalDesc = useContent("whisper.modelDesc.universal") as string;
+  const recBadge      = useContent("whisper.recommendedBadge") as string;
+  const cTitle        = useContent("settings.title") as string;
+  const cModelLabel   = useContent("settings.modelLabel") as string;
+  const cMaxLabel     = useContent("settings.maxWords.label") as string;
+  const cMaxHint      = useContent("settings.maxWords.hint") as string;
+  const cMinLabel     = useContent("settings.minWords.label") as string;
+  const cPunctLabel   = useContent("settings.punctuation.label") as string;
+  const cPunctHint    = useContent("settings.punctuation.hint") as string;
+  const cStretchLabel = useContent("settings.stretch.label") as string;
+  const cStretchHint  = useContent("settings.stretch.hint") as string;
   function nameFor(m: { id: string; name: string }) {
     if (m.id === "ivrit-ai/whisper-large-v3-turbo-ct2") return hebrewName;
     if (m.id === "large-v3") return universalName;
     return m.name;
+  }
+  function descFor(m: { id: string; description: string }) {
+    if (m.id === "ivrit-ai/whisper-large-v3-turbo-ct2") return hebrewDesc;
+    if (m.id === "large-v3") return universalDesc;
+    return m.description;
   }
 
   return (
     <div className="bg-bg-panel border border-white/10 rounded-2xl p-6 space-y-5">
       <div className="flex items-center gap-2 mb-2">
         <Settings2 className="w-5 h-5 text-brand-light" />
-        <h3 className="text-lg font-bold">הגדרות כתוביות</h3>
+        <h3 className="text-lg font-bold">{cTitle}</h3>
       </div>
 
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Cpu className="w-4 h-4 text-brand-light" />
-          <label className="text-sm font-medium">מודל AI לתמלול</label>
+          <label className="text-sm font-medium">{cModelLabel}</label>
         </div>
         <div className="space-y-2">
           {WHISPER_MODELS
@@ -65,13 +82,13 @@ export default function SubtitleSettingsPanel({
                     <span className="font-bold text-sm">{nameFor(m)}</span>
                     {m.id === "ivrit-ai/whisper-large-v3-turbo-ct2" && (
                       <span className="text-[10px] bg-accent-pink/20 text-accent-pink px-1.5 py-0.5 rounded-full">
-                        מומלץ
+                        {recBadge}
                       </span>
                     )}
                   </div>
                   <span className="text-[10px] text-white/40 font-mono">{m.size}</span>
                 </div>
-                <p className="text-xs text-white/50 mb-2">{m.description}</p>
+                <p className="text-xs text-white/50 mb-2">{descFor(m)}</p>
                 <div className="flex items-center gap-3 text-[11px]">
                   <span className="text-white/40">
                     דיוק עברית: <span className="text-yellow-400">{"★".repeat(m.hebrewQuality)}</span>
@@ -90,8 +107,8 @@ export default function SubtitleSettingsPanel({
       <div className="border-t border-white/5 pt-5" />
 
       <SliderRow
-        label="מקסימום מילים בשורה"
-        hint="בסגנון רילס מומלץ 1-2. בסגנון נקי 4-6."
+        label={cMaxLabel}
+        hint={cMaxHint}
         value={settings.maxWordsPerLine}
         min={1}
         max={10}
@@ -99,7 +116,7 @@ export default function SubtitleSettingsPanel({
       />
 
       <SliderRow
-        label="מינימום מילים בשורה"
+        label={cMinLabel}
         value={settings.minWordsPerLine}
         min={1}
         max={settings.maxWordsPerLine}
@@ -107,15 +124,15 @@ export default function SubtitleSettingsPanel({
       />
 
       <CheckboxRow
-        label="הוסף פיסוק"
-        hint="פסיקים ונקודות אוטומטיות מ-AI"
+        label={cPunctLabel}
+        hint={cPunctHint}
         checked={settings.addPunctuation}
         onChange={(v) => update("addPunctuation", v)}
       />
 
       <CheckboxRow
-        label="מתח כתוביות"
-        hint="הארך כל כתובית עד תחילת הבאה (נראה חלק יותר)"
+        label={cStretchLabel}
+        hint={cStretchHint}
         checked={settings.stretchSubtitles}
         onChange={(v) => update("stretchSubtitles", v)}
       />

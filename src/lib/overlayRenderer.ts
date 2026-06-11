@@ -213,7 +213,14 @@ export function renderSubtitleFrames(
 
   // Scale from the 1080p design space to the actual output height
   const scale = videoHeight / 1080;
-  const fontSize = Math.round(style.fontSize * scale);
+  // Empirical correction: @napi-rs/canvas (FreeType + bitmap rasterization)
+  // renders Heebo glyphs visibly larger than Chromium for the same pixel
+  // fontSize. Measured against side-by-side preview vs MP4 frames, the
+  // export looked ~30% larger. 0.78 brings them into visual parity. If
+  // you ever swap the canvas backend (e.g., to skia-canvas or a Chromium-
+  // based renderer), re-measure this constant or drop it to 1.0.
+  const CANVAS_FONT_CORRECTION = 0.78;
+  const fontSize = Math.round(style.fontSize * scale * CANVAS_FONT_CORRECTION);
   const strokeW = style.strokeWidth * scale;
   const offset = style.positionOffset * scale;
   const maxWidth = videoWidth * 0.9;
@@ -287,10 +294,17 @@ function renderOneSubtitle(opts: {
   const { words, activeIdx, style, fontSize, strokeW, fontFamily, weight, maxWidth } = opts;
 
   const fontSpec = `${weight >= 700 ? "bold" : "normal"} ${fontSize}px "${fontFamily}", "Heebo", sans-serif`;
+  // Design-space constants must MATCH VideoPreview.tsx Subtitle component so
+  // the exported MP4 looks identical to the live preview. Preview uses fixed
+  // pixel values scaled by containerHeight/1080. We mirror that with the
+  // equivalent scale = fontSize / style.fontSize (both equal videoHeight/1080).
+  // Without this, the pill is ~2x larger in export because the old formula
+  // (fontSize * 0.5) made padding grow with the font instead of with the frame.
+  const designScale = fontSize / style.fontSize;
   const wordGap = fontSize * 0.28;
-  const padX = fontSize * 0.5 + strokeW;
-  const padY = fontSize * 0.35 + strokeW;
-  const lineHeight = fontSize * 1.25;
+  const padX = 18 * designScale + strokeW;
+  const padY = 8 * designScale + strokeW;
+  const lineHeight = fontSize * 1.3;
 
   // Measure with a scratch context
   const scratch = createCanvas(10, 10).getContext("2d");
@@ -321,10 +335,10 @@ function renderOneSubtitle(opts: {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // Background box (if any)
+  // Background box (if any). Border radius mirrors preview's `12 * scale`.
   if (style.backgroundOpacity > 0) {
     ctx.fillStyle = hexToRgba(style.backgroundColor, style.backgroundOpacity);
-    const r = fontSize * 0.25;
+    const r = 12 * designScale;
     roundRect(ctx, 0, 0, W, H, r);
     ctx.fill();
   }

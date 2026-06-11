@@ -13,6 +13,7 @@ import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { getFfmpegPath } from "./ffmpegBinaries";
 
 const CACHE_DIR = join(process.cwd(), "cache", "lottie");
 
@@ -40,7 +41,7 @@ export async function renderLottieToMov(opts: {
   if (!existsSync(absJson)) return null;
 
   const script = join(process.cwd(), "scripts", "render-lottie.cjs");
-  const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
+  const ffmpeg = getFfmpegPath();
 
   const ok = await new Promise<boolean>((resolve) => {
     const proc = spawn(process.execPath, [
