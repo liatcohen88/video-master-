@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Lock, FileText, Mail, ArrowLeft } from "lucide-react";
+import { Shield, Lock, FileText, Mail, Bell, ArrowLeft } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -18,8 +18,11 @@ export default function PolicyPage() {
   const privBody    = useContent("legal.privacyBody");
   const termsHeader = useContent("legal.termsHeader");
   const termsBody   = useContent("legal.termsBody");
+  const notifHeader = useContent("legal.notificationsHeader");
+  const notifBody   = useContent("legal.notificationsBody");
   const cnHeader    = useContent("legal.contactHeader");
   const cnBody      = useContent("legal.contactBody");
+  const backToApp   = useContent("legal.backToApp");
 
   return (
     <div dir="rtl" className="min-h-screen text-white relative">
@@ -42,13 +45,17 @@ export default function PolicyPage() {
         <Section icon={<FileText className="w-5 h-5" />} title={termsHeader} body={termsBody}
                  accent="from-violet-500/15 to-fuchsia-500/5" iconBg="bg-violet-500/20 text-violet-200" />
 
+        {/* Notifications & marketing email consent (CAN-SPAM / IL Spam Law) */}
+        <Section icon={<Bell className="w-5 h-5" />} title={notifHeader} body={notifBody}
+                 accent="from-amber-500/15 to-orange-500/5" iconBg="bg-amber-500/20 text-amber-200" />
+
         {/* Contact */}
         <Section icon={<Mail className="w-5 h-5" />} title={cnHeader} body={cnBody}
                  accent="from-cyan-500/15 to-blue-500/5" iconBg="bg-cyan-500/20 text-cyan-200" />
 
         <div className="text-center mt-10">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white">
-            <ArrowLeft className="w-4 h-4" /> חזרה לאפליקציה
+            <ArrowLeft className="w-4 h-4" /> {backToApp}
           </Link>
         </div>
       </div>

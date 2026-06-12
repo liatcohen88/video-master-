@@ -178,8 +178,15 @@ export const CONTENT_DEFAULTS = {
     "2. הקרדיט שלכם תקף ללא הגבלת זמן. ניתן לקבל החזר על קרדיט שלא נוצל בתוך 14 יום מהקנייה.\n\n" +
     "3. אסור להעלות תוכן בלתי-חוקי, מפר זכויות יוצרים, או פוגעני. אנחנו שומרים את הזכות להשעות חשבונות שמפרים זאת.\n\n" +
     "4. השימוש בתוצרים (סרטונים מיוצאים) הוא שלכם — אנחנו לא דורשים זכויות עליהם.",
+  "legal.notificationsHeader": "התראות ועדכונים במייל",
+  "legal.notificationsBody":
+    "בעת הרישום לשירות, את/ה נותן/ת לנו רשות לשלוח עדכונים, חידושים ופיצ'רים חדשים לכתובת האימייל שמסרת — " +
+    "בהיקף סביר ובהתאם לחוק התקשורת (בזק ושידורים), התשמ\"ב-1982.\n\n" +
+    "בכל מייל כזה יופיע קישור \"הסר מרשימת התפוצה\" שלחיצה עליו תפסיק את העדכונים השיווקיים. " +
+    "מיילים תפעוליים (אישור הרשמה, חשבונית, איפוס סיסמה) ימשיכו להישלח גם אחרי הסרה, כי הם נדרשים לתפעול החשבון.",
   "legal.contactHeader": "יצירת קשר",
   "legal.contactBody":   "לכל שאלה: hi@videomaster.example · אנחנו חוזרים תוך 24 שעות.",
+  "legal.backToApp":     "חזרה לאפליקציה",
 
   // ── Credit costs (override CREDIT_COSTS in src/lib/credits.ts) ──
   "pricing.cost.subtitles_only": 10,
@@ -289,8 +296,8 @@ export const CONTENT_DEFAULTS = {
   // ── Login / Signup pages (/login, /signup) — every visible string ──
   "auth.backHome":              "לדף הבית",
   "auth.divider":               "או",
-  "auth.oauth.google":          "המשיכי עם Google",
-  "auth.oauth.apple":           "המשיכי עם Apple",
+  "auth.oauth.google":          "Google",
+  "auth.oauth.apple":           "Apple",
   "auth.field.name":            "שם",
   "auth.field.email":           "אימייל",
   "auth.field.password":        "סיסמה",
