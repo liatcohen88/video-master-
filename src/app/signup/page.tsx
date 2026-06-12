@@ -135,7 +135,7 @@ export default function SignupPage() {
             type="button"
             onClick={() => oauth("google")}
             disabled={busy}
-            className="w-full flex items-center justify-center gap-2 bg-white text-bg-dark hover:bg-white/90 disabled:opacity-50 font-bold py-2.5 rounded-lg transition-opacity"
+            className="w-full flex items-center justify-center gap-2 bg-white !text-black hover:bg-white/90 disabled:opacity-50 font-bold py-2.5 rounded-lg transition-opacity"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
               <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.85a4.15 4.15 0 01-1.8 2.72v2.26h2.92c1.71-1.57 2.69-3.89 2.69-6.62z"/>
