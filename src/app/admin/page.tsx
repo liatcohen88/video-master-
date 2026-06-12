@@ -201,51 +201,99 @@ function OverviewTab() {
   );
 }
 
-function UsersTab({ onChange }: { onChange: () => void }) {
-  const users = listUsers();
+type RegisteredUser = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  credits: number;
+  created_at: string;
+};
+
+function UsersTab(_props: { onChange: () => void }) {
+  void _props;
+  const [users, setUsers] = useState<RegisteredUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [configured, setConfigured] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/users")
+      .then((r) => r.json())
+      .then((d: { users: RegisteredUser[]; configured: boolean }) => {
+        setUsers(d.users);
+        setConfigured(d.configured);
+      })
+      .catch(() => setConfigured(false))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = users.filter((u) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
+  });
+
+  function formatDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleString("he-IL", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+  }
+
   return (
-    <div className="bg-bg-card border border-white/10 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-bg-input text-[11px] uppercase tracking-wider text-white/50">
-          <tr>
-            <th className="text-right p-3">שם</th>
-            <th className="text-right p-3">אימייל</th>
-            <th className="text-right p-3">קרדיט</th>
-            <th className="text-right p-3">סה״כ שילם</th>
-            <th className="text-right p-3">סרטונים</th>
-            <th className="text-right p-3">סטטוס</th>
-            <th className="text-right p-3">פעולות</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u: AdminUser) => (
-            <tr key={u.id} className="border-t border-white/5">
-              <td className="p-3 font-medium">{u.name}</td>
-              <td className="p-3 text-white/60 text-xs">{u.email}</td>
-              <td className="p-3">
-                <input type="number" value={u.credits}
-                  onChange={(e) => { updateUserCredits(u.id, parseInt(e.target.value) || 0); onChange(); }}
-                  className="w-20 bg-bg-input border border-white/10 rounded px-2 py-1 text-xs" />
-              </td>
-              <td className="p-3">₪{u.totalSpent}</td>
-              <td className="p-3">{u.videosCount}</td>
-              <td className="p-3">
-                <span className={`text-[10px] px-2 py-0.5 rounded-full
-                  ${u.status === "active" ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"}`}>
-                  {u.status === "active" ? "פעיל" : "מושעה"}
-                </span>
-              </td>
-              <td className="p-3">
-                <button
-                  onClick={() => { setUserStatus(u.id, u.status === "active" ? "suspended" : "active"); onChange(); }}
-                  className="text-xs text-white/60 hover:text-white underline">
-                  {u.status === "active" ? "השעי" : "הפעלי"}
-                </button>
-              </td>
+    <div className="space-y-3">
+      {/* Top bar — search + count */}
+      <div className="flex items-center justify-between gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש לפי אימייל או שם..."
+          className="flex-1 bg-bg-input border border-white/10 rounded-lg px-3 py-2 text-sm"
+        />
+        <div className="text-xs text-white/50 whitespace-nowrap">
+          {loading ? "טוען..." : `${filtered.length} מתוך ${users.length}`}
+        </div>
+      </div>
+
+      {!configured && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs p-3 rounded-lg">
+          ⚠️ Supabase לא מוגדר. הוסיפי NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY ו-SUPABASE_SERVICE_ROLE_KEY ב-env vars ב-Coolify.
+        </div>
+      )}
+
+      <div className="bg-bg-card border border-white/10 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-bg-input text-[11px] uppercase tracking-wider text-white/50">
+            <tr>
+              <th className="text-right p-3">שם</th>
+              <th className="text-right p-3">אימייל</th>
+              <th className="text-right p-3">מאסטרים</th>
+              <th className="text-right p-3">נרשם ב</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.map((u) => (
+              <tr key={u.id} className="border-t border-white/5">
+                <td className="p-3 font-medium">{u.display_name ?? "—"}</td>
+                <td className="p-3 text-white/60 text-xs" dir="ltr">{u.email}</td>
+                <td className="p-3">
+                  <span className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-300 text-xs px-2 py-0.5 rounded-full">
+                    🪙 {u.credits}
+                  </span>
+                </td>
+                <td className="p-3 text-white/60 text-xs">{formatDate(u.created_at)}</td>
+              </tr>
+            ))}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={4} className="p-6 text-center text-white/40 text-sm">
+                {users.length === 0 ? "אין משתמשים רשומים עדיין" : "אין התאמות לחיפוש"}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

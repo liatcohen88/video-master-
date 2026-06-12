@@ -6,7 +6,8 @@ import LogoMark from "./LogoMark";
 import MasterCoin from "./MasterCoin";
 import { useContent } from "@/lib/useContent";
 import { getCredits } from "@/lib/credits";
-import { getProfile, listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
+import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
+import { useAuth } from "@/lib/useAuth";
 
 /**
  * Shared header used across every page (home, /dashboard, /credits, /multi,
@@ -25,8 +26,14 @@ export default function SiteHeader() {
   const tagline  = useContent("brand.tagline") as string;
   const logoSize = Number(useContent("brand.headerLogoSize") ?? 44);
 
-  const [credits, setCredits] = useState(0);
-  const [userName, setUserName] = useState("משתמש");
+  const auth = useAuth();
+  const isGuest = auth.status === "guest";
+  // For credits: prefer the Supabase profile balance when we have one,
+  // otherwise fall back to the localStorage credit (legacy + offline mode).
+  const [localCredits, setLocalCredits] = useState(0);
+  const credits = auth.profile?.credits ?? localCredits;
+  const userName = auth.profile?.display_name || auth.profile?.email?.split("@")[0] || "משתמש";
+
   const [unread, setUnread] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -34,11 +41,10 @@ export default function SiteHeader() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    setCredits(getCredits());
-    setUserName(getProfile().name || "משתמש");
+    setLocalCredits(getCredits());
     setUnread(listNotifications().filter((n) => !n.read).length);
     const refresh = () => {
-      setCredits(getCredits());
+      setLocalCredits(getCredits());
       setUnread(listNotifications().filter((n) => !n.read).length);
     };
     window.addEventListener("credits-change", refresh);
@@ -120,7 +126,13 @@ export default function SiteHeader() {
           )}
         </div>
 
-        {/* Profile dropdown (desktop) */}
+        {/* Auth area (desktop) — login/signup buttons when guest, profile menu when logged in */}
+        {isGuest ? (
+          <div className="hidden md:flex items-center gap-2">
+            <a href="/login" className="text-sm text-white/80 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 transition-colors whitespace-nowrap">התחברי</a>
+            <a href="/signup" className="text-sm bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap">הרשמי</a>
+          </div>
+        ) : (
         <div className="relative hidden md:block">
           <button
             onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
@@ -143,10 +155,17 @@ export default function SiteHeader() {
                 <ProfileMenuItem href="/help" icon="❓" label="עזרה" />
                 <div className="my-1 border-t border-white/10" />
                 <ProfileMenuItem href="/contact" icon="✉️" label="צור קשר" />
+                <button
+                  onClick={() => { setProfileOpen(false); auth.signOut(); }}
+                  className="w-full text-right flex items-center gap-2 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
+                >
+                  <span>🚪</span><span>התנתקי</span>
+                </button>
               </div>
             </>
           )}
         </div>
+        )}
 
         {/* Hamburger (mobile) */}
         <button
@@ -178,9 +197,26 @@ export default function SiteHeader() {
             <ProfileMenuItem href="/credits" icon="💎" label="חבילות וקניה" highlight />
             <ProfileMenuItem href="/help" icon="❓" label="עזרה" />
             <div className="my-1 border-t border-white/10" />
-            <ProfileMenuItem href="/dashboard" icon="👤" label="פרופיל ודאשבורד" />
-            <ProfileMenuItem href="/dashboard#videos" icon="📂" label="הסרטונים שלי" />
+            {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label="פרופיל ודאשבורד" />}
+            {!isGuest && <ProfileMenuItem href="/dashboard#videos" icon="📂" label="הסרטונים שלי" />}
             <ProfileMenuItem href="/contact" icon="✉️" label="צור קשר" />
+            {isGuest ? (
+              <>
+                <div className="my-1 border-t border-white/10" />
+                <ProfileMenuItem href="/login" icon="🔓" label="התחברי" />
+                <ProfileMenuItem href="/signup" icon="✨" label="הרשמי" highlight />
+              </>
+            ) : (
+              <>
+                <div className="my-1 border-t border-white/10" />
+                <button
+                  onClick={() => { setMobileMenuOpen(false); auth.signOut(); }}
+                  className="w-full text-right flex items-center gap-2 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
+                >
+                  <span>🚪</span><span>התנתקי</span>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
