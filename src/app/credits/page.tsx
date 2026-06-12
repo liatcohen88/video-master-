@@ -60,6 +60,7 @@ export default function CreditsPage() {
   const trustNrBody   = useContent("credits.trust.norenew.body") as string;
   const trustFvTitle  = useContent("credits.trust.forever.title") as string;
   const trustFvBody   = useContent("credits.trust.forever.body") as string;
+  const backToApp     = useContent("credits.backToApp") as string;
 
   useEffect(() => {
     setCreditsLocal(getCredits());
@@ -219,7 +220,7 @@ export default function CreditsPage() {
         )}
 
         <div className="mt-8 text-center">
-          <a href="/" className="text-xs text-white/40 hover:text-white">← חזרה לאפליקציה</a>
+          <a href="/" className="text-xs text-white/40 hover:text-white">← {backToApp}</a>
         </div>
       </div>
     </div>

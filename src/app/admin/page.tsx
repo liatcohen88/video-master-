@@ -59,6 +59,9 @@ const GROUP_LABELS: Record<string, { label: string; tab: Tab }> = {
   legal:   { label: "תקנון ופרטיות",   tab: "content"  },
   contact: { label: "יצירת קשר",        tab: "content"  },
   auth:    { label: "התחברות והרשמה",   tab: "content"  },
+  account: { label: "החשבון שלי",        tab: "content"  },
+  error:   { label: "דפי שגיאה",         tab: "content"  },
+  emails:  { label: "תבניות מיילים",     tab: "content"  },
 };
 
 // Admin access list — comma-separated emails via NEXT_PUBLIC_ADMIN_EMAILS env var.
@@ -449,9 +452,12 @@ function ContentTab({ onChange }: { onChange: () => void }) {
     { grp: "welcome",   emoji: "🎉", desc: "פופאפ ברוכים הבאים אחרי הרשמה" },
     { grp: "whisper",  emoji: "🎙️", desc: "שמות ותיאורי מודלי התמלול" },
     { grp: "settings", emoji: "⚙️", desc: "פאנל הגדרות הכתוביות בעורך (מודל, מילים בשורה, פיסוק)" },
-    { grp: "auth",    emoji: "🔐", desc: "דפי התחברות והרשמה — כותרות, שדות, כפתורי Google/Apple, מסך אישור מייל" },
+    { grp: "auth",    emoji: "🔐", desc: "דפי התחברות, הרשמה, שכחתי סיסמה — כותרות, שדות, כפתורי Google/Apple" },
+    { grp: "account", emoji: "👤", desc: "דף החשבון האישי — שינוי סיסמה, הורדת נתונים, מחיקת חשבון" },
     { grp: "contact", emoji: "📞", desc: "עמוד יצירת קשר" },
     { grp: "legal",   emoji: "⚖️", desc: "תקנון, מדיניות פרטיות, הסכמה לעדכוני מייל" },
+    { grp: "error",   emoji: "⚠️", desc: "דפי 404 ו-500 — כותרות וכפתורי חזרה" },
+    { grp: "emails",  emoji: "✉️", desc: "תבניות מיילים — ברוך הבא, רכישה, איפוס סיסמה, ניוזלטר. {{name}}, {{email}}, {{link}} משתנים אוטומטית" },
   ];
   return (
     <div className="space-y-3">

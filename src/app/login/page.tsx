@@ -28,6 +28,7 @@ export default function LoginPage() {
   const googleLabel  = useContent("auth.oauth.google") as string;
   const appleLabel   = useContent("auth.oauth.apple") as string;
   const backHome     = useContent("auth.backHome") as string;
+  const forgotLabel  = useContent("auth.login.forgot") as string;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -174,6 +175,12 @@ export default function LoginPage() {
               <LogIn className="w-4 h-4" />
               {busy ? submitBusy : submitLabel}
             </button>
+
+            <div className="text-center">
+              <Link href="/forgot-password" className="text-[12px] text-white/50 hover:text-white underline">
+                {forgotLabel}
+              </Link>
+            </div>
           </form>
         </div>
 

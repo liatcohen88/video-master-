@@ -321,6 +321,16 @@ export const CONTENT_DEFAULTS = {
   "auth.signup.confirmTitle":   "כמעט שם! 🎉",
   "auth.signup.confirmBody":    "שלחנו לך אימייל אישור ל-{{email}}. לחצי על הקישור במייל כדי להפעיל את החשבון.",
   "auth.signup.confirmCta":     "חזרה להתחברות",
+  "auth.login.forgot":          "שכחת סיסמה?",
+
+  // ── Forgot password (/forgot-password) ─────────────────────
+  "auth.forgot.heading":        "איפוס סיסמה",
+  "auth.forgot.subheading":     "נשלח אלייך קישור איפוס למייל",
+  "auth.forgot.submit":         "שלחי קישור איפוס",
+  "auth.forgot.submitBusy":     "שולחת...",
+  "auth.forgot.sentTitle":      "נשלח! ✨",
+  "auth.forgot.sentBody":       "שלחנו קישור איפוס ל-{{email}}. בדקי את התיבה ולחצי על הקישור.",
+  "auth.forgot.backToLogin":    "חזרה להתחברות",
 
   // ── Credits / pricing page (/credits) ─────────────────────
   "credits.eyebrow":         "חבילות מאסטרים",
@@ -351,6 +361,48 @@ export const CONTENT_DEFAULTS = {
   "credits.trust.norenew.body":  "קונה רק כשרוצה",
   "credits.trust.forever.title": "תקף לתמיד",
   "credits.trust.forever.body":  "לא פג לעולם",
+  "credits.backToApp":           "חזרה לאפליקציה",
+
+  // ── Account self-service (/account) ───────────────────────
+  "account.heading":              "החשבון שלי",
+  "account.subheading":           "ניהול סיסמה, הורדת נתונים ומחיקת חשבון",
+  "account.password.title":       "שינוי סיסמה",
+  "account.password.hint":        "סיסמה חדשה, לפחות 8 תווים",
+  "account.password.placeholder": "סיסמה חדשה",
+  "account.password.submit":      "עדכני סיסמה",
+  "account.password.submitBusy":  "מעדכנת...",
+  "account.password.ok":          "✓ הסיסמה עודכנה בהצלחה",
+  "account.export.title":         "הורדת הנתונים שלי",
+  "account.export.hint":          "קובץ JSON עם הפרופיל וההגדרות שלך — שלך לשמור או להעביר",
+  "account.export.button":        "הורידי קובץ",
+  "account.danger.title":         "מחיקת חשבון",
+  "account.danger.hint":          "מוחק את החשבון, היתרה והפרופיל — לצמיתות. אין דרך חזרה.",
+  "account.danger.button":        "מחק את החשבון שלי",
+  "account.danger.busy":          "מוחקת...",
+  "account.danger.confirm":       "את בטוחה? הפעולה הזו תמחק את החשבון, היתרה והפרופיל לצמיתות. אין דרך חזרה.",
+  "account.guestNotice":          "צריך להתחבר כדי לגשת לאזור האישי.",
+  "account.goToLogin":            "להתחברות",
+
+  // ── Error pages (404 / 500) ──────────────────────────────
+  "error.404.heading": "הדף הזה לא נמצא",
+  "error.404.body":    "ייתכן שהקישור שגוי או שהדף עבר. נחזיר אותך הביתה?",
+  "error.404.homeCta": "לדף הבית",
+  "error.404.helpCta": "מרכז העזרה",
+  "error.500.heading": "משהו השתבש",
+  "error.500.body":    "אנחנו כבר מטפלים בזה. אפשר לנסות שוב או לחזור הביתה.",
+  "error.500.retry":   "נסי שוב",
+  "error.500.homeCta": "לדף הבית",
+
+  // ── Email templates (sent from /admin/emails — Liat edits the text) ──
+  "emails.welcome.subject":      "ברוכה הבאה ל-Master Video!",
+  "emails.welcome.body":         "היי {{name}},\n\nתודה שהצטרפת ל-Master Video. קיבלת 25 מאסטרים במתנה כדי להתחיל — מספיק ל-2-3 סרטונים שלמים.\n\nכל הכלים מוכנים בשבילך בדף הבית:\nhttps://master-video.co.il\n\nבהצלחה!\nליאת",
+  "emails.purchase.subject":     "תודה על הרכישה — Master Video",
+  "emails.purchase.body":        "היי {{name}},\n\nקיבלנו את התשלום שלך על חבילת {{package}} ({{credits}} מאסטרים).\nהמאסטרים כבר זמינים בחשבון שלך.\n\nחשבונית מס נשלחה בנפרד.\n\nתודה!\nMaster Video",
+  "emails.reset.subject":        "איפוס סיסמה — Master Video",
+  "emails.reset.body":           "היי,\n\nלחצי על הקישור הבא לאיפוס הסיסמה (תקף לשעה):\n{{link}}\n\nאם לא ביקשת איפוס — אפשר להתעלם מהמייל הזה.\n\nMaster Video",
+  "emails.newsletter.subject":   "מה חדש ב-Master Video",
+  "emails.newsletter.body":      "היי {{name}},\n\nכמה דברים חדשים שגלגלנו לאתר:\n\n• …\n• …\n• …\n\nרוצה לראות? https://master-video.co.il\n\nלא רוצה לקבל עדכונים? יש קישור הסר בתחתית.\n\nMaster Video",
+  "emails.signature":            "המייל הזה נשלח אליך כי נרשמת ל-Master Video. אם אינך מעוניין/ת לקבל עדכונים שיווקיים — {{unsubscribe}}.",
 
   // ── Footer / sitemap link names (per-link CMS) ────────────
   "footer.link.home":     "דף הבית",
