@@ -109,8 +109,8 @@ export default function HelpPage() {
         <div className="absolute -top-40 -right-40 w-[480px] h-[480px] bg-violet-500/10 rounded-full blur-[120px]" />
       </div>
 
+      <div className="relative px-6 pt-6"><SiteHeader /></div>
       <div className="relative max-w-3xl mx-auto px-6 py-10">
-        <div className="mb-8"><SiteHeader /></div>
         <div className="text-center mb-8">
           <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-brand to-pink-500 mb-3">
             <HelpCircle className="w-6 h-6 text-white" />

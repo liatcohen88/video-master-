@@ -26,8 +26,8 @@ export default function PolicyPage() {
 
   return (
     <div dir="rtl" className="min-h-screen text-white relative">
+      <div className="px-6 pt-6"><SiteHeader /></div>
       <div className="relative max-w-3xl mx-auto px-6 py-12">
-        <div className="mb-8"><SiteHeader /></div>
         <div className="text-center mb-10">
           <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-brand to-pink-500 mb-4 shadow-lg shadow-brand/30">
             <Shield className="w-6 h-6 text-white" />

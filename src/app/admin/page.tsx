@@ -282,12 +282,13 @@ function UsersTab(_props: { onChange: () => void }) {
     return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
   });
 
-  function formatDate(iso: string): string {
+  function formatDate(iso: string): { date: string; time: string } {
+    if (!iso) return { date: "—", time: "" };
     const d = new Date(iso);
-    return d.toLocaleString("he-IL", {
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit",
-    });
+    return {
+      date: d.toLocaleDateString("he-IL", { year: "numeric", month: "2-digit", day: "2-digit" }),
+      time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
+    };
   }
 
   return (
@@ -319,11 +320,14 @@ function UsersTab(_props: { onChange: () => void }) {
               <th className="text-right p-3">שם</th>
               <th className="text-right p-3">אימייל</th>
               <th className="text-right p-3">מאסטרים</th>
-              <th className="text-right p-3">נרשם ב</th>
+              <th className="text-right p-3 whitespace-nowrap">תאריך הרשמה</th>
+              <th className="text-right p-3 whitespace-nowrap">שעה</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
+            {filtered.map((u) => {
+              const dt = formatDate(u.created_at);
+              return (
               <tr key={u.id} className="border-t border-white/5">
                 <td className="p-3 font-medium">{u.display_name ?? "—"}</td>
                 <td className="p-3 text-white/60 text-xs" dir="ltr">{u.email}</td>
@@ -332,11 +336,13 @@ function UsersTab(_props: { onChange: () => void }) {
                     🪙 {u.credits}
                   </span>
                 </td>
-                <td className="p-3 text-white/60 text-xs">{formatDate(u.created_at)}</td>
+                <td className="p-3 text-white/70 text-xs whitespace-nowrap">{dt.date}</td>
+                <td className="p-3 text-white/50 text-xs whitespace-nowrap font-mono">{dt.time}</td>
               </tr>
-            ))}
+              );
+            })}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={4} className="p-6 text-center text-white/40 text-sm">
+              <tr><td colSpan={5} className="p-6 text-center text-white/40 text-sm">
                 {users.length === 0 ? "אין משתמשים רשומים עדיין" : "אין התאמות לחיפוש"}
               </td></tr>
             )}

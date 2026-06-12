@@ -10,8 +10,8 @@ import type { Metadata } from "next";
 
 export const SITE = {
   url:        "https://video-master.vercel.app", // override after deploy with NEXT_PUBLIC_SITE_URL
-  name:       "סטודיו כתוביות",
-  tagline:    "תמלול עברית אוטומטי • חינמי לצמיתות",
+  name:       "Master Video — מאסטר וידאו",
+  tagline:    "עריכת וידאו חכמה מבוססת AI · פיתוח ישראלי",
   description:
     "אפליקציה חינמית לתמלול עברית מקצועי, עיצוב כתוביות לרילס וטיקטוק, " +
     "ייצוא MP4 מוכן לעלייה. AI אוטומטי לעריכת סרטונים בעברית.",
