@@ -58,6 +58,7 @@ const GROUP_LABELS: Record<string, { label: string; tab: Tab }> = {
   dashboard:{ label: "עמוד משתמש",      tab: "content"  },
   legal:   { label: "תקנון ופרטיות",   tab: "content"  },
   contact: { label: "יצירת קשר",        tab: "content"  },
+  auth:    { label: "התחברות והרשמה",   tab: "content"  },
 };
 
 // Admin access list — comma-separated emails via NEXT_PUBLIC_ADMIN_EMAILS env var.
@@ -442,8 +443,9 @@ function ContentTab({ onChange }: { onChange: () => void }) {
     { grp: "welcome",   emoji: "🎉", desc: "פופאפ ברוכים הבאים אחרי הרשמה" },
     { grp: "whisper",  emoji: "🎙️", desc: "שמות ותיאורי מודלי התמלול" },
     { grp: "settings", emoji: "⚙️", desc: "פאנל הגדרות הכתוביות בעורך (מודל, מילים בשורה, פיסוק)" },
+    { grp: "auth",    emoji: "🔐", desc: "דפי התחברות והרשמה — כותרות, שדות, כפתורי Google/Apple, מסך אישור מייל" },
     { grp: "contact", emoji: "📞", desc: "עמוד יצירת קשר" },
-    { grp: "legal",   emoji: "⚖️", desc: "תקנון ומדיניות פרטיות" },
+    { grp: "legal",   emoji: "⚖️", desc: "תקנון, מדיניות פרטיות, הסכמה לעדכוני מייל" },
   ];
   return (
     <div className="space-y-3">
