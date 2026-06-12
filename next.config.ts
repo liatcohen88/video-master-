@@ -13,8 +13,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "500mb",
     },
   },
-  devIndicators: false,
-
   // ── Security headers — applied to every response ─────────────────
   // These give us the same protection layer Lovable users get out of
   // the box (and that most production sites need).
