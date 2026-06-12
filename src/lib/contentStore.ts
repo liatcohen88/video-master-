@@ -286,6 +286,35 @@ export const CONTENT_DEFAULTS = {
   "welcome.message": "קיבלת {{credits}} מאסטרים מתנה כדי להתחיל לערוך — בלי הגבלת זמן.",
   "welcome.cta":     "יאללה, מתחילים!",
 
+  // ── Login / Signup pages (/login, /signup) — every visible string ──
+  "auth.backHome":              "לדף הבית",
+  "auth.divider":               "או",
+  "auth.oauth.google":          "המשיכי עם Google",
+  "auth.oauth.apple":           "המשיכי עם Apple",
+  "auth.field.name":            "שם",
+  "auth.field.email":           "אימייל",
+  "auth.field.password":        "סיסמה",
+  // Login
+  "auth.login.heading":         "ברוכה השבה",
+  "auth.login.subheading":      "היכנסי לחשבון שלך",
+  "auth.login.submit":          "התחברי",
+  "auth.login.submitBusy":      "מתחברת...",
+  "auth.login.noAccount":       "אין לך חשבון?",
+  "auth.login.signupCta":       "הירשמי עכשיו",
+  // Signup
+  "auth.signup.heading":        "הרשמה חדשה",
+  "auth.signup.subheading":     "25 מאסטרים במתנה",
+  "auth.signup.badge":          "זה לוקח 30 שניות",
+  "auth.signup.passPlaceholder":"לפחות 8 תווים",
+  "auth.signup.submit":         "צרי חשבון",
+  "auth.signup.submitBusy":     "יוצרת חשבון...",
+  "auth.signup.terms":          "בלחיצה על \"צרי חשבון\" את מסכימה ל-",
+  "auth.signup.haveAccount":    "כבר יש לך חשבון?",
+  "auth.signup.loginCta":       "התחברי",
+  "auth.signup.confirmTitle":   "כמעט שם! 🎉",
+  "auth.signup.confirmBody":    "שלחנו לך אימייל אישור ל-{{email}}. לחצי על הקישור במייל כדי להפעיל את החשבון.",
+  "auth.signup.confirmCta":     "חזרה להתחברות",
+
   // ── Credits / pricing page (/credits) ─────────────────────
   "credits.eyebrow":         "חבילות מאסטרים",
   "credits.title":           "בחרי את הקצב שלך",
