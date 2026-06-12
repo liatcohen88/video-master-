@@ -100,6 +100,19 @@ function runTranscription(videoPath: string, maxWordsPerLine: number, model: str
       }
     });
 
-    proc.on("error", (e) => reject(new Error(`Failed to spawn Python: ${e.message}`)));
+    proc.on("error", (e) => {
+      // ENOENT = Python not installed on the host. On the launch server we
+      // ship a slim Node image without Python+Whisper, so transcription is
+      // unavailable until we install Whisper or wire an external API. Tell
+      // the user something they can act on instead of the raw spawn error.
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+        reject(new Error(
+          "תמלול לא זמין כרגע — Whisper עדיין לא הותקן על השרת. " +
+          "אנחנו עובדים על זה בדקות הקרובות. את יכולה להמשיך לערוך עם כתוביות שתעתיקי ידנית בינתיים.",
+        ));
+        return;
+      }
+      reject(new Error(`Failed to spawn Python: ${e.message}`));
+    });
   });
 }

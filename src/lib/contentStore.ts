@@ -295,6 +295,26 @@ export const CONTENT_DEFAULTS = {
   "credits.calcSubtitle":    "המחיר יורד מהיתרה רק בלחיצה על \"ייצוא\"",
   "credits.balanceLabel":    "היתרה שלך",
   "credits.calcCalcLabel":   "איתם תוכלו לעשות:",
+  // ── Mode-by-mode pricing card (4-up grid below packages) ──
+  "credits.modes.subtitles_only.name": "כתוביות בלבד",
+  "credits.modes.subtitles_only.desc": "תמלול + אנימציות + תבניות",
+  "credits.modes.podcast.name":        "פודקאסט",
+  "credits.modes.podcast.desc":        "+ חיתוך שתיקות + אמוג'ים",
+  "credits.modes.advanced.name":       "אפקטים מתקדמים",
+  "credits.modes.advanced.desc":       "הכל — אנימציות + Lottie + SFX",
+  "credits.modes.multi.name":          "חיבור סרטונים",
+  "credits.modes.multi.desc":          "כמה סרטונים + תסריט → סרטון אחד",
+  // ── Calculator strip labels ──
+  "credits.calc.subtitles": "סרטוני כתוביות",
+  "credits.calc.effects":   "עם אפקטים",
+  "credits.calc.advanced":  "מתקדמים",
+  // ── Trust row (3 bottom cards) ──
+  "credits.trust.refund.title":  "החזר 14 ימים",
+  "credits.trust.refund.body":   "אם לא נוצל",
+  "credits.trust.norenew.title": "ללא חידוש אוטומטי",
+  "credits.trust.norenew.body":  "קונה רק כשרוצה",
+  "credits.trust.forever.title": "תקף לתמיד",
+  "credits.trust.forever.body":  "לא פג לעולם",
 
   // ── Footer / sitemap link names (per-link CMS) ────────────
   "footer.link.home":     "דף הבית",

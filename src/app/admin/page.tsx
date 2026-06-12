@@ -8,6 +8,9 @@ import {
   GripVertical, X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useAuth } from "@/lib/useAuth";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { SFX_LIBRARY, SFX_CATEGORY_LABEL, listSfxByCategory } from "@/lib/sfxLibrary";
 import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
 import { EMOJI_CATEGORIES } from "@/components/EmojiPicker";
@@ -57,14 +60,59 @@ const GROUP_LABELS: Record<string, { label: string; tab: Tab }> = {
   contact: { label: "יצירת קשר",        tab: "content"  },
 };
 
+// Admin access list — comma-separated emails via NEXT_PUBLIC_ADMIN_EMAILS env var.
+// Defaults to Liat's launch addresses; anyone else lands on a friendly 403.
+// `NEXT_PUBLIC_*` so the gate works in the client component without a round-trip.
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "liatcohen88@gmail.com,liat@videomaster.local")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [tick, setTick] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
 
-  if (!hydrated) {
+  const auth = useAuth();
+
+  if (!hydrated || auth.status === "loading") {
     return <div className="min-h-screen flex items-center justify-center text-white/40">טוען...</div>;
+  }
+
+  // Only enforce the gate when Supabase is wired up (real auth). When it's
+  // not configured (local dev / first-run), admin is open so the CMS still
+  // works exactly like before.
+  if (isSupabaseConfigured()) {
+    if (auth.status === "guest") {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="max-w-md text-center">
+            <div className="text-6xl mb-4">🔒</div>
+            <h1 className="text-2xl font-extrabold mb-2">אזור אדמין</h1>
+            <p className="text-white/60 mb-6">עלייך להתחבר כדי לגשת לפאנל הניהול.</p>
+            <Link href="/login" className="inline-block bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-6 py-2.5 rounded-lg">
+              להתחברות
+            </Link>
+          </div>
+        </div>
+      );
+    }
+    const userEmail = (auth.profile?.email ?? "").toLowerCase();
+    if (!ADMIN_EMAILS.includes(userEmail)) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="max-w-md text-center">
+            <div className="text-6xl mb-4">🚫</div>
+            <h1 className="text-2xl font-extrabold mb-2">אין הרשאת גישה</h1>
+            <p className="text-white/60 mb-6">החשבון <span className="font-mono text-white/80" dir="ltr">{userEmail}</span> לא מורשה לאזור הניהול.</p>
+            <Link href="/" className="inline-block bg-white/10 hover:bg-white/20 text-white font-bold px-6 py-2.5 rounded-lg">
+              חזרה לאתר
+            </Link>
+          </div>
+        </div>
+      );
+    }
   }
 
   return (

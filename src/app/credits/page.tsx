@@ -41,6 +41,25 @@ export default function CreditsPage() {
   const calcEyebrow   = useContent("credits.calcEyebrow");
   const calcTitle     = useContent("credits.calcTitle");
   const calcSubtitle  = useContent("credits.calcSubtitle");
+  // Per-mode card text (every line on /credits goes through CMS so Liat can
+  // tweak naming/copy without touching code)
+  const modeSubName   = useContent("credits.modes.subtitles_only.name") as string;
+  const modeSubDesc   = useContent("credits.modes.subtitles_only.desc") as string;
+  const modePodName   = useContent("credits.modes.podcast.name") as string;
+  const modePodDesc   = useContent("credits.modes.podcast.desc") as string;
+  const modeAdvName   = useContent("credits.modes.advanced.name") as string;
+  const modeAdvDesc   = useContent("credits.modes.advanced.desc") as string;
+  const modeMulName   = useContent("credits.modes.multi.name") as string;
+  const modeMulDesc   = useContent("credits.modes.multi.desc") as string;
+  const calcSubsLbl   = useContent("credits.calc.subtitles") as string;
+  const calcEffLbl    = useContent("credits.calc.effects") as string;
+  const calcAdvLbl    = useContent("credits.calc.advanced") as string;
+  const trustRefTitle = useContent("credits.trust.refund.title") as string;
+  const trustRefBody  = useContent("credits.trust.refund.body") as string;
+  const trustNrTitle  = useContent("credits.trust.norenew.title") as string;
+  const trustNrBody   = useContent("credits.trust.norenew.body") as string;
+  const trustFvTitle  = useContent("credits.trust.forever.title") as string;
+  const trustFvBody   = useContent("credits.trust.forever.body") as string;
 
   useEffect(() => {
     setCreditsLocal(getCredits());
@@ -112,11 +131,11 @@ export default function CreditsPage() {
           <div className="md:text-right">
             <div className="text-[11px] text-white/50 mb-1.5">{calcCalcLabel}</div>
             <div className="flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-1 text-sm">
-              <span className="flex items-center gap-1.5"><span className="text-violet-300 font-bold">{calc.subtitles}</span><span className="text-white/60">סרטוני כתוביות</span></span>
+              <span className="flex items-center gap-1.5"><span className="text-violet-300 font-bold">{calc.subtitles}</span><span className="text-white/60">{calcSubsLbl}</span></span>
               <span className="text-white/20">·</span>
-              <span className="flex items-center gap-1.5"><span className="text-fuchsia-300 font-bold">{calc.effects}</span><span className="text-white/60">עם אפקטים</span></span>
+              <span className="flex items-center gap-1.5"><span className="text-fuchsia-300 font-bold">{calc.effects}</span><span className="text-white/60">{calcEffLbl}</span></span>
               <span className="text-white/20">·</span>
-              <span className="flex items-center gap-1.5"><span className="text-amber-300 font-bold">{calc.advanced}</span><span className="text-white/60">מתקדמים</span></span>
+              <span className="flex items-center gap-1.5"><span className="text-amber-300 font-bold">{calc.advanced}</span><span className="text-white/60">{calcAdvLbl}</span></span>
             </div>
           </div>
         </div>
@@ -146,10 +165,10 @@ export default function CreditsPage() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: Subtitles, name: "כתוביות בלבד",    cost: costSubtitles, desc: "תמלול + אנימציות + תבניות",        iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
-              { icon: Mic,       name: "פודקאסט",         cost: costPodcast,   desc: "+ חיתוך שתיקות + אמוג'ים",          iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
-              { icon: Sparkles,  name: "אפקטים מתקדמים",  cost: costAdvanced,  desc: "הכל — אנימציות + Lottie + SFX",     iconColor: "text-fuchsia-200",iconBg: "bg-fuchsia-500/30", grad: "from-fuchsia-500/25 to-pink-700/5",    border: "border-fuchsia-400/30", num: "text-fuchsia-200" },
-              { icon: Layers,    name: "חיבור סרטונים",   cost: costMulti,     desc: "כמה סרטונים + תסריט → סרטון אחד",   iconColor: "text-amber-200",  iconBg: "bg-amber-500/30",   grad: "from-amber-400/20 to-orange-700/5",    border: "border-amber-400/30",   num: "text-amber-200" },
+              { icon: Subtitles, name: modeSubName, cost: costSubtitles, desc: modeSubDesc, iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
+              { icon: Mic,       name: modePodName, cost: costPodcast,   desc: modePodDesc, iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
+              { icon: Sparkles,  name: modeAdvName, cost: costAdvanced,  desc: modeAdvDesc, iconColor: "text-fuchsia-200",iconBg: "bg-fuchsia-500/30", grad: "from-fuchsia-500/25 to-pink-700/5",    border: "border-fuchsia-400/30", num: "text-fuchsia-200" },
+              { icon: Layers,    name: modeMulName, cost: costMulti,     desc: modeMulDesc, iconColor: "text-amber-200",  iconBg: "bg-amber-500/30",   grad: "from-amber-400/20 to-orange-700/5",    border: "border-amber-400/30",   num: "text-amber-200" },
             ].map((m) => (
               <div key={m.name}
                 className={`bg-gradient-to-br ${m.grad} border ${m.border} hover:brightness-110 rounded-2xl p-5 text-center transition-all hover:-translate-y-1 hover:shadow-xl group h-full flex flex-col`}>
@@ -173,22 +192,22 @@ export default function CreditsPage() {
           <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-3">
             <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300"><Shield className="w-4 h-4" /></div>
             <div>
-              <div className="text-xs font-bold">החזר 14 ימים</div>
-              <div className="text-[10px] text-white/40">אם לא נוצל</div>
+              <div className="text-xs font-bold">{trustRefTitle}</div>
+              <div className="text-[10px] text-white/40">{trustRefBody}</div>
             </div>
           </div>
           <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-3">
             <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-300"><RefreshCw className="w-4 h-4" /></div>
             <div>
-              <div className="text-xs font-bold">ללא חידוש אוטומטי</div>
-              <div className="text-[10px] text-white/40">קונה רק כשרוצה</div>
+              <div className="text-xs font-bold">{trustNrTitle}</div>
+              <div className="text-[10px] text-white/40">{trustNrBody}</div>
             </div>
           </div>
           <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-xl p-3">
             <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300"><Sparkles className="w-4 h-4" /></div>
             <div>
-              <div className="text-xs font-bold">תקף לתמיד</div>
-              <div className="text-[10px] text-white/40">לא פג לעולם</div>
+              <div className="text-xs font-bold">{trustFvTitle}</div>
+              <div className="text-[10px] text-white/40">{trustFvBody}</div>
             </div>
           </div>
         </div>
