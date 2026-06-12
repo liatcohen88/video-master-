@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Phone, MessageCircle, Mail, Clock, ArrowLeft, MapPin } from "lucide-react";
 import { useContent } from "@/lib/useContent";
+import SiteHeader from "@/components/SiteHeader";
 
 export default function ContactPage() {
   const title       = useContent("contact.title");
@@ -24,6 +25,7 @@ export default function ContactPage() {
   return (
     <div dir="rtl" className="min-h-screen text-white relative">
       <div className="relative max-w-3xl mx-auto px-6 py-12">
+        <div className="mb-8"><SiteHeader /></div>
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-brand to-pink-500 mb-4 shadow-lg shadow-brand/30">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Search, HelpCircle, Sparkles, Coins, Download, AlertTriangle, Settings as SettingsIcon } from "lucide-react";
 import { useContent } from "@/lib/useContent";
+import SiteHeader from "@/components/SiteHeader";
 
 type FAQ = { q: string; a: string };
 type Category = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; faqs: FAQ[] };
@@ -109,6 +110,7 @@ export default function HelpPage() {
       </div>
 
       <div className="relative max-w-3xl mx-auto px-6 py-10">
+        <div className="mb-8"><SiteHeader /></div>
         <div className="text-center mb-8">
           <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-brand to-pink-500 mb-3">
             <HelpCircle className="w-6 h-6 text-white" />
