@@ -477,11 +477,23 @@ export function hydrateFromCloud(): Promise<void> {
       const json = await res.json();
       const cloud = (json?.overrides ?? {}) as Content;
       if (!cloud || typeof cloud !== "object") return;
-      // Cloud is authoritative: replace local cache entirely.
-      // (localStorage stays as a write-through copy for offline reads.)
-      localStorage.setItem(LS_KEY, JSON.stringify(cloud));
+      const local = read();
+      // MERGE — not replace. Cloud wins for keys both have (it's the latest
+      // server source of truth). Local-only keys (e.g. SFX names Liat saved
+      // before we added cloud sync) survive — and we also push them up to
+      // the cloud so the next visitor sees them too.
+      const merged: Content = { ...local, ...cloud };
+      // Snapshot the pre-merge state into history so any unwanted overwrite
+      // can be rolled back from admin → CMS → "🛟 גיבוי ושחזור".
+      pushHistory();
+      localStorage.setItem(LS_KEY, JSON.stringify(merged));
       cloudHydrated = true;
       window.dispatchEvent(new CustomEvent("content-change"));
+      // Backfill: any local key that isn't yet in cloud → POST it now.
+      // Only the admin's token will be accepted; for guests this no-ops.
+      for (const [k, v] of Object.entries(local)) {
+        if (!(k in cloud)) void postToCloud(k, v);
+      }
     } catch { /* offline / unconfigured — fall back to localStorage */ }
   })();
   return cloudHydratePromise;
