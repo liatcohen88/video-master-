@@ -41,7 +41,14 @@ export default function PackagesCarousel({
   }
 
   useEffect(() => {
-    popularRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
+    const popular = popularRef.current;
+    const strip = stripRef.current;
+    if (!popular || !strip) return;
+    // Set strip.scrollLeft directly rather than scrollIntoView — the latter
+    // also scrolls every ancestor, including the window, so on mobile (where
+    // the carousel sits below the fold) the page would land mid-screen instead
+    // of at the top.
+    strip.scrollLeft = popular.offsetLeft + popular.clientWidth / 2 - strip.clientWidth / 2;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
