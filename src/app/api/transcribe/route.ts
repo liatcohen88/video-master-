@@ -174,9 +174,18 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(tempPath, buffer);
 
+  // Crash signals we treat as "try a smaller model" rather than surfacing.
+  // - 3221225794 / -1073741819: Windows access violations
+  // - "code null": Linux OOM killer / SIGKILL — what kills Whisper on CX23 when
+  //   the large model + PyAV decoder + Node exceed available RAM mid-transcribe
   const NATIVE_CRASH_CODES = new Set([3221225794, -1073741819]);
+  // Build the fallback chain, but ALWAYS skip the user's selection if it's the
+  // large/turbo model and drop straight to small as the second try — large
+  // succeeded loading but got OOM-killed during transcribe on 8GB RAM, so
+  // retrying it again would just OOM again.
+  const isLarge = /large|turbo|ivrit-ai/.test(model);
   const fallbackModels = [model];
-  if (model !== "medium") fallbackModels.push("medium");
+  if (!isLarge && model !== "medium") fallbackModels.push("medium");
   if (model !== "small") fallbackModels.push("small");
 
   try {
@@ -188,13 +197,14 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
       } catch (err: unknown) {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
-        const crashed = [...NATIVE_CRASH_CODES].some((c) => msg.includes(String(c)));
+        const oomKilled = msg.includes("code null");
+        const crashed = oomKilled || [...NATIVE_CRASH_CODES].some((c) => msg.includes(String(c)));
         if (!crashed) throw err;
       }
     }
     const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
     return NextResponse.json(
-      { error: `כל המודלים קרסו. ${message}` },
+      { error: `כל המודלים קרסו (חוסר זיכרון). נסי סרטון קצר יותר. ${message}` },
       { status: 500 },
     );
   } catch (err: unknown) {
