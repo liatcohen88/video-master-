@@ -62,6 +62,23 @@ export default function HomePage() {
   const costPodcast   = useContent("pricing.cost.podcast");
   const costAdvanced  = useContent("pricing.cost.advanced_effects");
   const currency      = (useContent("brand.currencyName") as string) || "קרדיטים";
+  // ── Visible home-page strings (CMS-driven) ──
+  const multiTitle    = useContent("home.multi.title") as string;
+  const multiBadge    = useContent("home.multi.badge") as string;
+  const multiDesc     = useContent("home.multi.desc") as string;
+  const replaceLabel  = useContent("home.replace") as string;
+  const ctaTranscribe = useContent("home.cta.transcribe") as string;
+  const ctaProcessing = useContent("home.cta.processing") as string;
+  const retranscribeConfirm = useContent("home.retranscribe") as string;
+  const errNoVideo    = useContent("home.error.noVideo") as string;
+  const errNoSpeech   = useContent("home.error.noSpeech") as string;
+  const progUpload    = useContent("home.progress.upload") as string;
+  const progTranscribe= useContent("home.progress.transcribe") as string;
+  const progAnalyze   = useContent("home.progress.analyze") as string;
+  const progExport    = useContent("home.progress.export") as string;
+  const toastMultiReady = useContent("home.toast.multiReady") as string;
+  const toastResume     = useContent("home.toast.resumeHint") as string;
+  const toastVideoLoaded= useContent("home.toast.videoLoaded") as string;
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -105,13 +122,13 @@ export default function HomePage() {
         const v = await loadCurrentVideo();
         if (v) {
           await handleVideo(storedToFile(v));
-          toast.success("הסרטון המחובר מוכן — תנו ל-AI לתמלל ולערוך ✨");
+          toast.success(toastMultiReady);
         }
       })();
       return;
     }
     if (modeMeta.wasRestored) {
-      toast.info("המשך מאיפה שהפסקת — העלי את הסרטון לעריכה");
+      toast.info(toastResume);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -180,7 +197,7 @@ export default function HomePage() {
 
       // Worst case: video only, no transcription → land on setup so user
       // can pick mode/settings and run the AI.
-      toast.info("הסרטון נטען — תוכלי להתחיל לתמלל");
+      toast.info(toastVideoLoaded);
     } catch {/* ignore */}
   }
 
@@ -251,7 +268,7 @@ export default function HomePage() {
       }
     }
 
-    setProgressMessage("מעלה את הסרטון לשרת...");
+    setProgressMessage(progUpload);
 
     try {
       // Run transcription AND analysis in parallel — both need the same upload.
@@ -268,7 +285,7 @@ export default function HomePage() {
       // and ANALYSIS second (MediaPipe). Running both in parallel caused
       // Windows Access Violation crashes (memory contention between
       // native libs). Sequential is slightly slower but reliable.
-      setProgressMessage("AI מתמלל את הסרטון...");
+      setProgressMessage(progTranscribe);
       const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
         body: transcribeFd,
@@ -281,7 +298,7 @@ export default function HomePage() {
 
       const transcribeData = await transcribeRes.json();
       if (!transcribeData.subtitles || transcribeData.subtitles.length === 0) {
-        throw new Error("לא זוהה דיבור בסרטון");
+        throw new Error(errNoSpeech);
       }
 
       setSubtitles(transcribeData.subtitles as Subtitle[]);
@@ -304,7 +321,7 @@ export default function HomePage() {
       }
 
       // Now run analysis (face detect + emphasis + recommendations)
-      setProgressMessage("AI מנתח את הסרטון (מזהה דובר, מציע סגנון)...");
+      setProgressMessage(progAnalyze);
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
         body: analyzeFd,
@@ -400,13 +417,13 @@ export default function HomePage() {
 
     // MP4 export — call /api/render to burn subtitles with FFmpeg
     if (!videoFile) {
-      setErrorMessage("חסר קובץ וידאו");
+      setErrorMessage(errNoVideo);
       return;
     }
 
     setIsProcessing(true);
     setErrorMessage(null);
-    setProgressMessage("צורבת כתוביות לוידאו (זה יכול לקחת דקה או שתיים)...");
+    setProgressMessage(progExport);
 
     try {
       const fd = new FormData();
@@ -492,11 +509,11 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold">חיבור סרטונים AI</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand text-white">✨ חדש</span>
+                      <span className="text-lg font-bold">{multiTitle}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand text-white">{multiBadge}</span>
                     </div>
                     <p className="text-xs text-white/60 mt-0.5">
-                      להעלות כמה סרטונים + תסריט. ה-AI מחבר אותם לסרטון אחד לפי הסדר שכתבתם.
+                      {multiDesc}
                     </p>
                   </div>
                   <div className="text-brand-light group-hover:translate-x-1 transition-transform text-2xl">←</div>
@@ -533,7 +550,7 @@ export default function HomePage() {
                 }}
                 className="text-sm text-white/50 hover:text-white px-3 py-1"
               >
-                החלף
+                {replaceLabel}
               </button>
             </div>
           )}
@@ -569,12 +586,12 @@ export default function HomePage() {
                 {isProcessing ? (
                   <>
                     <LogoMark size={26} mode="spinning" />
-                    {progressMessage || "AI מתמלל..."}
+                    {progressMessage || ctaProcessing}
                   </>
                 ) : (
                   <>
                     <Wand2 className="w-6 h-6" />
-                    תני ל-AI לתמלל ולערוך
+                    {ctaTranscribe}
                   </>
                 )}
               </button>
@@ -586,7 +603,7 @@ export default function HomePage() {
               {!isProcessing && videoHash && (
                 <button
                   onClick={() => {
-                    if (!confirm("למחוק את התמלול השמור ולהריץ AI מחדש על הסרטון?\n\n💡 שים לב: ירדו לך קרדיטים שוב כי זה ייחשב כתמלול חדש.")) return;
+                    if (!confirm(retranscribeConfirm)) return;
                     startTranscription({ force: true });
                   }}
                   className="w-full mt-2 bg-white/5 hover:bg-white/10 border border-white/15 text-white/70 hover:text-white font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm transition-colors"

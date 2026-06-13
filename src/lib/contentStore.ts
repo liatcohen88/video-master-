@@ -429,6 +429,24 @@ export const CONTENT_DEFAULTS = {
   "multi.scriptHelp": "שורה לכל קטע. כל שורה תופיע ככתובית מעל סרטון אחד, לפי הסדר שכתבתם. ה-AI מחבר את הסרטונים לרצף אחד — הוא לא מנתח מה יש בכל סרטון. אחרי החיבור תוכלו לבחור ידנית איזה סרטון יופיע בכל שורה.",
   "multi.cta":        "חברו לסרטון אחד",
   "multi.bottomNote": "הורדה = הסרטון המחובר בלבד (בלי כתוביות). \"תנו ל-AI לתמלל ולערוך\" = מעבירים אותו לעורך לכתוביות + אפקטים.",
+
+  // ── Home page visible strings (audit pass 1) ──────────────
+  "home.multi.title":       "חיבור סרטונים AI",
+  "home.multi.badge":       "✨ חדש",
+  "home.multi.desc":        "להעלות כמה סרטונים + תסריט. ה-AI מחבר אותם לסרטון אחד לפי הסדר שכתבתם.",
+  "home.replace":           "החלף",
+  "home.cta.transcribe":    "תני ל-AI לתמלל ולערוך",
+  "home.cta.processing":    "AI מתמלל...",
+  "home.retranscribe":      "למחוק את התמלול השמור ולהריץ AI מחדש על הסרטון?\n\n💡 שים לב: ירדו לך קרדיטים שוב כי זה ייחשב כתמלול חדש.",
+  "home.progress.upload":   "מעלה את הסרטון לשרת...",
+  "home.progress.transcribe":"AI מתמלל את הסרטון...",
+  "home.progress.analyze":  "AI מנתח את הסרטון (מזהה דובר, מציע סגנון)...",
+  "home.progress.export":   "צורבת כתוביות לוידאו (זה יכול לקחת דקה או שתיים)...",
+  "home.toast.multiReady":  "הסרטון המחובר מוכן — תנו ל-AI לתמלל ולערוך ✨",
+  "home.toast.resumeHint":  "המשך מאיפה שהפסקת — העלי את הסרטון לעריכה",
+  "home.toast.videoLoaded": "הסרטון נטען — תוכלי להתחיל לתמלל",
+  "home.error.noSpeech":    "לא זוהה דיבור בסרטון",
+  "home.error.noVideo":     "חסר קובץ וידאו",
 } as const;
 
 export type ContentKey = keyof typeof CONTENT_DEFAULTS;
