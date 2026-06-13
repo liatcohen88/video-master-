@@ -7,19 +7,143 @@ import { join } from "node:path";
 export const runtime = "nodejs";
 export const maxDuration = 600;
 
+// 25 MB is OpenAI's hard limit for /audio/transcriptions. Above that we'd
+// need to slice the audio with ffmpeg first (future work — flag in error).
+const OPENAI_MAX_BYTES = 25 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
   const maxWordsPerLine = parseInt(
     (formData.get("maxWordsPerLine") as string) || "2",
   );
+  // model param kept for API compatibility but only used by the local Python
+  // path. OpenAI side always uses whisper-1.
   const model = (formData.get("model") as string) || "small";
 
   if (!file) {
     return NextResponse.json({ error: "No video file" }, { status: 400 });
   }
 
-  // Save to temp file (sanitize filename to avoid Hebrew/special chars in path)
+  // Preferred path: OpenAI Whisper API. Costs ~$0.006/minute, no infra to run.
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const result = await transcribeWithOpenAI(file, maxWordsPerLine);
+      return NextResponse.json(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
+  // Local-dev fallback: spawn the existing Python script (Whisper / faster-whisper).
+  // Will fail gracefully with a Hebrew message if Python is not installed.
+  return await transcribeWithLocalPython(file, maxWordsPerLine, model);
+}
+
+// ── OpenAI Whisper API path ──────────────────────────────────────────
+async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
+  if (file.size > OPENAI_MAX_BYTES) {
+    throw new Error(
+      `הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
+      "OpenAI Whisper מוגבל ל-25 MB. אנחנו עובדים על חיתוך אוטומטי לחלקים — בינתיים נסי סרטון קצר יותר.",
+    );
+  }
+
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("model", "whisper-1");
+  form.append("language", "he");
+  form.append("response_format", "verbose_json");
+  // Word-level timestamps so we can re-chunk into the editor's "N words per line" format
+  form.append("timestamp_granularities[]", "word");
+  // Hebrew prompt nudges OpenAI to transcribe in Hebrew script (not transliterated)
+  form.append("prompt", "תמלול בעברית: ");
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`OpenAI Whisper failed (${res.status}): ${errBody.slice(0, 300)}`);
+  }
+
+  const data = (await res.json()) as {
+    language?: string;
+    duration?: number;
+    text?: string;
+    words?: { word: string; start: number; end: number }[];
+  };
+
+  const rawWords = (data.words ?? []).map((w) => ({
+    word: w.word.trim(),
+    start: Math.round(w.start * 1000) / 1000,
+    end: Math.round(w.end * 1000) / 1000,
+  })).filter((w) => w.word.length > 0);
+
+  const cleaned = cleanFillers(rawWords);
+  const subtitles = chunkIntoSubtitles(cleaned, maxWordsPerLine);
+
+  return {
+    language: data.language ?? "he",
+    duration: Math.round((data.duration ?? 0) * 1000) / 1000,
+    model: "whisper-1",
+    subtitles,
+  };
+}
+
+// Port of the Python cleanup logic: drop hesitation fillers + collapse
+// consecutive duplicate words (real stutter or Whisper re-output).
+const FILLERS = new Set([
+  "אמ", "אם", "אה", "אהה", "אהמ", "ממ", "מממ", "ההה",
+  "um", "uh", "uhh", "umm", "hmm", "er", "ehm",
+]);
+
+function cleanFillers(words: { word: string; start: number; end: number }[]) {
+  const out: typeof words = [];
+  let prevLow: string | null = null;
+  for (const w of words) {
+    const stripped = w.word.replace(/[^\p{L}\p{N}]/gu, "");
+    const low = stripped.toLowerCase();
+    if (!stripped) {
+      // Pure punctuation — attach to the previous word so it doesn't dangle
+      if (out.length > 0) out[out.length - 1] = { ...out[out.length - 1], word: out[out.length - 1].word + w.word, end: w.end };
+      continue;
+    }
+    if (FILLERS.has(low)) continue;
+    if (prevLow !== null && low === prevLow) {
+      out[out.length - 1] = { ...out[out.length - 1], end: w.end };
+      continue;
+    }
+    out.push(w);
+    prevLow = low;
+  }
+  return out;
+}
+
+function chunkIntoSubtitles(
+  words: { word: string; start: number; end: number }[],
+  chunkSize: number,
+) {
+  const subs: { id: string; start: number; end: number; text: string; words: typeof words }[] = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    const chunk = words.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    subs.push({
+      id: String(subs.length + 1),
+      start: chunk[0].start,
+      end: chunk[chunk.length - 1].end,
+      text: chunk.map((w) => w.word).join(" "),
+      words: chunk,
+    });
+  }
+  return subs;
+}
+
+// ── Local Python fallback (dev / future self-hosted Whisper) ────────────
+async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, model: string) {
   const tempDir = join(tmpdir(), "subtitles-studio");
   await mkdir(tempDir, { recursive: true });
   const ext = (file.name.match(/\.[a-zA-Z0-9]+$/)?.[0] || ".mp4").toLowerCase();
@@ -27,9 +151,6 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(tempPath, buffer);
 
-  // Native crashes (Windows Access Violation = 3221225794) kill the Python
-  // process before any try/except can run, so the in-Python fallback chain
-  // can't help. We retry at THIS layer with progressively smaller models.
   const NATIVE_CRASH_CODES = new Set([3221225794, -1073741819]);
   const fallbackModels = [model];
   if (model !== "medium") fallbackModels.push("medium");
@@ -39,50 +160,38 @@ export async function POST(req: NextRequest) {
     let lastErr: unknown = null;
     for (const m of fallbackModels) {
       try {
-        const result = await runTranscription(tempPath, maxWordsPerLine, m);
+        const result = await runPython(tempPath, maxWordsPerLine, m);
         return NextResponse.json(result);
       } catch (err: unknown) {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
-        // Only fall through on a native crash / OOM — not on real errors
         const crashed = [...NATIVE_CRASH_CODES].some((c) => msg.includes(String(c)));
-        if (!crashed) throw err; // genuine error — surface it immediately
-        // else: loop continues to the next smaller model
+        if (!crashed) throw err;
       }
     }
     const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
     return NextResponse.json(
-      { error: `כל המודלים קרסו (זיכרון נמוך). נסי לסגור טאבים. ${message}` },
+      { error: `כל המודלים קרסו. ${message}` },
       { status: 500 },
     );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   } finally {
     await unlink(tempPath).catch(() => {});
   }
 }
 
-function runTranscription(videoPath: string, maxWordsPerLine: number, model: string) {
+function runPython(videoPath: string, maxWordsPerLine: number, model: string) {
   return new Promise<unknown>((resolve, reject) => {
     const python = process.env.PYTHON_PATH || "python";
     const scriptPath = join(process.cwd(), "scripts", "transcribe.py");
-
     const proc = spawn(python, [
-      scriptPath,
-      videoPath,
-      "--model", model,
-      "--language", "he",
+      scriptPath, videoPath, "--model", model, "--language", "he",
       "--max-words-per-line", String(maxWordsPerLine),
-    ], {
-      env: {
-        ...process.env,
-        // Force Python to output UTF-8 (Windows defaults break Hebrew)
-        PYTHONIOENCODING: "utf-8",
-        PYTHONUTF8: "1",
-      },
-    });
+    ], { env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" } });
 
-    let stdout = "";
-    let stderr = "";
-    // Explicitly decode as UTF-8 (default is system locale on Windows)
+    let stdout = ""; let stderr = "";
     proc.stdout.setEncoding("utf8");
     proc.stderr.setEncoding("utf8");
     proc.stdout.on("data", (d: string) => (stdout += d));
@@ -93,22 +202,14 @@ function runTranscription(videoPath: string, maxWordsPerLine: number, model: str
         reject(new Error(`Transcription failed (code ${code}): ${stderr.slice(-500)}`));
         return;
       }
-      try {
-        resolve(JSON.parse(stdout));
-      } catch {
-        reject(new Error(`Invalid JSON from Python: ${stdout.slice(0, 200)}`));
-      }
+      try { resolve(JSON.parse(stdout)); }
+      catch { reject(new Error(`Invalid JSON from Python: ${stdout.slice(0, 200)}`)); }
     });
-
     proc.on("error", (e) => {
-      // ENOENT = Python not installed on the host. On the launch server we
-      // ship a slim Node image without Python+Whisper, so transcription is
-      // unavailable until we install Whisper or wire an external API. Tell
-      // the user something they can act on instead of the raw spawn error.
       if ((e as NodeJS.ErrnoException).code === "ENOENT") {
         reject(new Error(
-          "תמלול לא זמין כרגע — Whisper עדיין לא הותקן על השרת. " +
-          "אנחנו עובדים על זה בדקות הקרובות. את יכולה להמשיך לערוך עם כתוביות שתעתיקי ידנית בינתיים.",
+          "תמלול לא זמין כרגע — Whisper לא הותקן על השרת ו-OPENAI_API_KEY לא הוגדר. " +
+          "פני למפתחת.",
         ));
         return;
       }
