@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
       amountIls: pkg.priceIls,
       credits: pkg.credits,
       customerEmail: typeof customerEmail === "string" ? customerEmail : undefined,
-      successUrl: `${origin}/credits?status=success`,
-      cancelUrl:  `${origin}/credits?status=cancel`,
+      successUrl: `${origin}/credits/success?pkg=${encodeURIComponent(pkg.id)}&credits=${pkg.credits}`,
+      cancelUrl:  `${origin}/credits/success?status=fail`,
       webhookUrl: `${origin}/api/payplus/webhook`,
     });
     if (!result) {

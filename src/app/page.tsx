@@ -42,6 +42,8 @@ import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
 import SaveSnapshotButton from "@/components/SaveSnapshotButton";
 import AILoadingOverlay from "@/components/AILoadingOverlay";
+import SignupGate from "@/components/SignupGate";
+import { useAuth } from "@/lib/useAuth";
 import {
   hashVideoFile,
   saveCurrentVideo,
@@ -79,6 +81,13 @@ export default function HomePage() {
   const toastMultiReady = useContent("home.toast.multiReady") as string;
   const toastResume     = useContent("home.toast.resumeHint") as string;
   const toastVideoLoaded= useContent("home.toast.videoLoaded") as string;
+  const heroGreeting     = useContent("home.hero.greeting") as string;
+  const heroGreetingGuest= useContent("home.hero.greetingGuest") as string;
+
+  // Auth — used to (a) personalize the hero greeting with display name,
+  // and (b) gate the export button (guests get a signup popup instead).
+  const auth = useAuth();
+  const [showSignupGate, setShowSignupGate] = useState(false);
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -393,6 +402,13 @@ export default function HomePage() {
   }
 
   async function exportProject() {
+    // Guests must sign up before the download starts. SignupGate opens an
+    // inline popup with the 25-master gift framing; on success the gate's
+    // onSuccess closes the modal and we resume the export automatically.
+    if (auth.status === "guest") {
+      setShowSignupGate(true);
+      return;
+    }
     if (exportFormat === "srt") {
       const srt = subtitles.map((s, i) => {
         const fmt = (t: number) => {
@@ -499,6 +515,14 @@ export default function HomePage() {
         <div className="space-y-8 mt-8">
           {!videoFile ? (
             <>
+              {/* Hero greeting — personalized with display name when logged in. */}
+              <div className="text-center mb-2">
+                <h1 className="text-2xl md:text-4xl font-black bg-gradient-to-r from-brand via-purple-400 to-accent-pink bg-clip-text text-transparent leading-tight">
+                  {auth.status === "user" && auth.profile?.display_name
+                    ? heroGreeting.replace("{{name}}", auth.profile.display_name)
+                    : heroGreetingGuest}
+                </h1>
+              </div>
               <a
                 href="/multi"
                 className="block group bg-gradient-to-br from-brand/15 via-purple-500/10 to-cyan-500/5 border border-brand/30 hover:border-brand/60 rounded-2xl p-5 transition-colors"
@@ -872,6 +896,15 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Guest signup popup — opens when a guest hits the export button.
+          On success, close the modal and call exportProject() again — the
+          auth state will be "user" by then and the gate will pass through. */}
+      <SignupGate
+        open={showSignupGate}
+        onClose={() => setShowSignupGate(false)}
+        onSuccess={() => { setShowSignupGate(false); void exportProject(); }}
+      />
     </main>
   );
 }

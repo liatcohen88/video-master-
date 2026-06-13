@@ -447,6 +447,28 @@ export const CONTENT_DEFAULTS = {
   "home.toast.videoLoaded": "הסרטון נטען — תוכלי להתחיל לתמלל",
   "home.error.noSpeech":    "לא זוהה דיבור בסרטון",
   "home.error.noVideo":     "חסר קובץ וידאו",
+  // Hero greeting (below header, above the upload card)
+  "home.hero.greeting":     "היי {{name}} 👋 מה תרצה שנערוך לך היום?",
+  "home.hero.greetingGuest":"היי מאסטר 👋 מה תרצה שנערוך לך היום?",
+
+  // Signup gate — popup shown when a guest clicks "Export"
+  "signupGate.title":         "רגע לפני שמורידים…",
+  "signupGate.subtitle":      "צריך חשבון בשביל להוריד את הסרטון. הרשמה לוקחת 30 שניות.",
+  "signupGate.giftBadge":     "🎁 25 מאסטרים במתנה",
+  "signupGate.submitNew":     "צרי חשבון והורידי",
+  "signupGate.submitIn":      "התחברי והורידי",
+  "signupGate.switchToLogin": "יש לך כבר חשבון? התחברי",
+  "signupGate.switchToSignup":"אין לך עוד חשבון? הירשמי",
+
+  // Post-purchase success page (/credits/success)
+  "purchase.title":     "התשלום עבר בהצלחה! ✨",
+  "purchase.body":      "נוספו {{credits}} מאסטרים לחשבון שלך. אפשר להתחיל לערוך מיד.",
+  "purchase.bodyNoQty": "התשלום נקלט והמאסטרים נוספו לחשבון שלך.",
+  "purchase.cta.start": "התחילי לערוך",
+  "purchase.cta.more":  "קני עוד חבילה",
+  "purchase.error.title": "התשלום לא הושלם",
+  "purchase.error.body":  "משהו השתבש בתהליך התשלום. לא חויבת. אפשר לנסות שוב.",
+  "purchase.error.retry": "חזרה לחבילות",
 } as const;
 
 export type ContentKey = keyof typeof CONTENT_DEFAULTS;
