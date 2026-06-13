@@ -442,6 +442,7 @@ export const CONTENT_DEFAULTS = {
   "home.progress.transcribe":"AI מתמלל את הסרטון...",
   "home.progress.analyze":  "AI מנתח את הסרטון (מזהה דובר, מציע סגנון)...",
   "home.progress.export":   "צורבת כתוביות לוידאו (זה יכול לקחת דקה או שתיים)...",
+  "home.progress.loadVideo":"מעלה את הסרטון שלך — רגע אחד...",
   "home.toast.multiReady":  "הסרטון המחובר מוכן — תנו ל-AI לתמלל ולערוך ✨",
   "home.toast.resumeHint":  "המשך מאיפה שהפסקת — העלי את הסרטון לעריכה",
   "home.toast.videoLoaded": "הסרטון נטען — תוכלי להתחיל לתמלל",

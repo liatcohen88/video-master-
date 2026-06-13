@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload, Film, Clock } from "lucide-react";
+import { Upload, Film, Clock, Loader2 } from "lucide-react";
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { toast } from "@/components/Toaster";
 import { useContent } from "@/lib/useContent";
@@ -68,13 +68,13 @@ export default function VideoUploader({ onVideoSelected }: Props) {
     <div
       onDragOver={(e) => {
         e.preventDefault();
-        setIsDragging(true);
+        if (!checking) setIsDragging(true);
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
+      onClick={() => { if (!checking) inputRef.current?.click(); }}
       className={`
-        relative cursor-pointer rounded-3xl border-2 border-dashed
+        relative ${checking ? "cursor-wait" : "cursor-pointer"} rounded-3xl border-2 border-dashed
         transition-all duration-300 p-16 text-center
         ${isDragging
           ? "border-brand bg-brand/10 scale-[1.02]"
@@ -88,6 +88,17 @@ export default function VideoUploader({ onVideoSelected }: Props) {
         onChange={handleChange}
         className="hidden"
       />
+
+      {/* In-zone busy overlay — covers everything else with a clear spinner +
+          message the moment the user picks a file. Mobile-friendly because the
+          page-level loader takes a beat to appear. */}
+      {checking && (
+        <div className="absolute inset-0 bg-bg-dark/85 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center gap-3 z-10">
+          <Loader2 className="w-10 h-10 text-brand animate-spin" />
+          <div className="text-base font-bold text-white">{checkingTitle}</div>
+          <div className="text-xs text-white/60">רגע אחד — בודקים את הסרטון</div>
+        </div>
+      )}
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
           <div className="absolute inset-0 bg-brand/30 blur-2xl rounded-full" />

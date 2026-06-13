@@ -78,6 +78,7 @@ export default function HomePage() {
   const progTranscribe= useContent("home.progress.transcribe") as string;
   const progAnalyze   = useContent("home.progress.analyze") as string;
   const progExport    = useContent("home.progress.export") as string;
+  const progLoadVideo = useContent("home.progress.loadVideo") as string;
   const toastMultiReady = useContent("home.toast.multiReady") as string;
   const toastResume     = useContent("home.toast.resumeHint") as string;
   const toastVideoLoaded= useContent("home.toast.videoLoaded") as string;
@@ -145,20 +146,30 @@ export default function HomePage() {
   const [activeReferenceId, setActiveReferenceId] = useState<string | undefined>(undefined);
 
   async function handleVideo(file: File) {
-    setVideoFile(file);
-    setVideoUrl(URL.createObjectURL(file));
-    // Reset effects to clean default — drops any leftover depth/parallax
-    // toggles from a previous session that could confuse the export.
-    setEffects(MODE_DEFAULT_EFFECTS[mode]);
-    setDownloadSuccess(null);
-    setErrorMessage(null);
-    // Persist the blob to IndexedDB so hot-reload/refresh doesn't lose it.
-    // Hash first so transcription-cache lookups work consistently.
+    // Full-screen loader so mobile users see clear feedback while the file
+    // is hashed + persisted to IndexedDB — on a big video this is several
+    // seconds and was previously a silent freeze.
+    setIsProcessing(true);
+    setProgressMessage(progLoadVideo);
     try {
-      const hash = await hashVideoFile(file);
-      setVideoHash(hash);
-      saveCurrentVideo(file, hash).catch(() => {/* best-effort */});
-    } catch { /* IDB unavailable — fall back to in-memory only */ }
+      setVideoFile(file);
+      setVideoUrl(URL.createObjectURL(file));
+      // Reset effects to clean default — drops any leftover depth/parallax
+      // toggles from a previous session that could confuse the export.
+      setEffects(MODE_DEFAULT_EFFECTS[mode]);
+      setDownloadSuccess(null);
+      setErrorMessage(null);
+      // Persist the blob to IndexedDB so hot-reload/refresh doesn't lose it.
+      // Hash first so transcription-cache lookups work consistently.
+      try {
+        const hash = await hashVideoFile(file);
+        setVideoHash(hash);
+        saveCurrentVideo(file, hash).catch(() => {/* best-effort */});
+      } catch { /* IDB unavailable — fall back to in-memory only */ }
+    } finally {
+      setIsProcessing(false);
+      setProgressMessage("");
+    }
   }
 
   /**
