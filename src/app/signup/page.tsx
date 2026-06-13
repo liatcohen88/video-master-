@@ -68,7 +68,7 @@ export default function SignupPage() {
       return;
     }
 
-    if (data.session) router.push("/dashboard");
+    if (data.session) router.push("/");
     else setDone(true);
   }
 
@@ -81,7 +81,7 @@ export default function SignupPage() {
     const { error } = await sb.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined,
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/` : undefined,
       },
     });
     if (error) {

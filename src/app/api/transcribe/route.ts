@@ -184,7 +184,10 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
 
 function runPython(videoPath: string, maxWordsPerLine: number, model: string) {
   return new Promise<unknown>((resolve, reject) => {
-    const python = process.env.PYTHON_PATH || "python";
+    // 1) PYTHON_PATH env (set explicitly), 2) the venv we install in nixpacks.toml,
+    // 3) system python (dev machines / Windows). Nixpacks [variables] aren't
+    // always present at runtime, so the hard-coded /opt path is the reliable one.
+    const python = process.env.PYTHON_PATH || "/opt/whisper-venv/bin/python3" || "python";
     const scriptPath = join(process.cwd(), "scripts", "transcribe.py");
     const proc = spawn(python, [
       scriptPath, videoPath, "--model", model, "--language", "he",

@@ -52,7 +52,7 @@ export default function LoginPage() {
       else setErr(error.message);
       return;
     }
-    router.push("/dashboard");
+    router.push("/");
   }
 
   async function oauth(provider: "google" | "apple") {
@@ -68,7 +68,7 @@ export default function LoginPage() {
       provider,
       options: {
         // Return to /dashboard after the OAuth roundtrip.
-        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined,
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/` : undefined,
       },
     });
     if (error) {
