@@ -67,7 +67,7 @@ const GROUP_LABELS: Record<string, { label: string; tab: Tab }> = {
 // Admin access list — comma-separated emails via NEXT_PUBLIC_ADMIN_EMAILS env var.
 // Defaults to Liat's launch addresses; anyone else lands on a friendly 403.
 // `NEXT_PUBLIC_*` so the gate works in the client component without a round-trip.
-const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "liatcohen88@gmail.com,liat@videomaster.local")
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "liatcohen88@gmail.com,loliat8891@gmail.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);

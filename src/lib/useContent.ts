@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from "react";
 import {
-  getContent, CONTENT_DEFAULTS, type ContentKey,
+  getContent, hydrateFromCloud, CONTENT_DEFAULTS, type ContentKey,
 } from "./contentStore";
 
 /**
  * React hook for editable content. Returns the current value (or the
  * shipped default during SSR) and re-renders whenever any admin edit
  * fires the `content-change` event.
+ *
+ * First mount also triggers a one-shot fetch from /api/cms/overrides so
+ * the values displayed to every visitor match what Liat last saved in
+ * the admin — regardless of which browser the visitor is on.
  */
 export function useContent<K extends ContentKey>(key: K): (typeof CONTENT_DEFAULTS)[K] {
   const [v, setV] = useState<(typeof CONTENT_DEFAULTS)[K]>(CONTENT_DEFAULTS[key]);
   useEffect(() => {
     setV(getContent(key));
+    void hydrateFromCloud(); // idempotent — only the first call actually fetches
     const handler = () => setV(getContent(key));
     window.addEventListener("content-change", handler);
     return () => window.removeEventListener("content-change", handler);

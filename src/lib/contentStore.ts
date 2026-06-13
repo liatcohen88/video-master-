@@ -440,6 +440,69 @@ function read(): Content {
     return raw ? JSON.parse(raw) : {};
   } catch { return {}; }
 }
+
+// ── Cloud sync (Supabase content_overrides table) ─────────────────────
+// We keep localStorage as a synchronous read-through cache so first paint
+// uses last-known values (no flash of defaults). On mount, hydrateFromCloud
+// merges the server-side overrides on top and dispatches `content-change`
+// so every useContent() subscriber re-renders.
+let cloudHydrated = false;
+let cloudHydratePromise: Promise<void> | null = null;
+
+export function hydrateFromCloud(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (cloudHydratePromise) return cloudHydratePromise;
+  cloudHydratePromise = (async () => {
+    try {
+      const res = await fetch("/api/cms/overrides", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      const cloud = (json?.overrides ?? {}) as Content;
+      if (!cloud || typeof cloud !== "object") return;
+      // Cloud is authoritative: replace local cache entirely.
+      // (localStorage stays as a write-through copy for offline reads.)
+      localStorage.setItem(LS_KEY, JSON.stringify(cloud));
+      cloudHydrated = true;
+      window.dispatchEvent(new CustomEvent("content-change"));
+    } catch { /* offline / unconfigured — fall back to localStorage */ }
+  })();
+  return cloudHydratePromise;
+}
+
+async function postToCloud(key: string, value: unknown): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    // Lazy-import to avoid a server-side bundle of the Supabase auth client
+    // pulling in browser-only code.
+    const { browserClient } = await import("./supabase");
+    const sb = browserClient();
+    const token = (await sb?.auth.getSession())?.data.session?.access_token;
+    if (!token) return; // not logged in as admin — local-only edit
+    await fetch("/api/cms/overrides", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ key, value }),
+    });
+  } catch { /* best effort */ }
+}
+
+async function deleteFromCloud(key: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { browserClient } = await import("./supabase");
+    const sb = browserClient();
+    const token = (await sb?.auth.getSession())?.data.session?.access_token;
+    if (!token) return;
+    await fetch(`/api/cms/overrides?key=${encodeURIComponent(key)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch { /* best effort */ }
+}
+
+export function isCloudHydrated(): boolean {
+  return cloudHydrated;
+}
 const HISTORY_KEY = "vm_content_history_v1";
 const MAX_HISTORY = 15;
 
@@ -514,6 +577,8 @@ export function setContent<K extends ContentKey>(key: K, value: (typeof CONTENT_
   const c = read();
   c[key] = value;
   write(c);
+  // Fire-and-forget cloud upsert so every visitor on every device sees this edit.
+  void postToCloud(key, value);
 }
 
 /** Reset a single key to its shipped default */
@@ -521,6 +586,7 @@ export function resetContentKey<K extends ContentKey>(key: K) {
   const c = read();
   delete c[key];
   write(c);
+  void deleteFromCloud(key);
 }
 
 /** Wipe ALL overrides */
