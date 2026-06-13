@@ -1,0 +1,9 @@
+# Whisper transcription via faster-whisper (CTranslate2 backend).
+# Used by scripts/transcribe.py — installed during Nixpacks build into
+# /opt/whisper-venv so the Node API route can spawn it.
+#
+# faster-whisper is the ONLY direct dep; ctranslate2, av, etc. are
+# transitive and resolved automatically. Pinned to a tested combination
+# so the build is reproducible.
+
+faster-whisper==1.0.3

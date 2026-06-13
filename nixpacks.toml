@@ -1,0 +1,29 @@
+# Nixpacks build config — adds Python 3.11 + ffmpeg + faster-whisper to the
+# Node app so /api/transcribe can spawn the Python script we already wrote.
+# Coolify auto-detects this file and runs the extra setup phase.
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full"]
+aptPkgs = ["build-essential"]
+
+[phases.install]
+cmds = [
+  "npm ci --legacy-peer-deps",
+  # Install faster-whisper into a venv so site-packages don't collide with
+  # any system Python the host might have. /opt/whisper-venv is the canonical
+  # path picked up by the transcribe route via PYTHON_PATH env var.
+  "python3 -m venv /opt/whisper-venv",
+  "/opt/whisper-venv/bin/pip install --upgrade pip",
+  "/opt/whisper-venv/bin/pip install -r requirements.txt",
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
+
+# Tell the transcribe route which Python to spawn (the venv interpreter has
+# faster-whisper installed; system python3 does not).
+[variables]
+PYTHON_PATH = "/opt/whisper-venv/bin/python3"
