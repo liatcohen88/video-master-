@@ -3,6 +3,7 @@
 import { Upload, Film, Clock } from "lucide-react";
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { toast } from "@/components/Toaster";
+import { useContent } from "@/lib/useContent";
 
 type Props = {
   onVideoSelected: (file: File) => void;
@@ -26,6 +27,12 @@ function probeDuration(file: File): Promise<number> {
 }
 
 export default function VideoUploader({ onVideoSelected }: Props) {
+  // CMS-driven copy for the drop zone — Liat asked for a softer call-to-action
+  const dropTitle    = useContent("uploader.dropTitle") as string;
+  const dragingTitle = useContent("uploader.dragingTitle") as string;
+  const checkingTitle= useContent("uploader.checkingTitle") as string;
+  const formatsLine  = useContent("uploader.formatsLine") as string;
+  const durationNote = useContent("uploader.durationNote") as string;
   const [isDragging, setIsDragging] = useState(false);
   const [checking, setChecking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,10 +101,10 @@ export default function VideoUploader({ onVideoSelected }: Props) {
         </div>
         <div>
           <h3 className="text-2xl font-bold mb-2">
-            {checking ? "בודק..." : isDragging ? "שחרר כאן" : "גרור את הסרטון לכאן"}
+            {checking ? checkingTitle : isDragging ? dragingTitle : dropTitle}
           </h3>
           <p className="text-white/60 text-sm">
-            או לחץ לבחירת קובץ • MP4, MOV, AVI, MKV
+            {formatsLine}
           </p>
         </div>
 
@@ -105,7 +112,7 @@ export default function VideoUploader({ onVideoSelected }: Props) {
             duration cap (post-launch render queue). */}
         <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs">
           <Clock className="w-3.5 h-3.5" />
-          <span>כרגע ניתן לעלות סרטונים עד דקה — בקרוב יוכלו יותר</span>
+          <span>{durationNote}</span>
         </div>
       </div>
     </div>

@@ -64,6 +64,7 @@ const GROUP_LABELS: Record<string, { label: string; tab: Tab }> = {
   emails:  { label: "תבניות מיילים",     tab: "content"  },
   signupGate: { label: "פופאפ הרשמה בייצוא", tab: "content" },
   purchase:   { label: "דף תודה אחרי תשלום",   tab: "content" },
+  uploader:   { label: "אזור העלאת סרטון",      tab: "content" },
 };
 
 // Admin access list — comma-separated emails via NEXT_PUBLIC_ADMIN_EMAILS env var.
@@ -642,6 +643,7 @@ function ContentTab({ onChange }: { onChange: () => void }) {
     { grp: "emails",  emoji: "✉️", desc: "תבניות מיילים — ברוך הבא, רכישה, איפוס סיסמה, ניוזלטר. {{name}}, {{email}}, {{link}} משתנים אוטומטית" },
     { grp: "signupGate", emoji: "🎁", desc: "פופאפ הרשמה שמופיע כשאורח לוחץ על 'הורד' — כותרת, גוף, מתנה" },
     { grp: "purchase",   emoji: "🛍️", desc: "דף תודה אחרי תשלום מוצלח — פופאפ הצלחה + טקסטים של כשלון" },
+    { grp: "uploader",   emoji: "⬆️", desc: "אזור גרירת הסרטון בדף הבית — כותרת, פורמטים, הערת אורך מקסימלי" },
   ];
   return (
     <div className="space-y-3">

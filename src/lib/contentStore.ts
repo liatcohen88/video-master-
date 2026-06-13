@@ -469,6 +469,13 @@ export const CONTENT_DEFAULTS = {
   "purchase.error.title": "התשלום לא הושלם",
   "purchase.error.body":  "משהו השתבש בתהליך התשלום. לא חויבת. אפשר לנסות שוב.",
   "purchase.error.retry": "חזרה לחבילות",
+
+  // Upload drop-zone copy (home page)
+  "uploader.dropTitle":    "בחר את הסרטון שאותו תרצו שה-AI יערוך לכם",
+  "uploader.dragingTitle": "שחרר כאן",
+  "uploader.checkingTitle":"בודק...",
+  "uploader.formatsLine":  "תומך ב-MP4, MOV, AVI, MKV",
+  "uploader.durationNote": "תמיכה בסרטונים עד 60 שניות (בינתיים 😉)",
 } as const;
 
 export type ContentKey = keyof typeof CONTENT_DEFAULTS;
