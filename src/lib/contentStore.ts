@@ -570,6 +570,15 @@ export function restoreContentHistory(indexFromNewest: number): boolean {
     pushHistory(); // keep the pre-restore state recoverable too
     localStorage.setItem(LS_KEY, entry.data);
     window.dispatchEvent(new CustomEvent("content-change"));
+    // Push the restored state to the cloud so every visitor sees the rollback —
+    // not just this browser. Without this, hydrateFromCloud would later
+    // re-overwrite localStorage with the still-stale cloud values.
+    try {
+      const parsed = JSON.parse(entry.data) as Record<string, unknown>;
+      for (const [k, v] of Object.entries(parsed)) {
+        void postToCloud(k, v);
+      }
+    } catch { /* malformed entry — fall through */ }
     return true;
   } catch { return false; }
 }
