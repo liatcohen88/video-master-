@@ -573,6 +573,12 @@ export function importContentJson(json: string): boolean {
     pushHistory();
     localStorage.setItem(LS_KEY, JSON.stringify(parsed));
     window.dispatchEvent(new CustomEvent("content-change"));
+    // Also push every imported key to the cloud so the next page-load (which
+    // hydrates from the server) doesn't blow the import away with the old
+    // server values.
+    for (const [k, v] of Object.entries(parsed)) {
+      void postToCloud(k, v);
+    }
     return true;
   } catch { return false; }
 }

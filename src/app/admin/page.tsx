@@ -259,6 +259,8 @@ type RegisteredUser = {
   display_name: string | null;
   credits: number;
   created_at: string;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
 };
 
 function UsersTab(_props: { onChange: () => void }) {
@@ -267,17 +269,28 @@ function UsersTab(_props: { onChange: () => void }) {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<RegisteredUser | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/users")
-      .then((r) => r.json())
-      .then((d: { users: RegisteredUser[]; configured: boolean }) => {
-        setUsers(d.users);
-        setConfigured(d.configured);
-      })
-      .catch(() => setConfigured(false))
-      .finally(() => setLoading(false));
-  }, []);
+  async function refresh() {
+    setLoading(true);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const r = await fetch("/api/admin/users", {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
+      const d = await r.json() as { users: RegisteredUser[]; configured: boolean };
+      setUsers(d.users ?? []);
+      setConfigured(d.configured);
+    } catch {
+      setConfigured(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void refresh(); }, []);
 
   const filtered = users.filter((u) => {
     if (!search.trim()) return true;
@@ -285,7 +298,7 @@ function UsersTab(_props: { onChange: () => void }) {
     return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
   });
 
-  function formatDate(iso: string): { date: string; time: string } {
+  function formatDate(iso: string | null): { date: string; time: string } {
     if (!iso) return { date: "—", time: "" };
     const d = new Date(iso);
     return {
@@ -293,9 +306,39 @@ function UsersTab(_props: { onChange: () => void }) {
       time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
     };
   }
+  function isBanned(u: RegisteredUser): boolean {
+    if (!u.banned_until) return false;
+    return new Date(u.banned_until).getTime() > Date.now();
+  }
+
+  // Aggregates strip
+  const total = users.length;
+  const totalCredits = users.reduce((sum, u) => sum + (u.credits ?? 0), 0);
+  const banned = users.filter(isBanned).length;
+  const last7d = users.filter((u) => u.last_sign_in_at && Date.now() - new Date(u.last_sign_in_at).getTime() < 7 * 86400_000).length;
 
   return (
     <div className="space-y-3">
+      {/* Aggregates */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+        <div className="bg-bg-card border border-white/10 rounded-lg p-2 text-center">
+          <div className="text-[10px] text-white/50">סך משתמשים</div>
+          <div className="text-lg font-bold">{total}</div>
+        </div>
+        <div className="bg-bg-card border border-white/10 rounded-lg p-2 text-center">
+          <div className="text-[10px] text-white/50">סך מאסטרים יתרה</div>
+          <div className="text-lg font-bold text-amber-300">{totalCredits.toLocaleString()}</div>
+        </div>
+        <div className="bg-bg-card border border-white/10 rounded-lg p-2 text-center">
+          <div className="text-[10px] text-white/50">פעילים 7 ימים</div>
+          <div className="text-lg font-bold text-emerald-300">{last7d}</div>
+        </div>
+        <div className="bg-bg-card border border-white/10 rounded-lg p-2 text-center">
+          <div className="text-[10px] text-white/50">מושעים</div>
+          <div className="text-lg font-bold text-red-300">{banned}</div>
+        </div>
+      </div>
+
       {/* Top bar — search + count */}
       <div className="flex items-center justify-between gap-3">
         <input
@@ -316,22 +359,26 @@ function UsersTab(_props: { onChange: () => void }) {
         </div>
       )}
 
-      <div className="bg-bg-card border border-white/10 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-bg-card border border-white/10 rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-bg-input text-[11px] uppercase tracking-wider text-white/50">
             <tr>
               <th className="text-right p-3">שם</th>
               <th className="text-right p-3">אימייל</th>
               <th className="text-right p-3">מאסטרים</th>
-              <th className="text-right p-3 whitespace-nowrap">תאריך הרשמה</th>
-              <th className="text-right p-3 whitespace-nowrap">שעה</th>
+              <th className="text-right p-3 whitespace-nowrap">הרשמה</th>
+              <th className="text-right p-3 whitespace-nowrap">כניסה אחרונה</th>
+              <th className="text-right p-3">סטטוס</th>
+              <th className="text-right p-3">פעולות</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((u) => {
-              const dt = formatDate(u.created_at);
+              const reg = formatDate(u.created_at);
+              const last = formatDate(u.last_sign_in_at);
+              const banned = isBanned(u);
               return (
-              <tr key={u.id} className="border-t border-white/5">
+              <tr key={u.id} className={`border-t border-white/5 ${banned ? "bg-red-500/5" : ""}`}>
                 <td className="p-3 font-medium">{u.display_name ?? "—"}</td>
                 <td className="p-3 text-white/60 text-xs" dir="ltr">{u.email}</td>
                 <td className="p-3">
@@ -339,18 +386,151 @@ function UsersTab(_props: { onChange: () => void }) {
                     🪙 {u.credits}
                   </span>
                 </td>
-                <td className="p-3 text-white/70 text-xs whitespace-nowrap">{dt.date}</td>
-                <td className="p-3 text-white/50 text-xs whitespace-nowrap font-mono">{dt.time}</td>
+                <td className="p-3 text-white/70 text-xs whitespace-nowrap">
+                  {reg.date} <span className="text-white/40 font-mono">{reg.time}</span>
+                </td>
+                <td className="p-3 text-white/70 text-xs whitespace-nowrap">
+                  {u.last_sign_in_at ? <>{last.date} <span className="text-white/40 font-mono">{last.time}</span></> : <span className="text-white/30">לא נכנס</span>}
+                </td>
+                <td className="p-3">
+                  {banned ? (
+                    <span className="inline-block bg-red-500/15 text-red-300 text-[10px] px-2 py-0.5 rounded-full">🚫 מושעה</span>
+                  ) : (
+                    <span className="inline-block bg-emerald-500/15 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full">✓ פעיל</span>
+                  )}
+                </td>
+                <td className="p-3">
+                  <button
+                    onClick={() => setEditing(u)}
+                    className="bg-brand/20 hover:bg-brand/40 text-brand-light text-xs font-bold px-3 py-1 rounded-md"
+                  >
+                    ניהול
+                  </button>
+                </td>
               </tr>
               );
             })}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={5} className="p-6 text-center text-white/40 text-sm">
+              <tr><td colSpan={7} className="p-6 text-center text-white/40 text-sm">
                 {users.length === 0 ? "אין משתמשים רשומים עדיין" : "אין התאמות לחיפוש"}
               </td></tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {editing && (
+        <UserEditModal user={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void refresh(); }} />
+      )}
+    </div>
+  );
+}
+
+function UserEditModal({ user, onClose, onSaved }: { user: RegisteredUser; onClose: () => void; onSaved: () => void }) {
+  const [delta, setDelta]       = useState(0);
+  const [displayName, setName]  = useState(user.display_name ?? "");
+  const banned                  = !!user.banned_until && new Date(user.banned_until).getTime() > Date.now();
+  const [busy, setBusy]         = useState(false);
+  const [err, setErr]           = useState<string | null>(null);
+
+  async function send(patch: Record<string, unknown>) {
+    setBusy(true); setErr(null);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const r = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(patch),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "שגיאה");
+      onSaved();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
+  function fmtDateTime(iso: string | null) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-bg-panel border border-white/15 rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold">{user.display_name || user.email}</h3>
+            <p className="text-xs text-white/50" dir="ltr">{user.email}</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+        </div>
+
+        {/* Read-only details */}
+        <div className="grid grid-cols-2 gap-2 text-xs mb-4 bg-bg-card/50 border border-white/5 rounded-lg p-3">
+          <div><span className="text-white/40">יתרת מאסטרים נוכחית:</span> <span className="font-bold text-amber-300">{user.credits}</span></div>
+          <div><span className="text-white/40">סטטוס:</span> {banned ? <span className="text-red-300">🚫 מושעה</span> : <span className="text-emerald-300">✓ פעיל</span>}</div>
+          <div><span className="text-white/40">נרשם:</span> {fmtDateTime(user.created_at)}</div>
+          <div><span className="text-white/40">כניסה אחרונה:</span> {fmtDateTime(user.last_sign_in_at)}</div>
+          <div className="col-span-2"><span className="text-white/40">ID:</span> <span className="font-mono text-[10px]">{user.id}</span></div>
+        </div>
+
+        {err && <div className="bg-red-500/10 border border-red-500/30 text-red-200 text-xs p-2 rounded-lg mb-3">{err}</div>}
+
+        {/* Adjust credits */}
+        <div className="mb-4">
+          <label className="text-xs font-bold mb-2 block">🪙 הוסיפי/הורידי מאסטרים</label>
+          <div className="flex items-center gap-2">
+            <input type="number" value={delta} onChange={(e) => setDelta(parseInt(e.target.value) || 0)}
+              className="w-24 bg-bg-input border border-white/10 rounded-lg px-3 py-2 text-sm text-center" />
+            <span className="text-xs text-white/50">→</span>
+            <span className="text-sm font-bold">{user.credits + delta}</span>
+            <button type="button" onClick={() => setDelta(50)} className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded">+50</button>
+            <button type="button" onClick={() => setDelta(100)} className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded">+100</button>
+            <button type="button" onClick={() => setDelta(-25)} className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded">-25</button>
+            <button type="button" disabled={busy || delta === 0} onClick={() => send({ addCredits: delta })}
+              className="bg-amber-500/30 hover:bg-amber-500/50 disabled:opacity-50 text-amber-100 text-xs font-bold px-3 py-2 rounded-lg mr-auto">
+              עדכן
+            </button>
+          </div>
+        </div>
+
+        {/* Rename */}
+        <div className="mb-4">
+          <label className="text-xs font-bold mb-2 block">✏️ שם תצוגה</label>
+          <div className="flex items-center gap-2">
+            <input value={displayName} onChange={(e) => setName(e.target.value)}
+              className="flex-1 bg-bg-input border border-white/10 rounded-lg px-3 py-2 text-sm" />
+            <button type="button" disabled={busy || displayName === (user.display_name ?? "")} onClick={() => send({ displayName })}
+              className="bg-brand/30 hover:bg-brand/50 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-lg">
+              שמרי
+            </button>
+          </div>
+        </div>
+
+        {/* Suspend / Unsuspend */}
+        <div className="mb-2 pt-3 border-t border-white/10">
+          <label className="text-xs font-bold mb-2 block">{banned ? "🟢 ביטול השעיה" : "🚫 השעיית חשבון"}</label>
+          <p className="text-[11px] text-white/50 mb-2">
+            {banned
+              ? "המשתמש לא יכול להיכנס עכשיו. ביטול ההשעיה יחזיר לו גישה מיידית."
+              : "השעיה תחסום את המשתמש מלהיכנס. הוא לא יוכל להתחבר עד שתבטלי."}
+          </p>
+          <button type="button" disabled={busy} onClick={() => {
+              const confirmMsg = banned ? "לבטל את ההשעיה?" : "להשעות את החשבון? המשתמש לא יוכל להיכנס.";
+              if (confirm(confirmMsg)) send({ banned: !banned });
+            }}
+            className={`w-full text-xs font-bold px-3 py-2 rounded-lg ${
+              banned
+                ? "bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-200"
+                : "bg-red-500/20 hover:bg-red-500/40 text-red-200"
+            }`}>
+            {banned ? "✓ בטלי השעיה" : "🚫 השעי חשבון"}
+          </button>
+        </div>
       </div>
     </div>
   );
