@@ -7,3 +7,6 @@
 # so the build is reproducible.
 
 faster-whisper==1.0.3
+# pulled in by faster_whisper.utils — wasn't auto-resolved on the first build,
+# pinning explicitly so the venv has it from the start
+requests>=2.31

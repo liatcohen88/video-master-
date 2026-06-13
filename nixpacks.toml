@@ -3,8 +3,8 @@
 # Coolify auto-detects this file and runs the extra setup phase.
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full"]
-aptPkgs = ["build-essential"]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zlib", "stdenv.cc.cc.lib"]
+aptPkgs = ["build-essential", "libsndfile1", "zlib1g"]
 
 [phases.install]
 cmds = [
@@ -27,3 +27,6 @@ cmd = "npm run start"
 # faster-whisper installed; system python3 does not).
 [variables]
 PYTHON_PATH = "/opt/whisper-venv/bin/python3"
+# PyAV bundles libz/libavcodec/etc but their RPATHs point into the Nix store.
+# Make sure the resolver can find the runtime-stage zlib + libstdc++.
+LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"

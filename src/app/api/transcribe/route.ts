@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+
+// Nix store paths shift between builds, but PyAV / ctranslate2 / libsndfile
+// inside the venv only link via DT_NEEDED (the loader walks LD_LIBRARY_PATH).
+// On first spawn we locate the relevant nix-store lib dirs and cache them.
+let cachedLdPath: string | null = null;
+function nixLibPath(): string {
+  if (cachedLdPath !== null) return cachedLdPath;
+  const find = (lib: string) => {
+    try {
+      const r = spawnSync("find", ["/nix/store", "-name", lib, "-not", "-path", "*/share/*"], { encoding: "utf8" });
+      const first = (r.stdout || "").split("\n").find(Boolean);
+      return first ? dirname(first) : "";
+    } catch { return ""; }
+  };
+  const dirs = [
+    find("libz.so.1.3.1"),
+    find("libstdc++.so.6.0.32"),
+    find("libstdc++.so.6.0.33"),
+    find("libgcc_s.so.1"),
+  ].filter(Boolean);
+  cachedLdPath = Array.from(new Set(dirs)).join(":");
+  return cachedLdPath;
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -189,10 +212,20 @@ function runPython(videoPath: string, maxWordsPerLine: number, model: string) {
     // always present at runtime, so the hard-coded /opt path is the reliable one.
     const python = process.env.PYTHON_PATH || "/opt/whisper-venv/bin/python3" || "python";
     const scriptPath = join(process.cwd(), "scripts", "transcribe.py");
+    const extraLd = nixLibPath();
     const proc = spawn(python, [
       scriptPath, videoPath, "--model", model, "--language", "he",
       "--max-words-per-line", String(maxWordsPerLine),
-    ], { env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" } });
+    ], {
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUTF8: "1",
+        // Prepend the Nix-store lib dirs we discovered so PyAV / ctranslate2
+        // can resolve libz, libstdc++, libgcc_s at load time.
+        LD_LIBRARY_PATH: [extraLd, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":"),
+      },
+    });
 
     let stdout = ""; let stderr = "";
     proc.stdout.setEncoding("utf8");
