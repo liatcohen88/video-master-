@@ -130,7 +130,7 @@ export const CONTENT_DEFAULTS = {
   "landing.showcase1.caption1Hi":"חברים",
   "landing.showcase1.caption2":  "אתם חייבים",
   "landing.showcase1.caption2Hi":"חייבים",
-  "landing.showcase1.emoji":     "👋",
+  "landing.showcase1.emoji":     "",
   "landing.showcase2.title":     "חיבור סרטונים AI — מאחד לכם הכל",
   "landing.showcase2.body":      "כמה סרטונים + תסריט = סרטון אחד רציף. ה-AI מחבר אותם לפי הסדר שכתבתם, ואתם בוחרים ידנית איזה סרטון לכל שורה.",
   "landing.showcase2.caption1":  "3 סרטונים",
@@ -932,7 +932,7 @@ export const CONTENT_DEFAULTS = {
   "footer.bottom.privacy":"מדיניות פרטיות",
 
   // ── Dashboard / profile page ──────────────────────────────
-  "dashboard.greeting":         "היי {{name}} 👋",
+  "dashboard.greeting":         "היי {{name}}",
   "dashboard.statsLine":        "ניצלתם {{used}} {{currency}}",
   "dashboard.sections.history": "גרסאות שמורות",
   "dashboard.sections.invoices":"חשבוניות",
@@ -966,8 +966,8 @@ export const CONTENT_DEFAULTS = {
   "home.error.noSpeech":    "לא זוהה דיבור בסרטון",
   "home.error.noVideo":     "חסר קובץ וידאו",
   // Hero greeting (below header, above the upload card)
-  "home.hero.greeting":     "👋 היי {{name}}, מה תרצה שנערוך לך היום?",
-  "home.hero.greetingGuest":"👋 היי מאסטר, מה תרצה שנערוך לך היום?",
+  "home.hero.greeting":     "היי {{name}}, מה תרצה שנערוך לך היום?",
+  "home.hero.greetingGuest":"היי מאסטר, מה תרצה שנערוך לך היום?",
 
   // Signup gate — popup shown when a guest clicks "Export"
   "signupGate.title":         "רגע לפני שמורידים…",
