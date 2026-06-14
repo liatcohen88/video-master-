@@ -30,6 +30,7 @@ export default function PremiumPkgCard({ pkg, onBuy, busy }: Props) {
   const btnLabel = useContent("pkgCard.btn") as string;
   const btnBusy = useContent("pkgCard.btnBusy") as string;
   const taxNote = useContent("pkgCard.taxNote") as string;
+  const videosTpl = useContent("pkgCard.videosApproxTpl") as string;
   const fakeRegularPrice = Math.round(pkg.priceIls * 1.6);
   const videos = Math.max(1, Math.round(pkg.credits / 10)); // entry (subtitles) rate
   const isPopular   = pkg.highlight === "הכי נמכר";
@@ -71,7 +72,7 @@ export default function PremiumPkgCard({ pkg, onBuy, busy }: Props) {
           <span className="text-5xl font-black text-white leading-none tracking-tight">{pkg.credits}</span>
         </div>
         <div className="text-xs text-white/50 font-bold mt-1">{currency}</div>
-        <div className="text-[11px] text-white/35 mt-1">≈ {videos} סרטונים</div>
+        <div className="text-[11px] text-white/35 mt-1">{videosTpl.replace("{{n}}", String(videos))}</div>
 
         {/* spacer pushes price+cta to the bottom so all cards align */}
         <div className="flex-1" />

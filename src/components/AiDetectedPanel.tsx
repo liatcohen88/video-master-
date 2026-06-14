@@ -8,6 +8,7 @@ import { detectBrands, brandLogoCdnUrl } from "@/lib/brandLogos";
 import { DEFAULT_SFX_FOR_KIND, getSfxAsset } from "@/lib/sfxLibrary";
 import EmojiPicker from "./EmojiPicker";
 import SfxPicker from "./SfxPicker";
+import { useContent } from "@/lib/useContent";
 
 type PosId = "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
 
@@ -36,13 +37,14 @@ function brandKey(brandId: string, time: number): string {
   return `${brandId}-${Math.round(time * 10)}`;
 }
 
-const POSITIONS: { id: PosId; icon: string; title: string }[] = [
-  { id: "top-left",      icon: "↖", title: "שמאל למעלה" },
-  { id: "top-center",    icon: "↑", title: "מרכז למעלה" },
-  { id: "top-right",     icon: "↗", title: "ימין למעלה" },
-  { id: "bottom-left",   icon: "↙", title: "שמאל למטה" },
-  { id: "bottom-center", icon: "↓", title: "מרכז למטה" },
-  { id: "bottom-right",  icon: "↘", title: "ימין למטה" },
+/** Position icons — labels filled from CMS at render time, see usePositions(). */
+const POSITION_ICONS: { id: PosId; icon: string }[] = [
+  { id: "top-left",      icon: "↖" },
+  { id: "top-center",    icon: "↑" },
+  { id: "top-right",     icon: "↗" },
+  { id: "bottom-left",   icon: "↙" },
+  { id: "bottom-center", icon: "↓" },
+  { id: "bottom-right",  icon: "↘" },
 ];
 
 /** Stable key for an element event = category + rounded time */
@@ -69,6 +71,34 @@ export default function AiDetectedPanel({
   // means selecting one auto-closes the previous — no confusion about which
   // size/position you're editing.
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  // CMS strings — all hooks at the top of the component (Rules of Hooks)
+  const cmsHeadingTpl    = useContent("aiPanel.headingTpl") as string;
+  const cmsBrandsHeading = useContent("aiPanel.brands.heading") as string;
+  const cmsUnmatchedH    = useContent("aiPanel.brands.unmatched.heading") as string;
+  const cmsUnmatchedHint = useContent("aiPanel.brands.unmatched.hint") as string;
+  const cmsElementsH     = useContent("aiPanel.elements.heading") as string;
+  const cmsClickHint     = useContent("aiPanel.elements.clickHint") as string;
+  const cmsTooltipEditSP = useContent("aiPanel.tooltip.editSizePos") as string;
+  const cmsTooltipChEmo  = useContent("aiPanel.tooltip.changeEmoji") as string;
+  const cmsTooltipChSfx  = useContent("aiPanel.tooltip.changeSfx") as string;
+  const cmsTooltipRmEmo  = useContent("aiPanel.tooltip.removeEmoji") as string;
+  const cmsTooltipSizePos= useContent("aiPanel.tooltip.sizePos") as string;
+  const cmsDefaultOption = useContent("aiPanel.defaultOption") as string;
+  const cmsDefaultOptionTpl = useContent("aiPanel.defaultOptionTpl") as string;
+  const cmsPosTL = useContent("aiPanel.pos.tl") as string;
+  const cmsPosTC = useContent("aiPanel.pos.tc") as string;
+  const cmsPosTR = useContent("aiPanel.pos.tr") as string;
+  const cmsPosBL = useContent("aiPanel.pos.bl") as string;
+  const cmsPosBC = useContent("aiPanel.pos.bc") as string;
+  const cmsPosBR = useContent("aiPanel.pos.br") as string;
+  const cmsBtnClose      = useContent("aiPanel.btn.close") as string;
+  const cmsFieldSize     = useContent("aiPanel.field.size") as string;
+  const cmsFieldPos      = useContent("aiPanel.field.pos") as string;
+  const cmsResetDefault  = useContent("aiPanel.tooltip.resetDefault") as string;
+  const posTitles: Record<PosId, string> = {
+    "top-left": cmsPosTL, "top-center": cmsPosTC, "top-right": cmsPosTR,
+    "bottom-left": cmsPosBL, "bottom-center": cmsPosBC, "bottom-right": cmsPosBR,
+  };
   const allElements = useMemo(() => detectElements(subtitles), [subtitles]);
   const elements = useMemo(
     () => allElements.filter(
@@ -123,14 +153,14 @@ export default function AiDetectedPanel({
           <Eye className="w-4 h-4 text-brand-light" />
         </div>
         <h3 className="text-sm font-bold flex-1">
-          AI זיהה ({elements.length + brands.length} פריטים)
+          {cmsHeadingTpl.replace("{{n}}", String(elements.length + brands.length))}
         </h3>
       </div>
 
       {brands.length > 0 && (
         <div className="mb-3">
           <div className="text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-2">
-            🏷️ לוגואי מותגים
+            {cmsBrandsHeading}
           </div>
           <div className="flex flex-wrap gap-2">
             {brands.map((b, i) => {
@@ -145,7 +175,7 @@ export default function AiDetectedPanel({
                     className={`flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 shadow-md hover:ring-2 hover:ring-brand/40 transition ${
                       editing ? "ring-2 ring-brand" : ""
                     }`}
-                    title="לחיצה לעריכת גודל ומיקום"
+                    title={cmsTooltipEditSP}
                   >
                     <img src={brandLogoCdnUrl(b.brand)} alt={b.brand.name}
                       width={20} height={20} style={{ width: 20, height: 20 }} />
@@ -166,6 +196,7 @@ export default function AiDetectedPanel({
                       position={curPos}
                       onSize={(px) => onBrandSizeChange?.(bKey, px)}
                       onPosition={(p) => onBrandPositionChange?.(bKey, p)}
+                      labels={{ size: cmsFieldSize, pos: cmsFieldPos, reset: cmsResetDefault, close: cmsBtnClose, posTitles }}
                     />
                   )}
                 </div>
@@ -181,7 +212,7 @@ export default function AiDetectedPanel({
       {brands.length === 0 && brandTextScan && brandTextScan.length > 0 && (
         <div className="mb-3 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <div className="text-[11px] text-amber-200 font-bold mb-1">
-            🔍 זיהיתי שמות מותג בכתוביות אבל לא הצלחתי להתאים ללוגו:
+            {cmsUnmatchedH}
           </div>
           {brandTextScan.map((t, i) => (
             <div key={i} className="text-[11px] text-amber-100/70 mt-0.5 italic">
@@ -189,7 +220,7 @@ export default function AiDetectedPanel({
             </div>
           ))}
           <div className="text-[10px] text-amber-200/60 mt-1.5">
-            ערכי את הכתוביות אם השם נכתב אחרת ממה שאמרת.
+            {cmsUnmatchedHint}
           </div>
         </div>
       )}
@@ -198,9 +229,9 @@ export default function AiDetectedPanel({
         <div>
           <div className="text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-2 flex items-center gap-1">
             <ImagePlus className="w-3 h-3" />
-            אלמנטים לפי מילים
+            {cmsElementsH}
             <span className="text-white/30 mr-1 normal-case tracking-normal">
-              · לחיצה לשינוי
+              {cmsClickHint}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -225,7 +256,7 @@ export default function AiDetectedPanel({
                       flex items-center gap-1.5 px-2 py-1.5
                       ${onOverrideChange ? "hover:bg-white/10 cursor-pointer" : ""}
                     `}
-                    title="לחיצה לשינוי emoji"
+                    title={cmsTooltipChEmo}
                   >
                     <span className="text-lg leading-none">{displayEmoji}</span>
                     <span className="text-xs font-medium text-white whitespace-nowrap">
@@ -245,7 +276,7 @@ export default function AiDetectedPanel({
                         setAnchorRect(ev.currentTarget.getBoundingClientRect());
                       }}
                       className="px-1.5 py-1.5 hover:bg-white/20 text-white/70 hover:text-white border-l border-white/10"
-                      title="החלפת צליל SFX"
+                      title={cmsTooltipChSfx}
                     >
                       {elementSfxOverrides[key] === "none"
                         ? <VolumeX className="w-3 h-3" />
@@ -256,7 +287,7 @@ export default function AiDetectedPanel({
                     <button
                       onClick={() => onDisable(key)}
                       className="px-1.5 py-1.5 hover:bg-red-500/40 text-white/70 hover:text-white border-l border-white/10"
-                      title="מחיקת האמוג'י לגמרי"
+                      title={cmsTooltipRmEmo}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -270,7 +301,7 @@ export default function AiDetectedPanel({
                       className={`px-1.5 py-1.5 hover:bg-white/20 text-white/70 hover:text-white border-l border-white/10 ${
                         editingKey === `el:${key}` ? "bg-white/20 text-white" : ""
                       }`}
-                      title="גודל ומיקום"
+                      title={cmsTooltipSizePos}
                     >
                       <span className="text-[9px] font-mono">{elementSizePx[key] ?? "px"}</span>
                     </button>
@@ -287,6 +318,7 @@ export default function AiDetectedPanel({
                       position={elementPosition[key] ?? "top-right"}
                       onSize={(px) => onElementSizeChange?.(key, px)}
                       onPosition={(p) => onElementPositionChange?.(key, p)}
+                      labels={{ size: cmsFieldSize, pos: cmsFieldPos, reset: cmsResetDefault, close: cmsBtnClose, posTitles }}
                     />
                   )}
                 </div>
@@ -307,7 +339,7 @@ export default function AiDetectedPanel({
             open={true}
             currentSfxId={elementSfxOverrides[sfxPickerOpen]}
             defaultLabel={
-              defaultAsset ? `ברירת מחדל (${defaultAsset.label})` : "ברירת מחדל"
+              defaultAsset ? cmsDefaultOptionTpl.replace("{{label}}", defaultAsset.label) : cmsDefaultOption
             }
             onSelect={(id) => onSfxOverrideChange(sfxPickerOpen, id)}
             onClose={() => setSfxPickerOpen(null)}
@@ -339,13 +371,14 @@ export default function AiDetectedPanel({
  *  setEditingKey(null) wired by the chip itself, but we also catch a
  *  global click here for safety. */
 function ElementEditorPopover({
-  onClose, sizePx, position, onSize, onPosition,
+  onClose, sizePx, position, onSize, onPosition, labels,
 }: {
   onClose: () => void;
   sizePx?: number;
   position: PosId;
   onSize: (px: number | undefined) => void;
   onPosition: (p: PosId | undefined) => void;
+  labels: { size: string; pos: string; reset: string; close: string; posTitles: Record<PosId, string> };
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -369,7 +402,7 @@ function ElementEditorPopover({
       {/* Visual size slider — same UX as the custom-logo slider in EffectsPanel
           so Liat doesn't have to type a number. ✕ on the right resets to auto. */}
       <div className="text-[10px] text-white/40 mb-1 flex items-center justify-between">
-        <span>גודל</span>
+        <span>{labels.size}</span>
         <span className="font-mono text-brand-light">{sizePx ?? 80}px</span>
       </div>
       <div className="flex items-center gap-2 mb-3">
@@ -387,14 +420,14 @@ function ElementEditorPopover({
         {typeof sizePx === "number" && (
           <button onClick={() => onSize(undefined)}
             className="text-[10px] text-white/50 hover:text-white px-1.5"
-            title="ברירת מחדל">
+            title={labels.reset}>
             ✕
           </button>
         )}
       </div>
-      <div className="text-[10px] text-white/40 mb-1">מיקום</div>
+      <div className="text-[10px] text-white/40 mb-1">{labels.pos}</div>
       <div className="grid grid-cols-3 gap-1">
-        {POSITIONS.map((p) => (
+        {POSITION_ICONS.map((p) => (
           <button
             key={p.id}
             onClick={() => onPosition(p.id)}
@@ -403,7 +436,7 @@ function ElementEditorPopover({
                 ? "border-brand bg-brand/25 text-white"
                 : "border-white/10 bg-bg-input text-white/50 hover:border-white/30"
             }`}
-            title={p.title}
+            title={labels.posTitles[p.id]}
           >
             {p.icon}
           </button>
@@ -411,7 +444,7 @@ function ElementEditorPopover({
       </div>
       <button onClick={onClose}
         className="w-full mt-3 text-[10px] text-white/40 hover:text-white py-1">
-        סגור
+        {labels.close}
       </button>
     </div>
   );

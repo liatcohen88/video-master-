@@ -18,6 +18,9 @@ export default function ContactPage() {
   const emailHint   = useContent("contact.emailHint");
   const hoursTitle  = useContent("contact.hoursTitle");
   const hoursBody   = useContent("contact.hoursBody");
+  const recBadge    = useContent("contact.recommendedBadge") as string;
+  const cardCta     = useContent("contact.cardCta") as string;
+  const backToApp   = useContent("contact.backToApp") as string;
 
   // Build wa.me link from phone (strip non-digits, prefix 972 for Israel)
   const waPhone = phone.replace(/\D/g, "").replace(/^0/, "972");
@@ -45,6 +48,8 @@ export default function ContactPage() {
             hint={phoneHint}
             gradient="from-violet-500/20 to-purple-700/5"
             iconBg="bg-violet-500/25 text-violet-200"
+            recBadge={recBadge}
+            cardCta={cardCta}
           />
           <ContactCard
             href={`https://wa.me/${waPhone}`}
@@ -56,6 +61,8 @@ export default function ContactPage() {
             gradient="from-emerald-500/20 to-green-700/5"
             iconBg="bg-emerald-500/25 text-emerald-200"
             featured
+            recBadge={recBadge}
+            cardCta={cardCta}
           />
           <ContactCard
             href={`mailto:${email}`}
@@ -65,6 +72,8 @@ export default function ContactPage() {
             hint={emailHint}
             gradient="from-cyan-500/20 to-blue-700/5"
             iconBg="bg-cyan-500/25 text-cyan-200"
+            recBadge={recBadge}
+            cardCta={cardCta}
           />
         </div>
 
@@ -87,7 +96,7 @@ export default function ContactPage() {
 
         <div className="text-center mt-10">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white">
-            <ArrowLeft className="w-4 h-4" /> חזרה לאפליקציה
+            <ArrowLeft className="w-4 h-4" /> {backToApp}
           </Link>
         </div>
       </div>
@@ -95,9 +104,10 @@ export default function ContactPage() {
   );
 }
 
-function ContactCard({ href, external, icon, title, value, hint, gradient, iconBg, featured }: {
+function ContactCard({ href, external, icon, title, value, hint, gradient, iconBg, featured, recBadge, cardCta }: {
   href: string; external?: boolean; icon: React.ReactNode; title: string; value: string;
   hint: string; gradient: string; iconBg: string; featured?: boolean;
+  recBadge: string; cardCta: string;
 }) {
   const Wrapper = href.startsWith("http") || external ? "a" : "a";
   const linkProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
@@ -109,7 +119,7 @@ function ContactCard({ href, external, icon, title, value, hint, gradient, iconB
         <div className={`p-2.5 rounded-xl ${iconBg}`}>{icon}</div>
         {featured && (
           <span className="text-[10px] font-bold uppercase tracking-wide bg-emerald-400 text-emerald-900 px-2 py-0.5 rounded-full">
-            המומלץ
+            {recBadge}
           </span>
         )}
       </div>
@@ -117,7 +127,7 @@ function ContactCard({ href, external, icon, title, value, hint, gradient, iconB
       <div className="text-base font-bold mb-2 group-hover:text-white/95" dir="ltr">{value}</div>
       <div className="text-[11px] text-white/40 leading-snug">{hint}</div>
       <div className="mt-3 text-xs text-white/60 group-hover:text-white inline-flex items-center gap-1">
-        לחיצה כדי לשלוח <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
+        {cardCta} <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
       </div>
     </Wrapper>
   );

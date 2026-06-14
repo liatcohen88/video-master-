@@ -58,6 +58,89 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
     cfBottom:       useContent("effects.cropFocus.bottom") as string,
     secIntro:       useContent("effects.section.intro") as string,
     introHint:      useContent("effects.intro.hint") as string,
+    secSilence:     useContent("effects.section.silenceCut") as string,
+    silenceToggleLabel: useContent("effects.silenceCut.toggleLabel") as string,
+    silenceToggleHint:  useContent("effects.silenceCut.toggleHint") as string,
+    silenceThresholdLabelTpl: useContent("effects.silenceCut.thresholdLabelTpl") as string,
+    silenceThresholdHint:     useContent("effects.silenceCut.thresholdHint") as string,
+    silenceMinDurationLabelTpl:useContent("effects.silenceCut.minDurationLabelTpl") as string,
+    secZoom:        useContent("effects.section.zoom") as string,
+    zoomNoneLabel:  useContent("effects.zoom.opt.none.label") as string,
+    zoomNoneDesc:   useContent("effects.zoom.opt.none.desc") as string,
+    zoomPunchLabel: useContent("effects.zoom.opt.punch.label") as string,
+    zoomPunchDesc:  useContent("effects.zoom.opt.punch.desc") as string,
+    zoomSubtleLabel:useContent("effects.zoom.opt.subtle.label") as string,
+    zoomSubtleDesc: useContent("effects.zoom.opt.subtle.desc") as string,
+    zoomKbLabel:    useContent("effects.zoom.opt.kenburns.label") as string,
+    zoomKbDesc:     useContent("effects.zoom.opt.kenburns.desc") as string,
+    zoomEmphasisTpl:useContent("effects.zoom.emphasisHintTpl") as string,
+    zoomIntensityTpl:useContent("effects.zoom.intensityLabelTpl") as string,
+    wowBeatLabel:   useContent("effects.wow.beatDrop.label") as string,
+    wowBeatHint:    useContent("effects.wow.beatDrop.hint") as string,
+    wowParticleLabel:useContent("effects.wow.particle.label") as string,
+    wowParticleHint:useContent("effects.wow.particle.hint") as string,
+    wowShakeLabel:  useContent("effects.wow.punchShake.label") as string,
+    wowShakeHint:   useContent("effects.wow.punchShake.hint") as string,
+    wowDramaLabel:  useContent("effects.wow.drama.label") as string,
+    wowDramaHint:   useContent("effects.wow.drama.hint") as string,
+    secSubIntro:    useContent("effects.section.subtitleIntro") as string,
+    secBgMusic:     useContent("effects.section.bgMusic") as string,
+    secSfxVolume:   useContent("effects.section.sfxVolume") as string,
+    sfxVolumeHint:  useContent("effects.sfx.volumeHint") as string,
+    secColorFilter: useContent("effects.section.colorFilter") as string,
+    colorFilterHint:useContent("effects.colorFilter.longHint") as string,
+    secBrandLogo:   useContent("effects.section.brandLogo") as string,
+    secAutoLogos:   useContent("effects.section.autoLogos") as string,
+    autoLogosLabel: useContent("effects.autoLogos.label") as string,
+    autoLogosExtra: useContent("effects.autoLogos.extraHint") as string,
+    brandExplainLead:useContent("effects.brandDetect.explainLead") as string,
+    brandExplainBody:useContent("effects.brandDetect.explainBody") as string,
+    brandAliases:   useContent("effects.brandDetect.aliases") as string,
+    brandTransparentLabel:useContent("effects.brandDetect.transparentLabel") as string,
+    brandTransparentHint: useContent("effects.brandDetect.transparentHint") as string,
+    brandEmptyHint: useContent("effects.brandDetect.emptyHint") as string,
+    brandFoundHeadingTpl:useContent("effects.brandDetect.foundHeadingTpl") as string,
+    cineHeading:    useContent("effects.cinematic.heading") as string,
+    cineLabel:      useContent("effects.cinematic.label") as string,
+    cineHint:       useContent("effects.cinematic.hint") as string,
+    introSfxHeading:useContent("effects.introSfx.heading") as string,
+    introSfxNone:   useContent("effects.introSfx.noneLabel") as string,
+    introSfxDisabled:useContent("effects.introSfx.disabledLabel") as string,
+    introSfxPick:   useContent("effects.introSfx.clickToPick") as string,
+    bgMusicUploadHint: useContent("effects.bgMusic.uploadHint") as string,
+    bgMusicFallback:useContent("effects.bgMusic.activeFallback") as string,
+    bgMusicStatus:  useContent("effects.bgMusic.activeStatus") as string,
+    bgMusicRemoveTitle:useContent("effects.bgMusic.removeTitle") as string,
+    bgMusicVideoVol:useContent("effects.bgMusic.videoVolume") as string,
+    bgMusicMusicVol:useContent("effects.bgMusic.musicVolume") as string,
+    bgMusicBalanceTip:useContent("effects.bgMusic.balanceTip") as string,
+    logoPersonalTitle:useContent("effects.logo.personalTitle") as string,
+    logoPersonalHint: useContent("effects.logo.personalHint") as string,
+    logoUploadBtn:  useContent("effects.logo.uploadBtn") as string,
+    logoUploadingBtn:useContent("effects.logo.uploadingBtn") as string,
+    logoTooLargeTpl:useContent("effects.logo.tooLargeErrTpl") as string,
+    logoReadErr:    useContent("effects.logo.readErr") as string,
+    logoCornerLabel:useContent("effects.logo.cornerLabel") as string,
+    logoSizeLabel:  useContent("effects.logo.sizeLabel") as string,
+    logoSizeSmall:  useContent("effects.logo.sizeSmall") as string,
+    logoSizeMedium: useContent("effects.logo.sizeMedium") as string,
+    logoSizeLarge:  useContent("effects.logo.sizeLarge") as string,
+    logoBgLabel:    useContent("effects.logo.bgLabel") as string,
+    logoBgProcessing:useContent("effects.logo.bgProcessing") as string,
+    logoBgRemoved:  useContent("effects.logo.bgRemoved") as string,
+    logoBgRemovedTitle:useContent("effects.logo.bgRemovedTitle") as string,
+    logoBgOriginal: useContent("effects.logo.bgOriginal") as string,
+    logoAdvClose:   useContent("effects.logo.advancedToggleClose") as string,
+    logoAdvOpen:    useContent("effects.logo.advancedToggleOpen") as string,
+    logoWatermark:  useContent("effects.logo.watermarkLabel") as string,
+    logoFromLabel:  useContent("effects.logo.fromLabel") as string,
+    logoForLabel:   useContent("effects.logo.forLabel") as string,
+    logoSecAbbr:    useContent("effects.logo.secAbbr") as string,
+    logoEmptyH:     useContent("effects.logo.emptyHelpHeading") as string,
+    logoEmptyPK:    useContent("effects.logo.emptyHelpPersonalKey") as string,
+    logoEmptyPB:    useContent("effects.logo.emptyHelpPersonalBody") as string,
+    logoEmptyBK:    useContent("effects.logo.emptyHelpBrandsKey") as string,
+    logoEmptyBB:    useContent("effects.logo.emptyHelpBrandsBody") as string,
   };
 
   // Which tabs to show. A tab disappears when EVERY block inside it is
@@ -218,16 +301,16 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* Silence cut (under "אפקטים מיוחדים" tab) */}
       {tab === "magic" && caps.silenceCut && (
-      <Section icon={<Scissors className="w-4 h-4" />} title="חיתוך שתיקות">
+      <Section icon={<Scissors className="w-4 h-4" />} title={c.secSilence}>
         <Toggle
-          label="חיתוך אוטומטי של שתיקות"
-          hint="הסר רגעים שקטים ארוכים בין משפטים — וידאו, אודיו וכתוביות מסונכרנים"
+          label={c.silenceToggleLabel}
+          hint={c.silenceToggleHint}
           checked={effects.cutSilence}
           onChange={(v) => update("cutSilence", v)}
         />
         {effects.cutSilence && (
           <>
-            <Field label={`רגישות: ${effects.silenceThresholdDb} dB`} hint="ערך נמוך = חיתוך רק שקט מוחלט. ערך גבוה = חיתוך גם רעש רקע">
+            <Field label={c.silenceThresholdLabelTpl.replace("{{db}}", String(effects.silenceThresholdDb))} hint={c.silenceThresholdHint}>
               <input
                 type="range" min={-60} max={-20}
                 value={effects.silenceThresholdDb}
@@ -235,7 +318,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
                 className="w-full"
               />
             </Field>
-            <Field label={`מינ' משך שתיקה: ${effects.silenceMinDurationSec.toFixed(1)} שנ'`}>
+            <Field label={c.silenceMinDurationLabelTpl.replace("{{sec}}", effects.silenceMinDurationSec.toFixed(1))}>
               <input
                 type="range" min={0.3} max={3} step={0.1}
                 value={effects.silenceMinDurationSec}
@@ -250,13 +333,13 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* Zoom + WOW toggles (under "אפקטים מיוחדים" tab) */}
       {tab === "magic" && caps.faceZoom && (
-      <Section icon={<ZoomIn className="w-4 h-4" />} title="זום על דובר">
+      <Section icon={<ZoomIn className="w-4 h-4" />} title={c.secZoom}>
         <div className="grid grid-cols-2 gap-2">
           {([
-            { id: "none", label: "ללא", desc: "וידאו מקורי" },
-            { id: "punch", label: "פאנץ' חכם 🎯", desc: "זום ברגעי אמפזיס בלבד" },
-            { id: "subtle", label: "עדין", desc: "זום קל איטי לאורך הסרטון" },
-            { id: "kenburns", label: "Ken Burns", desc: "זום + תנועה" },
+            { id: "none",     label: c.zoomNoneLabel,   desc: c.zoomNoneDesc },
+            { id: "punch",    label: c.zoomPunchLabel,  desc: c.zoomPunchDesc },
+            { id: "subtle",   label: c.zoomSubtleLabel, desc: c.zoomSubtleDesc },
+            { id: "kenburns", label: c.zoomKbLabel,     desc: c.zoomKbDesc },
           ] as const).map((opt) => (
             <button
               key={opt.id}
@@ -275,12 +358,12 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
         </div>
         {effects.zoomEffect === "punch" && effects.emphasisMoments && effects.emphasisMoments.length > 0 && (
           <p className="text-[11px] text-emerald-300/80 mt-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
-            🎯 AI מצא {effects.emphasisMoments.length} רגעי אמפזיס בסרטון — זום יופעל רק שם.
+            {c.zoomEmphasisTpl.replace("{{n}}", String(effects.emphasisMoments.length))}
           </p>
         )}
 
         {effects.zoomEffect !== "none" && (
-          <Field label={`עוצמת זום: ${Math.round(effects.zoomIntensity * 100)}%`}>
+          <Field label={c.zoomIntensityTpl.replace("{{pct}}", String(Math.round(effects.zoomIntensity * 100)))}>
             <input
               type="range" min={2} max={30}
               value={effects.zoomIntensity * 100}
@@ -292,26 +375,26 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
         {/* WOW: Beat-Drop Zoom — punch on power-words */}
         <Toggle
-          label="🔥 Beat-Drop Zoom (וואו!)"
-          hint="זום קצרצר (3%) על מילים חזקות: וואו, אש, חייבים, מטורף, ענק... זה הטריק של עורכי רילס מקצועיים"
+          label={c.wowBeatLabel}
+          hint={c.wowBeatHint}
           checked={effects.beatDropZoom ?? false}
           onChange={(v) => update("beatDropZoom", v)}
         />
         <Toggle
-          label="✨ Particle Burst (חלקיקים)"
-          hint="פריצת חלקיקים צבעוניים על מילות מפתח. נראה כמו רילס ויראלי"
+          label={c.wowParticleLabel}
+          hint={c.wowParticleHint}
           checked={effects.particleBurst ?? false}
           onChange={(v) => update("particleBurst", v)}
         />
         <Toggle
-          label="💥 Punch-Shake (רעידת מסך)"
-          hint="רעידה עדינה (~200ms) על מילות מפתח. הופך את המסר לחזק וקולנועי"
+          label={c.wowShakeLabel}
+          hint={c.wowShakeHint}
           checked={effects.punchShake ?? false}
           onChange={(v) => update("punchShake", v)}
         />
         <Toggle
-          label="🎭 מצב דרמה (שחור-לבן + סטינג)"
-          hint='כשהדובר אומר "אני לא מאמין", "זה לא קורה לי", "אין מצב" — הוידאו קופץ לשחור-לבן ל-1.2 שניות + סטינג דרמטי. הטריק של ריילס ויראליים.'
+          label={c.wowDramaLabel}
+          hint={c.wowDramaHint}
           checked={effects.dramaMode ?? false}
           onChange={(v) => update("dramaMode", v)}
         />
@@ -320,7 +403,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* Subtitle entrance animation (under "כתוביות" tab) — every mode */}
       {tab === "captions" && (
-      <Section icon={<Sparkles className="w-4 h-4" />} title="אנימציית כניסה לכתוביות">
+      <Section icon={<Sparkles className="w-4 h-4" />} title={c.secSubIntro}>
         <div className="grid grid-cols-3 gap-2">
           {ANIMATIONS.map((opt) => (
             <button
@@ -344,7 +427,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
       {/* ── Sounds tab — bg music + master SFX volume ── */}
       {tab === "sound" && (
       <>
-        <Section icon={<Music className="w-4 h-4" />} title="מוזיקת רקע">
+        <Section icon={<Music className="w-4 h-4" />} title={c.secBgMusic}>
           <BgMusicControls
             url={effects.bgMusicUrl}
             videoVolume={effects.videoVolume ?? 1}
@@ -352,6 +435,13 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
             onUrl={(v) => update("bgMusicUrl", v)}
             onVideoVolume={(v) => update("videoVolume", v)}
             onMusicVolume={(v) => update("bgMusicVolume", v)}
+            uploadHint={c.bgMusicUploadHint}
+            activeFallback={c.bgMusicFallback}
+            activeStatus={c.bgMusicStatus}
+            removeTitle={c.bgMusicRemoveTitle}
+            videoVolLabel={c.bgMusicVideoVol}
+            musicVolLabel={c.bgMusicMusicVol}
+            balanceTip={c.bgMusicBalanceTip}
           />
         </Section>
 
@@ -359,10 +449,10 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
             (auto-elements, manual emojis, intro SFX, logo SFX, Lottie SFX)
             so the user can balance speech vs effects without touching each
             element individually. */}
-        <Section icon={<Volume2 className="w-4 h-4" />} title="עוצמת סאונד אפקטים">
+        <Section icon={<Volume2 className="w-4 h-4" />} title={c.secSfxVolume}>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-white/70">משפיע על כל הצלילים בסרטון</span>
+              <span className="text-xs text-white/70">{c.sfxVolumeHint}</span>
               <span className="text-white/40 text-xs">
                 {Math.round((effects.sfxMasterVolume ?? 1) * 100)}%
               </span>
@@ -395,7 +485,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* ── Color Filter presets (under "צבע" tab) — 6 pre-canned vibes ── */}
       {tab === "color" && (
-      <Section icon={<Palette className="w-4 h-4" />} title="פילטר צבע">
+      <Section icon={<Palette className="w-4 h-4" />} title={c.secColorFilter}>
         <div className="grid grid-cols-2 gap-2">
           {COLOR_FILTERS.map((f) => {
             const active = (effects.colorFilter ?? "none") === f.id;
@@ -415,7 +505,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
           })}
         </div>
         <p className="text-[11px] text-white/40 mt-2">
-          הפילטרים מוחלים על כל הסרטון בתצוגה החיה ובייצוא. ניתן לשלב עם הלוק הקולנועי.
+          {c.colorFilterHint}
         </p>
       </Section>
       )}
@@ -436,12 +526,41 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* Personal brand logo (under "לוגואים" tab) */}
       {tab === "brand" && caps.logo && (
-      <Section icon={<ImagePlus className="w-4 h-4" />} title="לוגו אישי ומיתוג">
+      <Section icon={<ImagePlus className="w-4 h-4" />} title={c.secBrandLogo}>
         <CustomLogoSection
           logos={effects.customLogos ?? []}
           onChange={(logos) => update("customLogos", logos)}
           transparentBg={effects.transparentLogoBg ?? false}
           onTransparentBgChange={(v) => update("transparentLogoBg", v)}
+          labels={{
+            personalTitle: c.logoPersonalTitle,
+            personalHint:  c.logoPersonalHint,
+            uploadBtn:     c.logoUploadBtn,
+            uploadingBtn:  c.logoUploadingBtn,
+            tooLargeTpl:   c.logoTooLargeTpl,
+            readErr:       c.logoReadErr,
+            cornerLabel:   c.logoCornerLabel,
+            sizeLabel:     c.logoSizeLabel,
+            sizeSmall:     c.logoSizeSmall,
+            sizeMedium:    c.logoSizeMedium,
+            sizeLarge:     c.logoSizeLarge,
+            bgLabel:       c.logoBgLabel,
+            bgProcessing:  c.logoBgProcessing,
+            bgRemoved:     c.logoBgRemoved,
+            bgRemovedTitle:c.logoBgRemovedTitle,
+            bgOriginal:    c.logoBgOriginal,
+            advClose:      c.logoAdvClose,
+            advOpen:       c.logoAdvOpen,
+            watermark:     c.logoWatermark,
+            fromLabel:     c.logoFromLabel,
+            forLabel:      c.logoForLabel,
+            secAbbr:       c.logoSecAbbr,
+            emptyH:        c.logoEmptyH,
+            emptyPK:       c.logoEmptyPK,
+            emptyPB:       c.logoEmptyPB,
+            emptyBK:       c.logoEmptyBK,
+            emptyBB:       c.logoEmptyBB,
+          }}
         />
       </Section>
       )}
@@ -450,11 +569,11 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
           (1) toggle, (2) explanation paragraph, (3) linked transparency
           toggle, (4) detected brands list with size + position controls. */}
       {tab === "brand" && caps.logo && (
-      <Section icon={<Sparkles className="w-4 h-4" />} title="זיהוי לוגואים אוטומטי">
+      <Section icon={<Sparkles className="w-4 h-4" />} title={c.secAutoLogos}>
         {/* 1. The master toggle */}
         <Toggle
-          label="זיהוי לוגואים של מותגים גדולים"
-          hint="ה-AI יזהה אזכורים של אמזון, אינסטגרם, אפל וכו׳ בכתוביות ויציג את הלוגו על הוידאו. כיבוי = הלוגואים לא יופיעו."
+          label={c.autoLogosLabel}
+          hint={c.autoLogosExtra}
           checked={effects.brandLogosDetect !== false}
           onChange={(v) => update("brandLogosDetect", v)}
         />
@@ -464,15 +583,19 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
         {effects.brandLogosDetect !== false && (
           <div className="bg-cyan-500/10 border border-cyan-500/25 rounded-lg p-3 space-y-2.5 mt-3">
             <div className="text-[11px] text-cyan-200/90 leading-relaxed">
-              💡 <span className="font-bold">ה-AI מזהה לוגואים של חברות גדולות.</span> רשמו בכתוביות
-              {" "}<span className="font-mono">אינסטגרם</span>, <span className="font-mono">אליאקספרס</span>, <span className="font-mono">שופיפיי</span>{" "}
-              וכו׳ — הלוגו יזוהה ויתווסף אוטומטית לסרטון.
+              💡 <span className="font-bold">{c.brandExplainLead}</span>{" "}
+              {c.brandExplainBody.split("{{aliases}}").map((part, i, arr) => (
+                <span key={i}>
+                  {part}
+                  {i < arr.length - 1 && <span className="font-mono">{c.brandAliases}</span>}
+                </span>
+              ))}
             </div>
             <label className="flex items-center justify-between gap-3 pt-2 border-t border-cyan-500/20 cursor-pointer">
               <div className="min-w-0">
-                <div className="text-xs font-bold text-white">הסר רקע לבן מהלוגו שזוהה</div>
+                <div className="text-xs font-bold text-white">{c.brandTransparentLabel}</div>
                 <div className="text-[10px] text-white/50">
-                  אם הלוגו על רקע לבן — מסיר אותו כך שהלוגו צף נקי על הסרטון
+                  {c.brandTransparentHint}
                 </div>
               </div>
               <input
@@ -506,6 +629,10 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
               if (p === undefined) delete next[k]; else next[k] = p;
               update("brandPosition", next);
             }}
+            emptyHint={c.brandEmptyHint}
+            foundHeadingTpl={c.brandFoundHeadingTpl}
+            sizeLabel={c.logoSizeLabel}
+            resetTitle={"ברירת מחדל"}
           />
         )}
       </Section>
@@ -513,10 +640,10 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* Cinematic color grading (under "צבע" tab, advanced mode only) */}
       {tab === "color" && caps.colorGrade && (
-      <Section icon={<Palette className="w-4 h-4" />} title="תיקון צבע קולנועי">
+      <Section icon={<Palette className="w-4 h-4" />} title={c.cineHeading}>
         <Toggle
-          label="לוק קולנועי אוטומטי"
-          hint="הרמת צללים, חימום highlights, עלייה קלה בריוויית - מראה מקצועי"
+          label={c.cineLabel}
+          hint={c.cineHint}
           checked={effects.cinematicColor ?? false}
           onChange={(v) => update("cinematicColor", v)}
         />
@@ -542,25 +669,30 @@ const BRAND_POSITIONS: { id: BrandPos; icon: string; title: string }[] = [
  *  כמו אליאקספרס אמזון". */
 function DetectedBrandsControls({
   subtitles, sizePx, position, onSize, onPosition,
+  emptyHint, foundHeadingTpl, sizeLabel, resetTitle,
 }: {
   subtitles: Subtitle[];
   sizePx: Record<string, number>;
   position: Record<string, BrandPos>;
   onSize: (key: string, px: number | undefined) => void;
   onPosition: (key: string, p: BrandPos | undefined) => void;
+  emptyHint: string;
+  foundHeadingTpl: string;
+  sizeLabel: string;
+  resetTitle: string;
 }) {
   const brands = detectBrands(subtitles);
   if (brands.length === 0) {
     return (
       <div className="mt-3 text-[10px] text-white/40 border-t border-white/5 pt-3">
-        עוד לא זוהו מותגים בכתוביות. ברגע שהדובר יזכיר אמזון / אינסטגרם / אפל וכו׳, יופיע כאן כרטיס לכל מותג עם בקרות גודל ומיקום.
+        {emptyHint}
       </div>
     );
   }
   return (
     <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
       <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
-        {brands.length} מותגים זוהו — גודל ומיקום לכל אחד
+        {foundHeadingTpl.replace("{{n}}", String(brands.length))}
       </div>
       {brands.map((b, i) => {
         const k = `${b.brand.id}-${Math.round(b.time * 10)}`;
@@ -578,12 +710,12 @@ function DetectedBrandsControls({
             </div>
             <div>
               <div className="flex items-center justify-between text-[10px] text-white/50 mb-0.5">
-                <span>גודל</span>
+                <span>{sizeLabel}</span>
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono text-brand-light">{curPx ?? 80}px</span>
                   {typeof curPx === "number" && (
                     <button onClick={() => onSize(k, undefined)}
-                      className="text-white/40 hover:text-white" title="ברירת מחדל">
+                      className="text-white/40 hover:text-white" title={resetTitle}>
                       ✕
                     </button>
                   )}
@@ -639,12 +771,16 @@ function DetectedBrandsControls({
 function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onChange: (v: string | undefined) => void }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const label = !currentSfxId ? "ללא צליל"
-    : currentSfxId === "none" ? "מבוטל"
+  const noneLabel    = useContent("effects.introSfx.noneLabel") as string;
+  const disabledLabel= useContent("effects.introSfx.disabledLabel") as string;
+  const heading      = useContent("effects.introSfx.heading") as string;
+  const pickLabel    = useContent("effects.introSfx.clickToPick") as string;
+  const label = !currentSfxId ? noneLabel
+    : currentSfxId === "none" ? disabledLabel
     : getSfxAsset(currentSfxId)?.label ?? currentSfxId;
   return (
     <div className="mt-3 pt-3 border-t border-white/5">
-      <div className="text-[10px] text-white/40 mb-1.5">🔊 צליל לאנימציה (אופציונלי)</div>
+      <div className="text-[10px] text-white/40 mb-1.5">{heading}</div>
       <button
         onClick={(e) => { setAnchor(e.currentTarget.getBoundingClientRect()); setOpen(true); }}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs border transition-colors ${
@@ -654,13 +790,13 @@ function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onC
         }`}
       >
         <span>{currentSfxId && currentSfxId !== "none" ? "🎵" : "🔇"} {label}</span>
-        <span className="text-white/40">לחצי לבחירה</span>
+        <span className="text-white/40">{pickLabel}</span>
       </button>
       {open && (
         <SfxPicker
           open
           currentSfxId={currentSfxId}
-          defaultLabel="ללא צליל"
+          defaultLabel={noneLabel}
           onSelect={(id) => { onChange(id); setOpen(false); }}
           onClose={() => setOpen(false)}
           anchorRect={anchor}
@@ -673,6 +809,8 @@ function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onC
 function BgMusicControls({
   url, videoVolume, musicVolume,
   onUrl, onVideoVolume, onMusicVolume,
+  uploadHint, activeFallback, activeStatus, removeTitle,
+  videoVolLabel, musicVolLabel, balanceTip,
 }: {
   url?: string;
   videoVolume: number;
@@ -680,6 +818,13 @@ function BgMusicControls({
   onUrl: (v: string | undefined) => void;
   onVideoVolume: (v: number) => void;
   onMusicVolume: (v: number) => void;
+  uploadHint: string;
+  activeFallback: string;
+  activeStatus: string;
+  removeTitle: string;
+  videoVolLabel: string;
+  musicVolLabel: string;
+  balanceTip: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState<string>("");
@@ -703,7 +848,7 @@ function BgMusicControls({
       {!url ? (
         <>
           <p className="text-[11px] text-white/40">
-            העלי קובץ MP3 / WAV / OGG — הוא יתנגן ברקע ויסונכרן עם הנגינה והעצירה של הסרטון.
+            {uploadHint}
           </p>
           <label className="block">
             <input
@@ -719,12 +864,12 @@ function BgMusicControls({
         <div className="flex items-center justify-between gap-2 bg-bg-input border border-emerald-500/30 rounded-lg p-2.5">
           <div className="min-w-0 flex-1">
             <div className="text-xs font-bold text-emerald-300 truncate">
-              🎵 {name || "מוזיקת רקע"}
+              🎵 {name || activeFallback}
             </div>
-            <div className="text-[10px] text-white/40">פעיל — סנכרון עם הסרטון</div>
+            <div className="text-[10px] text-white/40">{activeStatus}</div>
           </div>
           <button onClick={clearMusic}
-            className="p-1.5 text-white/50 hover:text-red-300" title="הסר">
+            className="p-1.5 text-white/50 hover:text-red-300" title={removeTitle}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -734,7 +879,7 @@ function BgMusicControls({
         <label className="block">
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1 text-white/80">
-              <Volume2 className="w-3.5 h-3.5" /> ווליום הסרטון
+              <Volume2 className="w-3.5 h-3.5" /> {videoVolLabel}
             </span>
             <span className="text-white/40">{Math.round(videoVolume * 100)}%</span>
           </div>
@@ -745,7 +890,7 @@ function BgMusicControls({
         <label className="block">
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1 text-white/80">
-              <Music className="w-3.5 h-3.5" /> ווליום המוזיקה
+              <Music className="w-3.5 h-3.5" /> {musicVolLabel}
             </span>
             <span className="text-white/40">{Math.round(musicVolume * 100)}%</span>
           </div>
@@ -754,7 +899,7 @@ function BgMusicControls({
             className="w-full mt-1" />
         </label>
         <p className="text-[10px] text-white/40">
-          טיפ: השאירי את המוזיקה ב-15-30% — הקול שלך חייב להוביל.
+          {balanceTip}
         </p>
       </div>
     </div>
@@ -824,14 +969,27 @@ const LOGO_POSITIONS: { id: CustomLogo["position"]; icon: string }[] = [
 
 const LOGO_SIZES: NonNullable<CustomLogo["size"]>[] = ["S", "M", "L"];
 
+type CustomLogoLabels = {
+  personalTitle: string; personalHint: string;
+  uploadBtn: string; uploadingBtn: string;
+  tooLargeTpl: string; readErr: string;
+  cornerLabel: string;
+  sizeLabel: string; sizeSmall: string; sizeMedium: string; sizeLarge: string;
+  bgLabel: string; bgProcessing: string; bgRemoved: string; bgRemovedTitle: string; bgOriginal: string;
+  advClose: string; advOpen: string; watermark: string;
+  fromLabel: string; forLabel: string; secAbbr: string;
+  emptyH: string; emptyPK: string; emptyPB: string; emptyBK: string; emptyBB: string;
+};
+
 function CustomLogoSection({
-  logos, onChange, transparentBg, onTransparentBgChange,
+  logos, onChange, transparentBg, onTransparentBgChange, labels,
 }: {
   logos: CustomLogo[];
   onChange: (v: CustomLogo[]) => void;
   /** Whether AI-detected brand logos (AliExpress etc.) should be auto-cleaned of white background. */
   transparentBg: boolean;
   onTransparentBgChange: (v: boolean) => void;
+  labels: CustomLogoLabels;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -895,11 +1053,11 @@ function CustomLogoSection({
       // folder is ephemeral inside the Coolify container — each redeploy wiped
       // the file, leaving a broken image icon. Data URLs survive everything
       // (IndexedDB autosave, project export, page reload).
-      if (file.size > 5 * 1024 * 1024) throw new Error("קובץ גדול מדי (מקסימום 5MB)");
+      if (file.size > 5 * 1024 * 1024) throw new Error(labels.tooLargeTpl.replace("{{mb}}", "5"));
       const url = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("שגיאה בקריאת הקובץ"));
+        reader.onerror = () => reject(new Error(labels.readErr));
         reader.readAsDataURL(file);
       });
       onChange([
@@ -935,9 +1093,9 @@ function CustomLogoSection({
     <div className="mt-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs text-white/70 font-medium">לוגו אישי</div>
+          <div className="text-xs text-white/70 font-medium">{labels.personalTitle}</div>
           <div className="text-[10px] text-white/40">
-            מיתוג קבוע — ניתן לבחור מיקום
+            {labels.personalHint}
           </div>
         </div>
         <button
@@ -945,7 +1103,7 @@ function CustomLogoSection({
           disabled={uploading}
           className="text-xs bg-brand/20 hover:bg-brand/30 border border-brand/40 text-brand-light px-2.5 py-1 rounded-md disabled:opacity-50 whitespace-nowrap"
         >
-          {uploading ? "מעלה..." : "+ העלה לוגו"}
+          {uploading ? labels.uploadingBtn : labels.uploadBtn}
         </button>
       </div>
       {/* AI brand-logo explanation + transparent-bg toggle MOVED out of
@@ -974,13 +1132,11 @@ function CustomLogoSection({
           editor — tap any brand chip to open it. */}
       {logos.length === 0 && (
         <div className="text-[10px] text-white/40 leading-relaxed border-t border-white/5 pt-2">
-          💡 <strong>איפה הגודל והמיקום?</strong>
+          💡 <strong>{labels.emptyH}</strong>
           <br />
-          • <span className="text-white/60">לוגו אישי</span>: בקרות גודל (S/M/L + PX) ומיקום (4 פינות)
-          יופיעו <strong>אחרי שתעלי לוגו</strong> ☝️
+          • <span className="text-white/60">{labels.emptyPK}</span>: {labels.emptyPB}
           <br />
-          • <span className="text-white/60">לוגואי מותגים (אמזון/אינסטגרם)</span>: לחיצה על השבב
-          בפאנל <strong>"AI זיהה"</strong> בראש הדף פותחת בורר PX + 6 מיקומים.
+          • <span className="text-white/60">{labels.emptyBK}</span>: {labels.emptyBB}
         </div>
       )}
 
@@ -1021,7 +1177,7 @@ function CustomLogoSection({
 
                 {/* Position: 4 corners */}
                 <div>
-                  <div className="text-[10px] text-white/40 mb-1">פינה</div>
+                  <div className="text-[10px] text-white/40 mb-1">{labels.cornerLabel}</div>
                   <div className="grid grid-cols-4 gap-1.5">
                     {LOGO_POSITIONS.map((p) => (
                       <button
@@ -1045,7 +1201,7 @@ function CustomLogoSection({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <div className="text-[10px] text-white/40 mb-1 flex items-center justify-between">
-                      <span>גודל</span>
+                      <span>{labels.sizeLabel}</span>
                       <span className="text-[10px] font-mono text-brand-light">{logo.sizePx ?? 80}px</span>
                     </div>
                     <input
@@ -1071,12 +1227,12 @@ function CustomLogoSection({
                                  [&::-moz-range-thumb]:bg-brand-light [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
                     />
                     <div className="flex items-center justify-between text-[9px] text-white/30 mt-0.5">
-                      <span>קטן</span><span>בינוני</span><span>גדול</span>
+                      <span>{labels.sizeSmall}</span><span>{labels.sizeMedium}</span><span>{labels.sizeLarge}</span>
                     </div>
                   </div>
                   <div>
                     <div className="text-[10px] text-white/40 mb-1">
-                      רקע {removingBg[i] && <span className="text-brand-light">(מעבד...)</span>}
+                      {labels.bgLabel} {removingBg[i] && <span className="text-brand-light">{labels.bgProcessing}</span>}
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                       <button
@@ -1087,9 +1243,9 @@ function CustomLogoSection({
                             ? "border-brand bg-brand/25 text-white"
                             : "border-white/10 bg-bg-card text-white/50 hover:border-white/30"
                         }`}
-                        title="הסרה אוטומטית של צבע הרקע מהתמונה"
+                        title={labels.bgRemovedTitle}
                       >
-                        ללא רקע
+                        {labels.bgRemoved}
                       </button>
                       <button
                         onClick={() => toggleTransparent(i, false)}
@@ -1100,7 +1256,7 @@ function CustomLogoSection({
                             : "border-white/10 bg-bg-card text-white/50 hover:border-white/30"
                         }`}
                       >
-                        מקורי
+                        {labels.bgOriginal}
                       </button>
                     </div>
                   </div>
@@ -1111,7 +1267,7 @@ function CustomLogoSection({
                   onClick={() => setAdvancedOpen({ ...advancedOpen, [i]: !showAdvanced })}
                   className="text-[10px] text-white/40 hover:text-white/70 transition-colors"
                 >
-                  {showAdvanced ? "▾" : "▸"} מתקדם (להציג רק חלק מהזמן)
+                  {showAdvanced ? labels.advClose : labels.advOpen}
                 </button>
                 {showAdvanced && (
                   <div className="space-y-2 pl-3 border-l-2 border-white/5">
@@ -1121,25 +1277,25 @@ function CustomLogoSection({
                         checked={persistent}
                         onChange={(e) => updateLogo(i, { persistent: e.target.checked })}
                       />
-                      <span className="text-white/70">תמיד גלוי (watermark קבוע)</span>
+                      <span className="text-white/70">{labels.watermark}</span>
                     </label>
                     {!persistent && (
                       <div className="flex items-center gap-1.5 text-[11px]">
-                        <span className="text-white/40">מ-</span>
+                        <span className="text-white/40">{labels.fromLabel}</span>
                         <input
                           type="number" min={0} step={0.5}
                           value={logo.time ?? 0}
                           onChange={(e) => updateLogo(i, { time: parseFloat(e.target.value) || 0 })}
                           className="w-16 bg-bg-card border border-white/10 rounded px-1 py-0.5"
                         />
-                        <span className="text-white/40">שנ' למשך</span>
+                        <span className="text-white/40">{labels.forLabel}</span>
                         <input
                           type="number" min={0.5} step={0.5}
                           value={logo.durationSec ?? 2}
                           onChange={(e) => updateLogo(i, { durationSec: parseFloat(e.target.value) || 1 })}
                           className="w-16 bg-bg-card border border-white/10 rounded px-1 py-0.5"
                         />
-                        <span className="text-white/40">שנ'</span>
+                        <span className="text-white/40">{labels.secAbbr}</span>
                       </div>
                     )}
                   </div>

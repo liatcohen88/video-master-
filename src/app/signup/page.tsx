@@ -37,13 +37,17 @@ export default function SignupPage() {
   const confirmTitle = useContent("auth.signup.confirmTitle") as string;
   const confirmBody  = useContent("auth.signup.confirmBody") as string;
   const confirmCta   = useContent("auth.signup.confirmCta") as string;
+  const namePlace    = useContent("auth.signup.namePlaceholder") as string;
+  const termsLink    = useContent("auth.signup.termsLinkLabel") as string;
+  const passShortMsg = useContent("auth.error.passwordTooShort") as string;
+  const emailExists  = useContent("auth.signup.error.emailExists") as string;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
 
     if (password.length < 8) {
-      setErr("הסיסמה צריכה להיות לפחות 8 תווים.");
+      setErr(passShortMsg);
       return;
     }
     if (!isSupabaseConfigured()) {
@@ -63,7 +67,7 @@ export default function SignupPage() {
 
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("already registered")) setErr("האימייל כבר רשום. אולי שכחת סיסמה?");
+      if (msg.includes("already registered")) setErr(emailExists);
       else setErr(error.message);
       return;
     }
@@ -175,7 +179,7 @@ export default function SignupPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-brand"
-                placeholder="ליאת"
+                placeholder={namePlace}
               />
             </label>
 
@@ -230,7 +234,7 @@ export default function SignupPage() {
 
             <p className="text-[10px] text-white/40 text-center pt-1">
               {termsAgree}{" "}
-              <Link href="/policy" className="underline">תנאי השימוש</Link>
+              <Link href="/policy" className="underline">{termsLink}</Link>
             </p>
           </form>
         </div>

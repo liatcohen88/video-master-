@@ -650,6 +650,96 @@ export const CONTENT_DEFAULTS = {
   // ── AILoadingOverlay (default hint copy) ────────────
   "aiLoader.defaultHint":    "ה-AI מקשיב ומבין כל מילה. זה ייקח בערך דקה עד שתיים — תלוי באורך הסרטון.",
 
+  // ── EffectsPanel — silence cut block ────────────────────────────
+  "effects.silenceCut.toggleLabel":  "חיתוך אוטומטי של שתיקות",
+  "effects.silenceCut.toggleHint":   "הסר רגעים שקטים ארוכים בין משפטים — וידאו, אודיו וכתוביות מסונכרנים",
+  "effects.silenceCut.thresholdLabelTpl": "רגישות: {{db}} dB",
+  "effects.silenceCut.thresholdHint":     "ערך נמוך = חיתוך רק שקט מוחלט. ערך גבוה = חיתוך גם רעש רקע",
+  "effects.silenceCut.minDurationLabelTpl":"מינ' משך שתיקה: {{sec}} שנ'",
+
+  // ── EffectsPanel — zoom block ────────────────────────────────────
+  "effects.zoom.opt.none.label":      "ללא",
+  "effects.zoom.opt.none.desc":       "וידאו מקורי",
+  "effects.zoom.opt.punch.label":     "פאנץ' חכם 🎯",
+  "effects.zoom.opt.punch.desc":      "זום ברגעי אמפזיס בלבד",
+  "effects.zoom.opt.subtle.label":    "עדין",
+  "effects.zoom.opt.subtle.desc":     "זום קל איטי לאורך הסרטון",
+  "effects.zoom.opt.kenburns.label":  "Ken Burns",
+  "effects.zoom.opt.kenburns.desc":   "זום + תנועה",
+  "effects.zoom.emphasisHintTpl":     "🎯 AI מצא {{n}} רגעי אמפזיס בסרטון — זום יופעל רק שם.",
+  "effects.zoom.intensityLabelTpl":   "עוצמת זום: {{pct}}%",
+
+  // ── EffectsPanel — WOW toggles ───────────────────────────────────
+  "effects.wow.beatDrop.label":       "🔥 Beat-Drop Zoom (וואו!)",
+  "effects.wow.beatDrop.hint":        "זום קצרצר (3%) על מילים חזקות: וואו, אש, חייבים, מטורף, ענק... זה הטריק של עורכי רילס מקצועיים",
+  "effects.wow.particle.label":       "✨ Particle Burst (חלקיקים)",
+  "effects.wow.particle.hint":        "פריצת חלקיקים צבעוניים על מילות מפתח. נראה כמו רילס ויראלי",
+  "effects.wow.punchShake.label":     "💥 Punch-Shake (רעידת מסך)",
+  "effects.wow.punchShake.hint":      "רעידה עדינה (~200ms) על מילות מפתח. הופך את המסר לחזק וקולנועי",
+  "effects.wow.drama.label":          "🎭 מצב דרמה (שחור-לבן + סטינג)",
+  "effects.wow.drama.hint":           'כשהדובר אומר "אני לא מאמין", "זה לא קורה לי", "אין מצב" — הוידאו קופץ לשחור-לבן ל-1.2 שניות + סטינג דרמטי. הטריק של ריילס ויראליים.',
+
+  // ── EffectsPanel — color filter long hint ────────────────────────
+  "effects.colorFilter.longHint":     "הפילטרים מוחלים על כל הסרטון בתצוגה החיה ובייצוא. ניתן לשלב עם הלוק הקולנועי.",
+
+  // ── EffectsPanel — cinematic color grade ────────────────────────
+  "effects.cinematic.heading":        "תיקון צבע קולנועי",
+  "effects.cinematic.label":          "לוק קולנועי אוטומטי",
+  "effects.cinematic.hint":           "הרמת צללים, חימום highlights, עלייה קלה בריוויית - מראה מקצועי",
+
+  // ── EffectsPanel — brand-logo auto-detect block ──────────────────
+  "effects.brandDetect.explainLead":  "ה-AI מזהה לוגואים של חברות גדולות.",
+  "effects.brandDetect.explainBody":  "רשמו בכתוביות {{aliases}} וכו׳ — הלוגו יזוהה ויתווסף אוטומטית לסרטון.",
+  "effects.brandDetect.aliases":      "אינסטגרם, אליאקספרס, שופיפיי",
+  "effects.brandDetect.transparentLabel": "הסר רקע לבן מהלוגו שזוהה",
+  "effects.brandDetect.transparentHint":  "אם הלוגו על רקע לבן — מסיר אותו כך שהלוגו צף נקי על הסרטון",
+  "effects.brandDetect.emptyHint":    "עוד לא זוהו מותגים בכתוביות. ברגע שהדובר יזכיר אמזון / אינסטגרם / אפל וכו׳, יופיע כאן כרטיס לכל מותג עם בקרות גודל ומיקום.",
+  "effects.brandDetect.foundHeadingTpl":"{{n}} מותגים זוהו — גודל ומיקום לכל אחד",
+
+  // ── EffectsPanel — intro SFX picker ──────────────────────────────
+  "effects.introSfx.heading":         "🔊 צליל לאנימציה (אופציונלי)",
+  "effects.introSfx.noneLabel":       "ללא צליל",
+  "effects.introSfx.disabledLabel":   "מבוטל",
+  "effects.introSfx.clickToPick":     "לחצי לבחירה",
+
+  // ── EffectsPanel — bg music helper text ──────────────────────────
+  "effects.bgMusic.uploadHint":       "העלי קובץ MP3 / WAV / OGG — הוא יתנגן ברקע ויסונכרן עם הנגינה והעצירה של הסרטון.",
+  "effects.bgMusic.activeFallback":   "מוזיקת רקע",
+  "effects.bgMusic.activeStatus":     "פעיל — סנכרון עם הסרטון",
+  "effects.bgMusic.removeTitle":      "הסר",
+  "effects.bgMusic.videoVolume":      "ווליום הסרטון",
+  "effects.bgMusic.musicVolume":      "ווליום המוזיקה",
+  "effects.bgMusic.balanceTip":       "טיפ: השאירי את המוזיקה ב-15-30% — הקול שלך חייב להוביל.",
+
+  // ── EffectsPanel — custom logo ──────────────────────────────────
+  "effects.logo.personalTitle":       "לוגו אישי",
+  "effects.logo.personalHint":        "מיתוג קבוע — ניתן לבחור מיקום",
+  "effects.logo.uploadBtn":           "+ העלה לוגו",
+  "effects.logo.uploadingBtn":        "מעלה...",
+  "effects.logo.tooLargeErrTpl":      "קובץ גדול מדי (מקסימום {{mb}}MB)",
+  "effects.logo.readErr":             "שגיאה בקריאת הקובץ",
+  "effects.logo.cornerLabel":         "פינה",
+  "effects.logo.sizeLabel":           "גודל",
+  "effects.logo.sizeSmall":           "קטן",
+  "effects.logo.sizeMedium":          "בינוני",
+  "effects.logo.sizeLarge":           "גדול",
+  "effects.logo.bgLabel":             "רקע",
+  "effects.logo.bgProcessing":        "(מעבד...)",
+  "effects.logo.bgRemoved":           "ללא רקע",
+  "effects.logo.bgRemovedTitle":      "הסרה אוטומטית של צבע הרקע מהתמונה",
+  "effects.logo.bgOriginal":          "מקורי",
+  "effects.logo.advancedToggleClose": "▾ מתקדם (להציג רק חלק מהזמן)",
+  "effects.logo.advancedToggleOpen":  "▸ מתקדם (להציג רק חלק מהזמן)",
+  "effects.logo.watermarkLabel":      "תמיד גלוי (watermark קבוע)",
+  "effects.logo.fromLabel":           "מ-",
+  "effects.logo.forLabel":            "שנ' למשך",
+  "effects.logo.secAbbr":             "שנ'",
+  "effects.logo.emptyHelpHeading":    "איפה הגודל והמיקום?",
+  "effects.logo.emptyHelpPersonalKey":"לוגו אישי",
+  "effects.logo.emptyHelpPersonalBody":"בקרות גודל (S/M/L + PX) ומיקום (4 פינות) יופיעו אחרי שתעלי לוגו ☝️",
+  "effects.logo.emptyHelpBrandsKey": "לוגואי מותגים (אמזון/אינסטגרם)",
+  "effects.logo.emptyHelpBrandsBody":"לחיצה על השבב בפאנל \"AI זיהה\" בראש הדף פותחת בורר PX + 6 מיקומים.",
+
   // ── EffectsPanel — tabs + the big section headings users see most ──
   "effects.tab.magic":    "אפקטים מיוחדים",
   "effects.tab.color":    "צבע",
@@ -716,6 +806,37 @@ export const CONTENT_DEFAULTS = {
   // ── /contact small bits ─────────────────────────
   "contact.recommendedBadge":     "המומלץ",
   "contact.cardCta":              "לחיצה כדי לשלוח",
+  "contact.backToApp":            "חזרה לאפליקציה",
+
+  // ── AiDetectedPanel ─────────────────────────────
+  "aiPanel.pos.tl":               "שמאל למעלה",
+  "aiPanel.pos.tc":               "מרכז למעלה",
+  "aiPanel.pos.tr":               "ימין למעלה",
+  "aiPanel.pos.bl":               "שמאל למטה",
+  "aiPanel.pos.bc":               "מרכז למטה",
+  "aiPanel.pos.br":               "ימין למטה",
+  "aiPanel.headingTpl":           "AI זיהה ({{n}} פריטים)",
+  "aiPanel.itemsSuffix":          "פריטים",
+  "aiPanel.brands.heading":       "🏷️ לוגואי מותגים",
+  "aiPanel.brands.unmatched.heading":"🔍 זיהיתי שמות מותג בכתוביות אבל לא הצלחתי להתאים ללוגו:",
+  "aiPanel.brands.unmatched.hint":"ערכי את הכתוביות אם השם נכתב אחרת ממה שאמרת.",
+  "aiPanel.elements.heading":     "אלמנטים לפי מילים",
+  "aiPanel.elements.clickHint":   "· לחיצה לשינוי",
+  "aiPanel.field.size":           "גודל",
+  "aiPanel.field.pos":            "מיקום",
+  "aiPanel.defaultOption":        "ברירת מחדל",
+  "aiPanel.defaultOptionTpl":     "ברירת מחדל ({{label}})",
+  "aiPanel.btn.close":            "סגור",
+  "aiPanel.tooltip.editSizePos":  "לחיצה לעריכת גודל ומיקום",
+  "aiPanel.tooltip.changeEmoji":  "לחיצה לשינוי emoji",
+  "aiPanel.tooltip.changeSfx":    "החלפת צליל SFX",
+  "aiPanel.tooltip.removeEmoji":  "מחיקת האמוג'י לגמרי",
+  "aiPanel.tooltip.sizePos":      "גודל ומיקום",
+  "aiPanel.tooltip.resetDefault": "ברירת מחדל",
+
+  // ── PremiumPkgCard ──────────────────────────────
+  "pkgCard.videosApproxTpl":      "≈ {{n}} סרטונים",
+  "pkgCard.creditsLabel":         "קרדיט",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

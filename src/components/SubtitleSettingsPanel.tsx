@@ -35,6 +35,8 @@ export default function SubtitleSettingsPanel({
   const cPunctHint    = useContent("settings.punctuation.hint") as string;
   const cStretchLabel = useContent("settings.stretch.label") as string;
   const cStretchHint  = useContent("settings.stretch.hint") as string;
+  const cHebrewAcc    = useContent("settings.modelCard.hebrewAccuracy") as string;
+  const cSpeed        = useContent("settings.modelCard.speed") as string;
   function nameFor(m: { id: string; name: string }) {
     if (m.id === "ivrit-ai/whisper-large-v3-turbo-ct2") return hebrewName;
     if (m.id === "large-v3") return universalName;
@@ -91,11 +93,11 @@ export default function SubtitleSettingsPanel({
                 <p className="text-xs text-white/50 mb-2">{descFor(m)}</p>
                 <div className="flex items-center gap-3 text-[11px]">
                   <span className="text-white/40">
-                    דיוק עברית: <span className="text-yellow-400">{"★".repeat(m.hebrewQuality)}</span>
+                    {cHebrewAcc}<span className="text-yellow-400">{"★".repeat(m.hebrewQuality)}</span>
                     <span className="text-white/10">{"★".repeat(5 - m.hebrewQuality)}</span>
                   </span>
                   <span className="text-white/40">
-                    מהירות: <span className="text-cyan-400">{"⚡".repeat(m.speedRealtime)}</span>
+                    {cSpeed}<span className="text-cyan-400">{"⚡".repeat(m.speedRealtime)}</span>
                   </span>
                 </div>
               </button>

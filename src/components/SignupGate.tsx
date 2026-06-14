@@ -35,6 +35,12 @@ export default function SignupGate({
   const switchToIn  = useContent("signupGate.switchToLogin") as string;
   const switchToNew = useContent("signupGate.switchToSignup") as string;
   const termsAgree  = useContent("auth.signup.terms") as string;
+  const termsLink   = useContent("auth.signup.termsLinkLabel") as string;
+  const namePlace   = useContent("signupGate.namePlaceholder") as string;
+  const passShortMsg= useContent("auth.error.passwordTooShort") as string;
+  const invalidMsg  = useContent("auth.error.invalidCreds") as string;
+  const emailExists = useContent("signupGate.error.emailExists") as string;
+  const confirmEmail= useContent("signupGate.notice.confirmEmail") as string;
 
   if (!open) return null;
 
@@ -42,7 +48,7 @@ export default function SignupGate({
     e.preventDefault();
     setErr(null);
     if (mode === "signup" && password.length < 8) {
-      setErr("הסיסמה צריכה להיות לפחות 8 תווים.");
+      setErr(passShortMsg);
       return;
     }
     if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. פני למפתחת."); return; }
@@ -59,21 +65,21 @@ export default function SignupGate({
       if (error) {
         const msg = error.message.toLowerCase();
         if (msg.includes("already registered")) {
-          setErr("האימייל כבר רשום. עברי להתחברות 👇");
+          setErr(emailExists);
           setMode("login");
         } else setErr(error.message);
         return;
       }
       if (data.session) onSuccess();
       else {
-        setErr("שלחנו לך אימייל אישור — אשרי ואז את יכולה לחזור להוריד.");
+        setErr(confirmEmail);
       }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       setBusy(false);
       if (error) {
         setErr(error.message.toLowerCase().includes("invalid")
-          ? "אימייל או סיסמה שגויים."
+          ? invalidMsg
           : error.message);
         return;
       }
@@ -114,7 +120,7 @@ export default function SignupGate({
                 type="text" autoComplete="name" required
                 value={name} onChange={(e) => setName(e.target.value)}
                 className="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-brand"
-                placeholder="השם שלך"
+                placeholder={namePlace}
               />
             </label>
           )}
@@ -162,7 +168,7 @@ export default function SignupGate({
           {mode === "signup" && (
             <p className="text-[10px] text-white/40 text-center pt-1">
               {termsAgree}{" "}
-              <Link href="/policy" className="underline">תנאי השימוש</Link>
+              <Link href="/policy" className="underline">{termsLink}</Link>
             </p>
           )}
         </form>

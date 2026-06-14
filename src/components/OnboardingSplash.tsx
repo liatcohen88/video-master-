@@ -34,6 +34,7 @@ export default function OnboardingSplash() {
   const msg     = (useContent("welcome.message") as string).replace("{{credits}}", String(credits));
   const ctaTxt  = useContent("welcome.cta")     as string;
   const currency = (useContent("brand.currencyName") as string) || "קרדיטים";
+  const giftSuffix = useContent("onboarding.giftSuffix") as string;
 
   const [showSplash,  setShowSplash]  = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -101,7 +102,7 @@ export default function OnboardingSplash() {
           {/* Big credit number */}
           <div className="my-4 flex items-center justify-center gap-2">
             <span className="text-5xl font-black text-white">{credits}</span>
-            <span className="text-xl text-white/70 font-bold">{currency} מתנה ✨</span>
+            <span className="text-xl text-white/70 font-bold">{currency} {giftSuffix}</span>
           </div>
 
           <p className="text-sm text-white/70 leading-relaxed mb-6">{msg}</p>

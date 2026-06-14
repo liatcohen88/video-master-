@@ -58,6 +58,9 @@ export default function ModeSelector({ selected, onChange }: Props) {
   const costBasic     = useContent("pricing.cost.basic_effects");
   const costPodcast   = useContent("pricing.cost.podcast");
   const costAdvanced  = useContent("pricing.cost.advanced_effects");
+  const priceSuffixTpl = useContent("mode.priceSuffix") as string;
+  const advancedDynamicHint = useContent("mode.advancedDynamicHint") as string;
+  const priceSuffix = priceSuffixTpl.replace("{{currency}}", currency);
 
   const TEXT: Record<EditMode, { title: string; tagline: string; description: string; features: string[]; cost: number }> = {
     subtitles_only:   { title: subTitle, tagline: subTag, description: subDesc, features: parseFeatures(subFeat), cost: costSubtitles },
@@ -120,18 +123,18 @@ export default function ModeSelector({ selected, onChange }: Props) {
                   {id === "advanced_effects" ? (
                     <>
                       <span className="text-base font-black">{t.cost}-40</span>
-                      <span className="text-[11px] font-normal">{currency} לסרטון</span>
+                      <span className="text-[11px] font-normal">{priceSuffix}</span>
                     </>
                   ) : (
                     <>
                       <span className="text-base font-black">{t.cost}</span>
-                      <span className="text-[11px] font-normal">{currency} לסרטון</span>
+                      <span className="text-[11px] font-normal">{priceSuffix}</span>
                     </>
                   )}
                 </div>
                 {id === "advanced_effects" && (
                   <span className="text-[10px] text-yellow-400/70 pr-1">
-                    💡 משתנה לפי כמות האפקטים — עד 40 מאסטרים
+                    {advancedDynamicHint}
                   </span>
                 )}
               </div>

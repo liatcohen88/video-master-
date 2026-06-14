@@ -6,327 +6,391 @@
 <title>מאסטר וידאו — תצוגת אנימציה</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #070710; color: #fff; font-family: 'Heebo', system-ui, sans-serif; min-height: 100vh; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #070710; color: #fff; font-family: 'Heebo', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden; }
 
-  @keyframes chip-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-  @keyframes title-in   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes hero-in    { from{opacity:0;transform:translateY(28px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-  @keyframes prog       { 0%{width:0%} 100%{width:100%} }
+@keyframes chip-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+@keyframes chip-float-h { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-4px)} }
+@keyframes title-in { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes hero-in  { from{opacity:0;transform:translateY(28px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes prog     { 0%{width:0%} 100%{width:100%} }
+@keyframes fade-in  { from{opacity:0} to{opacity:1} }
 
-  .page { min-height:100vh; position:relative; }
-  .glow { position:fixed; top:-10%; left:50%; transform:translateX(-50%); width:800px; height:500px;
-    background:radial-gradient(ellipse,rgba(124,58,237,0.13) 0%,transparent 70%); pointer-events:none; z-index:0; }
-  .section { padding:4rem 5rem 3rem; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
+.glow { position:fixed; top:-10%; left:50%; transform:translateX(-50%); width:800px; height:500px;
+  background:radial-gradient(ellipse,rgba(124,58,237,0.13) 0%,transparent 70%); pointer-events:none; z-index:0; }
 
-  .badge-wrap { text-align:center; margin-bottom:1.4rem; animation:title-in 0.6s ease both; }
-  .badge { display:inline-block; padding:6px 18px; border-radius:100px;
+/* ══════════════════════════════════════
+   DESKTOP LAYOUT (≥ 768px)
+══════════════════════════════════════ */
+.desktop-section { display:block; padding:4rem 5rem 3rem; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
+.mobile-section  { display:none; }
+
+.badge-wrap { text-align:center; margin-bottom:1.4rem; animation:title-in 0.6s ease both; }
+.badge { display:inline-block; padding:6px 18px; border-radius:100px;
+  background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.35); color:#a78bfa; font-size:13px; font-weight:600; }
+
+.headline { text-align:center; margin-bottom:3rem; animation:title-in 0.7s ease 0.1s both; }
+.headline h1 { font-size:clamp(2rem,4.5vw,3.6rem); font-weight:800; line-height:1.15; }
+.headline .hi { background:linear-gradient(90deg,#7C3AED,#C084FC,#7C3AED 200%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.headline p { color:rgba(255,255,255,0.4); font-size:17px; margin-top:1rem; line-height:1.7; }
+
+.mockup-wrap { animation:hero-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+.mockup-outer { position:relative; max-width:1000px; margin:0 auto; }
+
+.chips-right, .chips-left { position:absolute; top:6%; z-index:20; display:flex; flex-direction:column; gap:9px; }
+.chips-right { right:-16px; }
+.chips-left  { left:-16px; top:12%; }
+.chip-d { background:rgba(12,10,28,0.9); backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.13); border-radius:100px;
+  padding:7px 15px; font-size:12px; color:#fff; white-space:nowrap;
+  display:flex; align-items:center; gap:7px;
+  opacity:0; transition:transform 0.65s cubic-bezier(0.22,1,0.36,1), opacity 0.5s ease; }
+.chip-d.in { opacity:1; }
+.chip-r { transform:translateX(80px); } .chip-r.in { transform:translateX(0); }
+.chip-l { transform:translateX(-80px); } .chip-l.in { transform:translateX(0); }
+
+/* browser chrome */
+.browser { border-radius:14px 14px 10px 10px; overflow:hidden;
+  border:1px solid rgba(255,255,255,0.1);
+  box-shadow:0 50px 120px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04); }
+.browser-bar { background:#13132a; padding:9px 14px;
+  display:flex; align-items:center; gap:10px; border-bottom:1px solid rgba(255,255,255,0.07); }
+.dots { display:flex; gap:5px; }
+.dot { width:11px; height:11px; border-radius:50%; }
+.tab-pill { padding:3px 14px; border-radius:6px 6px 0 0; background:#0d0d20; font-size:11px;
+  color:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.08);
+  border-bottom:1px solid #0d0d20; display:flex; align-items:center; gap:5px; margin-right:6px; }
+.tab-pill img { width:13px; height:13px; border-radius:3px; object-fit:contain; }
+.url-bar { flex:1; background:rgba(255,255,255,0.05); border-radius:5px;
+  padding:4px 12px; font-size:11px; color:rgba(255,255,255,0.35); text-align:center; font-family:monospace; }
+
+.editor-body { background:#0d0d1f; display:flex; height:520px; direction:ltr; }
+
+/* style panel */
+.style-panel { width:320px; background:#111128; border-right:1px solid rgba(255,255,255,0.06);
+  display:flex; flex-direction:column; overflow-y:auto; }
+.template-grid { padding:10px 10px 8px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.tmpl { height:46px; border-radius:8px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; font-size:10px; cursor:default; position:relative; gap:1px; }
+.tmpl .tname { font-size:9px; opacity:0.9; max-width:90%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tmpl.active { border:2px solid #a78bfa !important; box-shadow:0 0 12px rgba(124,58,237,0.5); }
+.tmpl .dot-active { position:absolute; top:3px; left:3px; width:6px; height:6px; border-radius:50%; background:#a78bfa; }
+.style-row { padding:0 10px 8px; display:flex; align-items:center; justify-content:space-between; }
+.ai-tip { margin:0 10px 10px; padding:8px 10px; background:rgba(255,200,0,0.08);
+  border:1px solid rgba(255,200,0,0.2); border-radius:8px; font-size:10px;
+  color:rgba(255,220,100,0.85); line-height:1.5; direction:rtl; }
+.tabs-row { display:flex; border-bottom:1px solid rgba(255,255,255,0.07); border-top:1px solid rgba(255,255,255,0.07); direction:rtl; }
+.tab-item { flex:1; padding:7px 6px; font-size:9.5px; text-align:center; cursor:default;
+  color:rgba(255,255,255,0.4); background:transparent; border-bottom:2px solid transparent; white-space:nowrap; }
+.tab-item.active { color:#fff; background:rgba(124,58,237,0.25); border-bottom:2px solid #7C3AED; }
+.effects-panel { padding:10px; flex:1; direction:rtl; display:flex; flex-direction:column; gap:12px; }
+.lbl { font-size:10px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
+.row4 { display:flex; gap:4px; }
+.rbtn { flex:1; padding:5px 2px; border-radius:6px; text-align:center; font-size:9px;
+  background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.08); cursor:default; }
+.rbtn.active { background:#7C3AED; color:#fff; border:none; }
+.fbtn { flex:1; padding:6px 4px; border-radius:6px; text-align:center; font-size:10px;
+  background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.07); cursor:default; }
+.fbtn.active { background:rgba(124,58,237,0.2); color:#a78bfa; border:1px solid rgba(124,58,237,0.5); }
+.anim-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.abtn { padding:6px 4px; border-radius:7px; text-align:center;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); cursor:default; }
+.abtn.active { background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.5); }
+.abtn .ai { font-size:14px; margin-bottom:2px; }
+.abtn .an { font-size:8.5px; color:rgba(255,255,255,0.55); line-height:1.2; }
+.abtn.active .an { color:#c4b5fd; }
+.abtn .ad { font-size:7.5px; color:rgba(255,255,255,0.25); margin-top:1px; }
+
+/* right pane */
+.right-pane { flex:1; display:flex; flex-direction:column; min-width:0; background:#0d0d1f; }
+.video-area { flex:0 0 370px; display:flex; align-items:center; justify-content:center;
+  background:#0a0a18; padding:12px 0 8px; position:relative; }
+.video-phone { width:185px; height:330px; border-radius:10px; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7); position:relative; }
+.video-phone video { width:100%; height:100%; object-fit:cover; display:block; }
+.progress-track { position:absolute; bottom:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.1); }
+.progress-bar { height:100%; background:linear-gradient(90deg,#7C3AED,#e040fb); animation:prog 5s linear infinite; }
+.time-label { position:absolute; bottom:-18px; font-size:9px; color:rgba(255,255,255,0.25); font-family:monospace; }
+
+.subs-panel { flex:1; border-top:1px solid rgba(255,255,255,0.07); overflow-y:auto; direction:rtl; }
+.subs-header { position:sticky; top:0; background:#111128; z-index:2;
+  border-bottom:1px solid rgba(255,255,255,0.07); padding:8px 12px; }
+.subs-header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+.sub-row { display:flex; align-items:center; gap:8px; padding:6px 12px;
+  background:transparent; border-right:2px solid transparent; transition:all 0.3s ease; }
+.sub-row.active { background:rgba(124,58,237,0.12); border-right:2px solid #7C3AED; }
+.sub-icons { display:flex; gap:4px; flex-shrink:0; }
+.sub-icons span { font-size:10px; opacity:0.45; cursor:default; }
+.sub-times { display:flex; flex-direction:column; gap:1px; flex-shrink:0; }
+.sub-times .ts { font-size:8.5px; color:rgba(255,255,255,0.3); font-family:monospace; }
+.sub-times .dur { font-size:8px; color:rgba(255,255,255,0.18); font-family:monospace; }
+.sub-text { flex:1; font-size:12px; color:rgba(255,255,255,0.6); text-align:right; }
+.sub-row.active .sub-text { color:#fff; font-weight:700; }
+.add-sub { padding:3px 12px; }
+.add-sub-btn { padding:3px 10px; border-radius:5px; text-align:center;
+  border:1px dashed rgba(255,255,255,0.1); font-size:9px; color:rgba(255,255,255,0.2); cursor:default; }
+
+.cta-section { text-align:center; padding:1rem 2rem 6rem; position:relative; z-index:1; }
+.cta-box { display:inline-block; padding:1rem 2.5rem; border-radius:16px;
+  background:linear-gradient(135deg,#7C3AED,#5B21B6);
+  box-shadow:0 0 50px rgba(124,58,237,0.4); font-size:16px; font-weight:700; cursor:default; }
+
+/* ══════════════════════════════════════
+   MOBILE LAYOUT (< 768px)
+══════════════════════════════════════ */
+@media (max-width: 767px) {
+  .desktop-section { display:none; }
+  .mobile-section  { display:block; padding:28px 16px 20px; position:relative; z-index:1; }
+
+  /* headline */
+  .m-badge-wrap { text-align:center; margin-bottom:14px; animation:title-in 0.6s ease both; }
+  .m-badge { display:inline-block; padding:5px 14px; border-radius:100px;
     background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.35);
-    color:#a78bfa; font-size:13px; font-weight:600; }
-
-  .headline { text-align:center; margin-bottom:3rem; animation:title-in 0.7s ease 0.1s both; }
-  .headline h1 { font-size:clamp(2rem,4.5vw,3.6rem); font-weight:800; line-height:1.15; }
-  .headline .hi { background:linear-gradient(90deg,#7C3AED,#C084FC,#7C3AED 200%);
+    color:#a78bfa; font-size:11px; font-weight:600; }
+  .m-headline { text-align:center; margin-bottom:24px; animation:title-in 0.7s ease 0.1s both; }
+  .m-headline h1 { font-size:1.7rem; font-weight:800; line-height:1.2; }
+  .m-headline .hi { background:linear-gradient(90deg,#7C3AED,#C084FC);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-  .headline p { color:rgba(255,255,255,0.4); font-size:17px; margin-top:1rem; line-height:1.7; }
+  .m-headline p { color:rgba(255,255,255,0.45); font-size:13px; margin-top:10px; line-height:1.6; }
 
-  .mockup-wrap { animation:hero-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
-  .mockup-outer { position:relative; max-width:1000px; margin:0 auto; }
-
-  /* floating chips */
-  .chips-right, .chips-left { position:absolute; top:6%; z-index:20; display:flex; flex-direction:column; gap:9px; }
-  .chips-right { right:-16px; }
-  .chips-left  { left:-16px; top:12%; }
-  .chip { background:rgba(12,10,28,0.9); backdrop-filter:blur(12px);
+  /* chips row */
+  .m-chips { display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin-bottom:20px; animation:fade-in 0.8s ease 0.5s both; }
+  .m-chip { background:rgba(12,10,28,0.9); backdrop-filter:blur(12px);
     border:1px solid rgba(255,255,255,0.13); border-radius:100px;
-    padding:7px 15px; font-size:12px; color:#fff; white-space:nowrap;
-    display:flex; align-items:center; gap:7px;
-    opacity:0; transition:transform 0.65s cubic-bezier(0.22,1,0.36,1), opacity 0.5s ease; }
-  .chip.in { opacity:1; }
-  .chip-r { transform:translateX(80px); } .chip-r.in { transform:translateX(0); }
-  .chip-l { transform:translateX(-80px); } .chip-l.in { transform:translateX(0); }
+    padding:6px 12px; font-size:11px; color:#fff;
+    display:flex; align-items:center; gap:5px;
+    animation:chip-float-h 3s ease-in-out infinite; }
 
-  /* browser chrome */
-  .browser { border-radius:14px 14px 10px 10px; overflow:hidden;
+  /* mini browser */
+  .m-browser { border-radius:12px 12px 10px 10px; overflow:hidden;
     border:1px solid rgba(255,255,255,0.1);
-    box-shadow:0 50px 120px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04); }
-  .browser-bar { background:#13132a; padding:9px 14px;
-    display:flex; align-items:center; gap:10px;
-    border-bottom:1px solid rgba(255,255,255,0.07); }
-  .dots { display:flex; gap:5px; }
-  .dot { width:11px; height:11px; border-radius:50%; }
-  .tab { padding:3px 14px; border-radius:6px 6px 0 0; background:#0d0d20; font-size:11px;
-    color:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.08);
-    border-bottom:1px solid #0d0d20; display:flex; align-items:center; gap:5px; margin-right:6px; }
-  .tab img { width:13px; height:13px; border-radius:3px; object-fit:contain; }
-  .url-bar { flex:1; background:rgba(255,255,255,0.05); border-radius:5px;
-    padding:4px 12px; font-size:11px; color:rgba(255,255,255,0.35);
-    text-align:center; font-family:monospace; }
+    box-shadow:0 20px 60px rgba(0,0,0,0.7); animation:hero-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+  .m-browser-bar { background:#13132a; padding:7px 10px;
+    display:flex; align-items:center; gap:7px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .m-dots { display:flex; gap:4px; }
+  .m-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .m-tab { padding:2px 10px; border-radius:4px 4px 0 0; background:#0d0d20;
+    font-size:10px; color:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.08);
+    border-bottom:1px solid #0d0d20; display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .m-tab img { width:11px; height:11px; border-radius:2px; object-fit:contain; }
+  .m-url { flex:1; background:rgba(255,255,255,0.05); border-radius:4px;
+    padding:3px 8px; font-size:10px; color:rgba(255,255,255,0.3); text-align:center; font-family:monospace; }
 
-  /* editor body */
-  .editor-body { background:#0d0d1f; display:flex; height:520px; direction:ltr; }
-
-  /* style panel */
-  .style-panel { width:320px; background:#111128; border-right:1px solid rgba(255,255,255,0.06);
-    display:flex; flex-direction:column; overflow-y:auto; }
-  .template-grid { padding:10px 10px 8px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
-  .tmpl { height:46px; border-radius:8px; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; font-size:10px; cursor:default;
-    position:relative; gap:1px; }
-  .tmpl .tname { font-size:9px; opacity:0.9; max-width:90%; text-align:center;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tmpl.active { border:2px solid #a78bfa !important; box-shadow:0 0 12px rgba(124,58,237,0.5); }
-  .tmpl .dot-active { position:absolute; top:3px; left:3px; width:6px; height:6px;
-    border-radius:50%; background:#a78bfa; }
-
-  .style-row { padding:0 10px 8px; display:flex; align-items:center; justify-content:space-between; }
-  .style-row span { font-size:11px; }
-  .ai-tip { margin:0 10px 10px; padding:8px 10px; background:rgba(255,200,0,0.08);
-    border:1px solid rgba(255,200,0,0.2); border-radius:8px; font-size:10px;
-    color:rgba(255,220,100,0.85); line-height:1.5; direction:rtl; }
-
-  .tabs { display:flex; border-bottom:1px solid rgba(255,255,255,0.07);
-    border-top:1px solid rgba(255,255,255,0.07); direction:rtl; }
-  .tab-item { flex:1; padding:7px 6px; font-size:9.5px; text-align:center; cursor:default;
-    color:rgba(255,255,255,0.4); background:transparent;
-    border-bottom:2px solid transparent; white-space:nowrap; }
-  .tab-item.active { color:#fff; background:rgba(124,58,237,0.25); border-bottom:2px solid #7C3AED; }
-
-  .effects-panel { padding:10px; flex:1; direction:rtl; display:flex; flex-direction:column; gap:12px; }
-  .label { font-size:10px; color:rgba(255,255,255,0.4); margin-bottom:7px; }
-  .ratio-row, .focus-row { display:flex; gap:4px; }
-  .ratio-btn { flex:1; padding:5px 2px; border-radius:6px; text-align:center; font-size:9px;
-    background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.45);
-    border:1px solid rgba(255,255,255,0.08); cursor:default; }
-  .ratio-btn.active { background:#7C3AED; color:#fff; border:none; }
-  .focus-btn { flex:1; padding:6px 4px; border-radius:6px; text-align:center; font-size:10px;
-    background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.45);
-    border:1px solid rgba(255,255,255,0.07); cursor:default; }
-  .focus-btn.active { background:rgba(124,58,237,0.2); color:#a78bfa; border:1px solid rgba(124,58,237,0.5); }
-
-  .anim-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
-  .anim-btn { padding:6px 4px; border-radius:7px; text-align:center;
-    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); cursor:default; }
-  .anim-btn.active { background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.5); }
-  .anim-icon { font-size:14px; margin-bottom:2px; }
-  .anim-name { font-size:8.5px; color:rgba(255,255,255,0.55); line-height:1.2; }
-  .anim-btn.active .anim-name { color:#c4b5fd; }
-  .anim-desc { font-size:7.5px; color:rgba(255,255,255,0.25); margin-top:1px; }
-
-  /* right: video + subtitles */
-  .right-pane { flex:1; display:flex; flex-direction:column; min-width:0; background:#0d0d1f; }
-  .video-area { flex:0 0 370px; display:flex; align-items:center; justify-content:center;
-    background:#0a0a18; padding:12px 0 8px; position:relative; }
-  .video-phone { width:185px; height:330px; border-radius:10px; overflow:hidden;
-    box-shadow:0 8px 32px rgba(0,0,0,0.7); position:relative; }
-  .video-phone video { width:100%; height:100%; object-fit:cover; display:block; }
-  .progress-track { position:absolute; bottom:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.1); }
-  .progress-bar { height:100%; background:linear-gradient(90deg,#7C3AED,#e040fb); animation:prog 5s linear infinite; }
-  .time-label { position:absolute; bottom:-18px; font-size:9px; color:rgba(255,255,255,0.25); font-family:monospace; }
+  /* video centered */
+  .m-video-wrap { background:#0a0a18; display:flex; justify-content:center; padding:16px 0 12px; }
+  .m-video-phone { width:140px; height:250px; border-radius:10px; overflow:hidden;
+    box-shadow:0 8px 24px rgba(0,0,0,0.7); position:relative; }
+  .m-video-phone video { width:100%; height:100%; object-fit:cover; display:block; }
+  .m-prog-track { position:absolute; bottom:0; left:0; right:0; height:2px; background:rgba(255,255,255,0.1); }
+  .m-prog-bar   { height:100%; background:linear-gradient(90deg,#7C3AED,#e040fb); animation:prog 5s linear infinite; }
 
   /* subtitle list */
-  .subs-panel { flex:1; border-top:1px solid rgba(255,255,255,0.07); overflow-y:auto; direction:rtl; }
-  .subs-header { position:sticky; top:0; background:#111128; z-index:2;
-    border-bottom:1px solid rgba(255,255,255,0.07); padding:8px 12px; }
-  .subs-header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
-  .subs-title { font-size:12px; font-weight:700; color:#fff; }
-  .subs-count { font-size:10px; color:rgba(255,255,255,0.35); }
-  .subs-hint { font-size:9px; color:rgba(255,255,255,0.2); margin-top:2px; line-height:1.4; }
-
-  .sub-row { display:flex; align-items:center; gap:8px; padding:6px 12px;
+  .m-subs { background:#0d0d1f; border-top:1px solid rgba(255,255,255,0.07); }
+  .m-subs-hdr { background:#111128; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .m-subs-title { font-size:12px; font-weight:700; color:#fff; }
+  .m-subs-hint  { font-size:9px; color:rgba(255,255,255,0.3); margin-top:2px; }
+  .m-sub-row { display:flex; align-items:center; gap:7px; padding:7px 12px;
     background:transparent; border-right:2px solid transparent; transition:all 0.3s ease; }
-  .sub-row.active { background:rgba(124,58,237,0.12); border-right:2px solid #7C3AED; }
-  .sub-icons { display:flex; gap:4px; flex-shrink:0; }
-  .sub-icons span { font-size:10px; opacity:0.45; cursor:default; }
-  .sub-times { display:flex; flex-direction:column; gap:1px; flex-shrink:0; }
-  .sub-times .ts { font-size:8.5px; color:rgba(255,255,255,0.3); font-family:monospace; }
-  .sub-times .dur { font-size:8px; color:rgba(255,255,255,0.18); font-family:monospace; }
-  .sub-text { flex:1; font-size:12px; color:rgba(255,255,255,0.6); text-align:right; }
-  .sub-row.active .sub-text { color:#fff; font-weight:700; }
-  .add-sub { padding:3px 12px; }
-  .add-sub-btn { padding:3px 10px; border-radius:5px; text-align:center;
-    border:1px dashed rgba(255,255,255,0.1); font-size:9px; color:rgba(255,255,255,0.2); cursor:default; }
+  .m-sub-row.active { background:rgba(124,58,237,0.12); border-right:2px solid #7C3AED; }
+  .m-sub-icons { display:flex; gap:3px; flex-shrink:0; }
+  .m-sub-icons span { font-size:9px; opacity:0.4; }
+  .m-sub-times { display:flex; flex-direction:column; gap:1px; flex-shrink:0; }
+  .m-sub-times .ts  { font-size:8px; color:rgba(255,255,255,0.3); font-family:monospace; }
+  .m-sub-times .dur { font-size:7.5px; color:rgba(255,255,255,0.18); font-family:monospace; }
+  .m-sub-text { flex:1; font-size:13px; color:rgba(255,255,255,0.6); text-align:right; }
+  .m-sub-row.active .m-sub-text { color:#fff; font-weight:700; }
+  .m-add-sub { padding:3px 12px; }
+  .m-add-sub-btn { padding:3px 0; text-align:center; border:1px dashed rgba(255,255,255,0.1);
+    border-radius:4px; font-size:9px; color:rgba(255,255,255,0.2); cursor:default; }
 
-  .cta-section { text-align:center; padding:1rem 2rem 6rem; position:relative; z-index:1; }
-  .cta-box { display:inline-block; padding:1rem 2.5rem; border-radius:16px;
+  /* effects strip */
+  .m-effects-strip { background:#111128; padding:10px 12px; border-top:1px solid rgba(255,255,255,0.07); }
+  .m-strip-label { font-size:10px; color:rgba(255,255,255,0.4); margin-bottom:7px;
+    display:flex; align-items:center; gap:4px; }
+  .m-anim-scroll { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+  .m-anim-scroll::-webkit-scrollbar { display:none; }
+  .m-abtn { flex-shrink:0; padding:6px 10px; border-radius:8px; text-align:center;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); cursor:default; min-width:56px; }
+  .m-abtn.active { background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.5); }
+  .m-abtn .ai { font-size:16px; margin-bottom:2px; }
+  .m-abtn .an { font-size:8px; color:rgba(255,255,255,0.55); line-height:1.2; }
+  .m-abtn.active .an { color:#c4b5fd; }
+
+  /* mobile cta */
+  .m-cta { text-align:center; padding:20px 16px 40px; }
+  .m-cta-box { display:inline-block; padding:12px 24px; border-radius:14px;
     background:linear-gradient(135deg,#7C3AED,#5B21B6);
-    box-shadow:0 0 50px rgba(124,58,237,0.4); font-size:16px; font-weight:700; cursor:default; }
+    box-shadow:0 0 40px rgba(124,58,237,0.4); font-size:14px; font-weight:700; }
+  .cta-section { padding-bottom:40px; }
+}
 </style>
 </head>
 <body>
-<div class="page">
-  <div class="glow"></div>
+<div class="glow"></div>
 
-  <section class="section">
-    <div class="badge-wrap">
-      <span class="badge">✨ עורך הוידאו החכם לתוכן ישראלי</span>
-    </div>
-
-    <div class="headline">
-      <h1>
-        מסרטון גולמי לריילס מוגמר<br>
-        <span class="hi">בלחיצה אחת — בעברית</span>
-      </h1>
-      <p>העלי וידאו. תקבלי כתוביות מסונכרנות, beat-drops, אייקונים ו-drama mode — אוטומטית.</p>
-    </div>
-
-    <div class="mockup-wrap">
-      <div class="mockup-outer">
-
-        <!-- chips right -->
-        <div class="chips-right">
-          <div class="chip chip-r" data-delay="0.4" style="animation-delay:0s">
-            <span>✍️</span><span>תמלול אוטמטי מותאם לעברית</span>
+<!-- ══ DESKTOP ══ -->
+<section class="desktop-section">
+  <div class="badge-wrap">
+    <span class="badge">✨ עורך הוידאו החכם לתוכן ישראלי</span>
+  </div>
+  <div class="headline">
+    <h1>מסרטון גולמי לריילס מוגמר<br><span class="hi">בלחיצה אחת — בעברית</span></h1>
+    <p>העלי וידאו. תקבלי כתוביות מסונכרנות, beat-drops, אייקונים ו-drama mode — אוטומטית.</p>
+  </div>
+  <div class="mockup-wrap">
+    <div class="mockup-outer">
+      <div class="chips-right">
+        <div class="chip-d chip-r" data-delay="0.4"><span>✍️</span><span>תמלול אוטמטי מותאם לעברית</span></div>
+        <div class="chip-d chip-r" data-delay="0.8"><span>🎬</span><span>אפקטי אנימציה</span></div>
+        <div class="chip-d chip-r" data-delay="1.2"><span>🎵</span><span>סאונד אפקט ויראלי</span></div>
+      </div>
+      <div class="chips-left">
+        <div class="chip-d chip-l" data-delay="0.6"><span>🎨</span><span>תבניות צבעים</span></div>
+        <div class="chip-d chip-l" data-delay="1.0"><span>✨</span><span>עריכה אוטמטית</span></div>
+      </div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="dots">
+            <div class="dot" style="background:#FF5F57"></div>
+            <div class="dot" style="background:#FEBC2E"></div>
+            <div class="dot" style="background:#28C840"></div>
           </div>
-          <div class="chip chip-r" data-delay="0.8" style="animation-delay:0.4s">
-            <span>🎬</span><span>אפקטי אנימציה</span>
+          <div class="tab-pill">
+            <img src="/logo.png" onerror="this.style.display='none'">מאסטר וידאו
           </div>
-          <div class="chip chip-r" data-delay="1.2" style="animation-delay:0.8s">
-            <span>🎵</span><span>סאונד אפקט ויראלי</span>
-          </div>
+          <div class="url-bar">master-video.co.il/</div>
         </div>
-
-        <!-- chips left -->
-        <div class="chips-left">
-          <div class="chip chip-l" data-delay="0.6" style="animation-delay:0.2s">
-            <span>🎨</span><span>תבניות צבעים</span>
+        <div class="editor-body">
+          <div class="style-panel">
+            <div class="template-grid">
+              <div class="tmpl" style="background:#1a1a2e;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.07)"><span class="tname">Default</span></div>
+              <div class="tmpl" style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;border:1px solid transparent"><span style="font-size:13px">🎙</span><span class="tname">פודקאסט ישראלי</span></div>
+              <div class="tmpl" style="background:linear-gradient(135deg,#e55c00,#ff8c00);color:#fff;border:1px solid transparent"><span style="font-size:13px">🔥</span><span class="tname">Hormozi</span></div>
+              <div class="tmpl" style="background:linear-gradient(135deg,#6c3483,#a855f7);color:#fff;border:1px solid transparent"><span style="font-size:13px">💎</span><span class="tname">Instagram מודרני</span></div>
+              <div class="tmpl" style="background:linear-gradient(135deg,#0d4f4f,#1a7a7a);color:#cff;border:1px solid transparent"><span style="font-size:13px">🎙</span><span class="tname">פודקאסט שקט</span></div>
+              <div class="tmpl active" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff"><span style="font-size:13px">⚡</span><span class="tname">TikTok Energy</span><div class="dot-active"></div></div>
+            </div>
+            <div class="style-row"><span style="font-size:11px;color:rgba(255,255,255,0.5)">סגנון כתוביות</span><span style="font-size:11px;color:#a78bfa">✨ Neon</span></div>
+            <div class="ai-tip">💡 <strong>תוספת אופציינלית</strong> — ה-AI לא מפעיל אותם אוטומטית. תוכלי לבחור בכל אחד מהם, ולשלם רק עבור מה שבחרת.</div>
+            <div class="tabs-row">
+              <div class="tab-item">כתוביות</div>
+              <div class="tab-item">סאונדים</div>
+              <div class="tab-item">לוגואים</div>
+              <div class="tab-item">צבע</div>
+              <div class="tab-item active" style="flex:none;padding-left:8px;padding-right:8px">אפקטים מיוחדים</div>
+            </div>
+            <div class="effects-panel">
+              <div><div class="lbl">יחס תצוגה</div><div class="row4"><div class="rbtn">4:5</div><div class="rbtn active">16:9</div><div class="rbtn">1:1</div><div class="rbtn">9:16</div><div class="rbtn">מקורי</div></div></div>
+              <div><div class="lbl">מיקוד החיתוך</div><div class="row4"><div class="fbtn">למטה</div><div class="fbtn active">מרכז</div><div class="fbtn">למעלה</div></div></div>
+              <div>
+                <div class="lbl" style="display:flex;align-items:center;gap:5px"><span>✨</span> אנימציית כניסה לסרטון</div>
+                <div class="anim-grid">
+                  <div class="abtn"><div class="ai">🎸</div><div class="an">רעד דרמטי</div><div class="ad">MrHorse</div></div>
+                  <div class="abtn active"><div class="ai">🥊</div><div class="an">פאנץ׳ זום</div><div class="ad">MrBeast</div></div>
+                  <div class="abtn"><div class="ai">—</div><div class="an">ללא</div><div class="ad">התחלה רגילה</div></div>
+                  <div class="abtn"><div class="ai">🎸</div><div class="an">באוטם</div><div class="ad">overshoot</div></div>
+                  <div class="abtn"><div class="ai">🌪</div><div class="an">וייפ פאן</div><div class="ad">blur</div></div>
+                  <div class="abtn"><div class="ai">🌊</div><div class="an">זום סוחף</div><div class="ad">מתח</div></div>
+                  <div class="abtn"><div class="ai">🚀</div><div class="an">סליידאפ</div><div class="ad">כלפי מעלה</div></div>
+                  <div class="abtn"><div class="ai">🎬</div><div class="an">פתיחת אירועים</div><div class="ad">ממרכז</div></div>
+                  <div class="abtn"><div class="ai">⚡</div><div class="an">פלאש לבן</div><div class="ad">הופיע</div></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="chip chip-l" data-delay="1.0" style="animation-delay:0.6s">
-            <span>✨</span><span>עריכה אוטמטית</span>
-          </div>
-        </div>
-
-        <!-- browser -->
-        <div class="browser">
-
-          <!-- top bar -->
-          <div class="browser-bar">
-            <div class="dots">
-              <div class="dot" style="background:#FF5F57"></div>
-              <div class="dot" style="background:#FEBC2E"></div>
-              <div class="dot" style="background:#28C840"></div>
+          <div class="right-pane">
+            <div class="video-area">
+              <div class="video-phone">
+                <video src="/showcase-woman.mp4" autoplay muted loop playsinline></video>
+                <div class="progress-track"><div class="progress-bar"></div></div>
+              </div>
+              <div class="time-label">0:01 / 0:05</div>
             </div>
-            <div class="tab">
-              <img src="/logo.png" onerror="this.style.display='none'">
-              מאסטר וידאו
+            <div class="subs-panel">
+              <div class="subs-header">
+                <div class="subs-header-top"><span style="font-size:12px;font-weight:700">עריכת כתוביות</span><span style="font-size:10px;color:rgba(255,255,255,0.3)">⌃</span></div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.35)">6 כתוביות</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px;line-height:1.4">פותחים כדי לערוך טקסט, להוסיף אמוג׳ים, סאונדים ומיקום צדדים לכל שורה</div>
+              </div>
+              <div id="subs-desktop" style="padding:6px 0"></div>
             </div>
-            <div class="url-bar">master-video.co.il/</div>
-          </div>
-
-          <!-- editor body -->
-          <div class="editor-body">
-
-            <!-- LEFT: style panel -->
-            <div class="style-panel">
-              <div class="template-grid">
-                <div class="tmpl" style="background:#1a1a2e;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.07)">
-                  <span class="tname">Default</span>
-                </div>
-                <div class="tmpl" style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;border:1px solid transparent">
-                  <span style="font-size:13px">🎙</span><span class="tname">פודקאסט ישראלי</span>
-                </div>
-                <div class="tmpl" style="background:linear-gradient(135deg,#e55c00,#ff8c00);color:#fff;border:1px solid transparent">
-                  <span style="font-size:13px">🔥</span><span class="tname">Hormozi</span>
-                </div>
-                <div class="tmpl" style="background:linear-gradient(135deg,#6c3483,#a855f7);color:#fff;border:1px solid transparent">
-                  <span style="font-size:13px">💎</span><span class="tname">Instagram מודרני</span>
-                </div>
-                <div class="tmpl" style="background:linear-gradient(135deg,#0d4f4f,#1a7a7a);color:#cff;border:1px solid transparent">
-                  <span style="font-size:13px">🎙</span><span class="tname">פודקאסט שקט</span>
-                </div>
-                <div class="tmpl active" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff">
-                  <span style="font-size:13px">⚡</span><span class="tname">TikTok Energy</span>
-                  <div class="dot-active"></div>
-                </div>
-              </div>
-
-              <div class="style-row">
-                <span style="color:rgba(255,255,255,0.5)">סגנון כתוביות</span>
-                <span style="color:#a78bfa">✨ Neon</span>
-              </div>
-
-              <div class="ai-tip">
-                💡 <strong>תוספת אופציינלית</strong> — ה-AI לא מפעיל אותם אוטומטית. תוכלי לבחור בכל אחד מהם, ולשלם רק עבור מה שבחרת.
-              </div>
-
-              <div class="tabs">
-                <div class="tab-item">כתוביות</div>
-                <div class="tab-item">סאונדים</div>
-                <div class="tab-item">לוגואים</div>
-                <div class="tab-item">צבע</div>
-                <div class="tab-item active" style="flex:none;padding-left:8px;padding-right:8px">אפקטים מיוחדים</div>
-              </div>
-
-              <div class="effects-panel">
-                <div>
-                  <div class="label">יחס תצוגה</div>
-                  <div class="ratio-row">
-                    <div class="ratio-btn">4:5</div>
-                    <div class="ratio-btn active">16:9</div>
-                    <div class="ratio-btn">1:1</div>
-                    <div class="ratio-btn">9:16</div>
-                    <div class="ratio-btn">מקורי</div>
-                  </div>
-                </div>
-                <div>
-                  <div class="label">מיקוד החיתוך</div>
-                  <div class="focus-row">
-                    <div class="focus-btn">למטה</div>
-                    <div class="focus-btn active">מרכז</div>
-                    <div class="focus-btn">למעלה</div>
-                  </div>
-                </div>
-                <div>
-                  <div class="label" style="display:flex;align-items:center;gap:5px"><span>✨</span> אנימציית כניסה לסרטון</div>
-                  <div class="anim-grid">
-                    <div class="anim-btn"><div class="anim-icon">🎸</div><div class="anim-name">רעד דרמטי</div><div class="anim-desc">MrHorse</div></div>
-                    <div class="anim-btn active"><div class="anim-icon">🥊</div><div class="anim-name">פאנץ׳ זום</div><div class="anim-desc">MrBeast</div></div>
-                    <div class="anim-btn"><div class="anim-icon">—</div><div class="anim-name">ללא</div><div class="anim-desc">התחלה רגילה</div></div>
-                    <div class="anim-btn"><div class="anim-icon">🎸</div><div class="anim-name">באוטם</div><div class="anim-desc">overshoot</div></div>
-                    <div class="anim-btn"><div class="anim-icon">🌪</div><div class="anim-name">וייפ פאן</div><div class="anim-desc">blur</div></div>
-                    <div class="anim-btn"><div class="anim-icon">🌊</div><div class="anim-name">זום סוחף</div><div class="anim-desc">מתח</div></div>
-                    <div class="anim-btn"><div class="anim-icon">🚀</div><div class="anim-name">סליידאפ</div><div class="anim-desc">כלפי מעלה</div></div>
-                    <div class="anim-btn"><div class="anim-icon">🎬</div><div class="anim-name">פתיחת אירועים</div><div class="anim-desc">ממרכז</div></div>
-                    <div class="anim-btn"><div class="anim-icon">⚡</div><div class="anim-name">פלאש לבן</div><div class="anim-desc">הופיע</div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- RIGHT: video + subtitles -->
-            <div class="right-pane">
-              <div class="video-area">
-                <div class="video-phone">
-                  <video src="/showcase-woman.mp4" autoplay muted loop playsinline></video>
-                  <div class="progress-track"><div class="progress-bar"></div></div>
-                </div>
-                <div class="time-label">0:01 / 0:05</div>
-              </div>
-
-              <div class="subs-panel">
-                <div class="subs-header">
-                  <div class="subs-header-top">
-                    <span class="subs-title">עריכת כתוביות</span>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.3)">⌃</span>
-                  </div>
-                  <div class="subs-count">6 כתוביות</div>
-                  <div class="subs-hint">פותחים כדי לערוך טקסט, להוסיף אמוג׳ים, סאונדים ומיקום צדדים לכל שורה</div>
-                </div>
-
-                <div id="subs-list" style="padding:6px 0"></div>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
     </div>
-  </section>
-
-  <div class="cta-section">
-    <div class="cta-box">🚀 הממשק הזה — בדיוק מה שמשתמשים רואים</div>
   </div>
+</section>
+<div class="cta-section" id="desktop-cta">
+  <div class="cta-box">🚀 הממשק הזה — בדיוק מה שמשתמשים רואים</div>
 </div>
+
+<!-- ══ MOBILE ══ -->
+<section class="mobile-section">
+  <div class="m-badge-wrap"><span class="m-badge">✨ עורך הוידאו החכם לתוכן ישראלי</span></div>
+  <div class="m-headline">
+    <h1>מסרטון גולמי לריילס מוגמר<br><span class="hi">בלחיצה אחת — בעברית</span></h1>
+    <p>העלי וידאו. תקבלי כתוביות מסונכרנות, beat-drops ו-drama mode — אוטומטית.</p>
+  </div>
+
+  <!-- chips row -->
+  <div class="m-chips">
+    <div class="m-chip" style="animation-duration:3.2s"><span>✍️</span><span>תמלול אוטמטי</span></div>
+    <div class="m-chip" style="animation-duration:2.8s;animation-delay:0.3s"><span>🎬</span><span>אפקטי אנימציה</span></div>
+    <div class="m-chip" style="animation-duration:3.5s;animation-delay:0.6s"><span>🎵</span><span>סאונד ויראלי</span></div>
+    <div class="m-chip" style="animation-duration:3s;animation-delay:0.2s"><span>🎨</span><span>תבניות צבעים</span></div>
+    <div class="m-chip" style="animation-duration:2.6s;animation-delay:0.8s"><span>✨</span><span>עריכה אוטמטית</span></div>
+  </div>
+
+  <!-- mini browser -->
+  <div class="m-browser">
+    <div class="m-browser-bar">
+      <div class="m-dots">
+        <div class="m-dot" style="background:#FF5F57"></div>
+        <div class="m-dot" style="background:#FEBC2E"></div>
+        <div class="m-dot" style="background:#28C840"></div>
+      </div>
+      <div class="m-tab">
+        <img src="/logo.png" onerror="this.style.display='none'">מאסטר וידאו
+      </div>
+      <div class="m-url">master-video.co.il/</div>
+    </div>
+
+    <div class="m-video-wrap">
+      <div class="m-video-phone">
+        <video src="/showcase-woman.mp4" autoplay muted loop playsinline></video>
+        <div class="m-prog-track"><div class="m-prog-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="m-subs">
+      <div class="m-subs-hdr">
+        <div class="m-subs-title">עריכת כתוביות</div>
+        <div class="m-subs-hint">לחצי לעריכת טקסט, אמוג׳ים וסאונדים</div>
+      </div>
+      <div id="subs-mobile" style="padding:4px 0"></div>
+    </div>
+
+    <div class="m-effects-strip">
+      <div class="m-strip-label"><span>✨</span> אנימציית כניסה</div>
+      <div class="m-anim-scroll">
+        <div class="m-abtn"><div class="ai">🎸</div><div class="an">רעד דרמטי</div></div>
+        <div class="m-abtn active"><div class="ai">🥊</div><div class="an">פאנץ׳ זום</div></div>
+        <div class="m-abtn"><div class="ai">—</div><div class="an">ללא</div></div>
+        <div class="m-abtn"><div class="ai">🎸</div><div class="an">באוטם</div></div>
+        <div class="m-abtn"><div class="ai">🌪</div><div class="an">וייפ פאן</div></div>
+        <div class="m-abtn"><div class="ai">🌊</div><div class="an">זום סוחף</div></div>
+        <div class="m-abtn"><div class="ai">🚀</div><div class="an">סליידאפ</div></div>
+        <div class="m-abtn"><div class="ai">🎬</div><div class="an">פתיחת אירועים</div></div>
+        <div class="m-abtn"><div class="ai">⚡</div><div class="an">פלאש לבן</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-cta">
+    <div class="m-cta-box">🚀 בדיוק מה שמשתמשים רואים</div>
+  </div>
+</section>
 
 <script>
 const SUBS = [
@@ -335,44 +399,47 @@ const SUBS = [
   { start:"0:01.90", dur:"0:00.90", text:"הסרטון הזה" },
   { start:"0:02.80", dur:"0:01.20", text:"זה מאסטר וידאו" },
 ];
-
 let activeRow = 2;
 
-function renderSubs() {
-  const list = document.getElementById('subs-list');
-  list.innerHTML = SUBS.map((s, i) => `
-    <div>
-      <div class="sub-row ${i === activeRow ? 'active' : ''}">
-        <div class="sub-icons">
-          <span>🗑</span><span>✏️</span><span>😊</span><span>🔊</span>
-        </div>
-        <div class="sub-times">
-          <span class="ts">${s.start}</span>
-          <span class="dur">+ ${s.dur}</span>
-        </div>
-        <span class="sub-text">${s.text}</span>
-      </div>
-      <div class="add-sub"><div class="add-sub-btn">+ הוסף כתובית</div></div>
+function desktopSubRow(s, i) {
+  return `<div>
+    <div class="sub-row ${i===activeRow?'active':''}">
+      <div class="sub-icons"><span>🗑</span><span>✏️</span><span>😊</span><span>🔊</span></div>
+      <div class="sub-times"><span class="ts">${s.start}</span><span class="dur">+ ${s.dur}</span></div>
+      <span class="sub-text">${s.text}</span>
     </div>
-  `).join('');
+    <div class="add-sub"><div class="add-sub-btn">+ הוסף כתובית</div></div>
+  </div>`;
 }
 
-renderSubs();
+function mobileSubRow(s, i) {
+  return `<div>
+    <div class="m-sub-row ${i===activeRow?'active':''}">
+      <div class="m-sub-icons"><span>✏️</span><span>😊</span><span>🔊</span></div>
+      <div class="m-sub-times"><span class="ts">${s.start}</span><span class="dur">+${s.dur}</span></div>
+      <span class="m-sub-text">${s.text}</span>
+    </div>
+    <div class="m-add-sub"><div class="m-add-sub-btn">+ הוסף כתובית</div></div>
+  </div>`;
+}
 
-setInterval(() => {
-  activeRow = (activeRow + 1) % SUBS.length;
-  renderSubs();
-}, 2800);
+function render() {
+  const d = document.getElementById('subs-desktop');
+  const m = document.getElementById('subs-mobile');
+  if (d) d.innerHTML = SUBS.map(desktopSubRow).join('');
+  if (m) m.innerHTML = SUBS.map(mobileSubRow).join('');
+}
 
-// animate chips in
+render();
+setInterval(() => { activeRow = (activeRow + 1) % SUBS.length; render(); }, 2800);
+
+// animate desktop chips
 setTimeout(() => {
-  document.querySelectorAll('.chip').forEach((chip, i) => {
+  document.querySelectorAll('.chip-d').forEach((chip, i) => {
     const delay = parseFloat(chip.dataset.delay || '0');
     setTimeout(() => chip.classList.add('in'), delay * 1000);
-    chip.style.animation = '';
     setTimeout(() => {
-      const dur = 3 + i * 0.4;
-      chip.style.animation = `chip-float ${dur}s ease-in-out infinite`;
+      chip.style.animation = `chip-float ${3 + i * 0.4}s ease-in-out infinite`;
     }, (delay + 0.65) * 1000);
   });
 }, 400);

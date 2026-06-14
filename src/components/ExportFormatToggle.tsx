@@ -2,6 +2,7 @@
 
 import { FileVideo, FileText } from "lucide-react";
 import type { ExportFormat } from "@/lib/types";
+import { useContent } from "@/lib/useContent";
 
 type Props = {
   value: ExportFormat;
@@ -9,23 +10,26 @@ type Props = {
 };
 
 export default function ExportFormatToggle({ value, onChange }: Props) {
+  const title       = useContent("export.format.title") as string;
+  const mp4Subtitle = useContent("export.format.mp4.subtitle") as string;
+  const srtSubtitle = useContent("export.format.srt.subtitle") as string;
   return (
     <div>
-      <h3 className="text-sm font-medium text-white/70 mb-3">פורמט יצוא</h3>
+      <h3 className="text-sm font-medium text-white/70 mb-3">{title}</h3>
       <div className="grid grid-cols-2 gap-3">
         <FormatButton
           active={value === "mp4"}
           onClick={() => onChange("mp4")}
           icon={<FileVideo className="w-5 h-5" />}
           title="MP4"
-          subtitle="וידאו עם כתוביות צרובות"
+          subtitle={mp4Subtitle}
         />
         <FormatButton
           active={value === "srt"}
           onClick={() => onChange("srt")}
           icon={<FileText className="w-5 h-5" />}
           title="SRT"
-          subtitle="קובץ כתוביות לפרמייר"
+          subtitle={srtSubtitle}
         />
       </div>
     </div>
