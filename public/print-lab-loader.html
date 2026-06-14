@@ -272,16 +272,16 @@
   const CARRIAGE_INNER = 460 - 44; // 416px
   const HEAD_MAX = CARRIAGE_INNER - HEAD_WIDTH; // 382px
 
-  const BUILD_MS  = 9000;
-  const HOLD_MS   = 2000;
+  const BUILD_MS  = 2800;
+  const HOLD_MS   = 800;
   const CYCLE_MS  = BUILD_MS + HOLD_MS;
-  const SCAN_MS   = 1600;
+  const SCAN_MS   = 700;
 
   const STATUSES = [
     { at: 0,    text: 'מאתחל מדפסת…' },
     { at: 0.05, text: 'מחמם נוזל הדפסה…' },
     { at: 0.15, text: 'מדפיס שכבה ראשונה…' },
-    { at: 0.4,  text: 'בונה את הלוגו…' },
+    { at: 0.4,  text: 'טוען את היצירות באתר...' },
     { at: 0.65, text: 'מדפיס שכבה שנייה…' },
     { at: 0.88, text: 'מסיים הדפסה…' },
     { at: 0.99, text: 'הדפסה הושלמה ✓' },

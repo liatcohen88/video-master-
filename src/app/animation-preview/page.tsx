@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-/* ─── subtitle lines matching showcase woman content ─── */
+/* ─── subtitle lines matching the video ─── */
 const SUBS = [
-  { start: "0:00.40", dur: "0:00.52", text: "גיליתי סוד" },
-  { start: "0:00.92", dur: "0:00.68", text: "שכל יוצרת תוכן" },
-  { start: "0:01.60", dur: "0:00.75", text: "חייבת לדעת" },
-  { start: "0:02.35", dur: "0:00.80", text: "כתוביות בעברית" },
-  { start: "0:03.15", dur: "0:00.70", text: "תוך שניות!" },
-  { start: "0:03.85", dur: "0:01.15", text: "זה שינה לי הכל 🔥" },
+  { start: "0:00.00", dur: "0:00.80", text: "היי חברים" },
+  { start: "0:00.80", dur: "0:01.10", text: "מי שעורך לי את" },
+  { start: "0:01.90", dur: "0:00.90", text: "הסרטון הזה" },
+  { start: "0:02.80", dur: "0:01.20", text: "זה מאסטר וידאו" },
 ];
 
 const TEMPLATES = [
@@ -34,12 +32,11 @@ const ANIMATIONS = [
 ];
 
 const CHIPS = [
-  { label: "57 כתוביות אוטו׳", icon: "✍️", side: "right", delay: 0.4 },
-  { label: "Beat-drop zoom", icon: "🎵", side: "right", delay: 0.8 },
-  { label: "23 אייקוני Lottie", icon: "⭐", side: "right", delay: 1.2 },
-  { label: "ייצוא MP4 מקצועי", icon: "📤", side: "left", delay: 0.6 },
-  { label: "9 אנימציות כניסה", icon: "🎬", side: "left", delay: 1.0 },
-  { label: "6 תבניות מוכנות", icon: "✨", side: "left", delay: 1.4 },
+  { label: "תמלול אוטמטי מותאם לעברית", icon: "✍️", side: "right", delay: 0.4 },
+  { label: "אפקטי אנימציה",              icon: "🎬", side: "right", delay: 0.8 },
+  { label: "סאונד אפקט ויראלי",          icon: "🎵", side: "right", delay: 1.2 },
+  { label: "תבניות צבעים",               icon: "🎨", side: "left",  delay: 0.6 },
+  { label: "עריכה אוטמטית",             icon: "✨", side: "left",  delay: 1.0 },
 ];
 
 function BrowserMockup() {
@@ -122,12 +119,13 @@ function BrowserMockup() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 2, marginRight: 6 }}>
-            <div style={{ padding: "3px 14px", borderRadius: "6px 6px 0 0", background: "#0d0d20", fontSize: 11, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid #0d0d20" }}>
+            <div style={{ padding: "3px 14px", borderRadius: "6px 6px 0 0", background: "#0d0d20", fontSize: 11, color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid #0d0d20", display: "flex", alignItems: "center", gap: 5 }}>
+              <img src="/logo.png" style={{ width: 13, height: 13, borderRadius: 3, objectFit: "contain" }} />
               מאסטר וידאו
             </div>
           </div>
-          <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 5, padding: "4px 12px", fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", fontFamily: "monospace" }}>
-            videomaster.app
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 5, padding: "4px 12px", fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", fontFamily: "monospace" }}>
+            master-video.co.il/
           </div>
         </div>
 
