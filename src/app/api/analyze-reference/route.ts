@@ -3,11 +3,19 @@ import { spawn } from "node:child_process";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { requireUser } from "@/lib/apiAuth";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  // Security (audit C2): auth + rate limit. Was anonymous.
+  const user = await requireUser(req);
+  if (user instanceof NextResponse) return user;
+  const limited = rateLimit(req, { key: `analyze-ref:${user.id}`, max: 3, windowSec: 60 });
+  if (limited) return limited;
+
   const formData = await req.formData();
   const file = formData.get("reference") as File | null;
   if (!file) {

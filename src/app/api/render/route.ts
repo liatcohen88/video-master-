@@ -26,6 +26,8 @@ import {
 } from "@/lib/exportCompositor";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
+import { requireUser } from "@/lib/apiAuth";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 1800;
@@ -34,9 +36,21 @@ import { getFfmpegPath, getFfprobePath } from "@/lib/ffmpegBinaries";
 const ffmpegPath = getFfmpegPath;
 const ffprobePath = getFfprobePath;
 
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB hard cap (audit H8)
+
 export async function POST(req: NextRequest) {
+  // Security (audit C2 + H8): require auth, rate-limit per user, cap file size.
+  // Was anonymous — anyone could pin the CX23 with a 30-min FFmpeg render.
+  const user = await requireUser(req);
+  if (user instanceof NextResponse) return user;
+  const limited = rateLimit(req, { key: `render:${user.id}`, max: 3, windowSec: 60 });
+  if (limited) return limited;
+
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
+  if (file && file.size > MAX_VIDEO_BYTES) {
+    return NextResponse.json({ error: "קובץ גדול מדי (מקס׳ 200MB)" }, { status: 413 });
+  }
   const bgMusicFile = formData.get("bgMusic") as File | null;
   const subtitlesJson = formData.get("subtitles") as string | null;
   const styleJson = formData.get("style") as string | null;

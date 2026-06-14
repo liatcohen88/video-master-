@@ -138,7 +138,14 @@ export default function MultiEditorPage() {
     for (const f of files) fd.append("video", f);
 
     try {
-      const res = await fetch("/api/multi-edit", { method: "POST", body: fd });
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/multi-edit", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || cErrGeneric);
       setResult(j as EditResult);
@@ -170,7 +177,14 @@ export default function MultiEditorPage() {
     for (const f of files) fd.append("video", f);
 
     try {
-      const res = await fetch("/api/multi-edit", { method: "POST", body: fd });
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/multi-edit", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || cErrGeneric);
       setResult(j as EditResult);

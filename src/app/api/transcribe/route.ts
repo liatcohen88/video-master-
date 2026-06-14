@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
+import { rateLimit } from "@/lib/rateLimit";
 
 // Nix store paths shift between builds, but PyAV / ctranslate2 / libsndfile
 // inside the venv only link via DT_NEEDED (the loader walks LD_LIBRARY_PATH).
@@ -35,6 +36,15 @@ export const maxDuration = 600;
 const OPENAI_MAX_BYTES = 25 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  // Security (audit C2): IP-based rate-limit. We deliberately do NOT
+  // require auth here — guest visitors are supposed to upload + transcribe
+  // + preview BEFORE the signup gate fires on export. The cap is tight
+  // enough that a single IP can't drain OpenAI ($0.006/min × 60 = ~$0.36
+  // worst case per hour) while still letting an honest guest test the
+  // product without friction.
+  const limited = rateLimit(req, { key: "transcribe", max: 10, windowSec: 60 * 60 });
+  if (limited) return limited;
+
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
   const maxWordsPerLine = parseInt(

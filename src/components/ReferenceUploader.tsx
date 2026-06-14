@@ -32,7 +32,14 @@ export default function ReferenceUploader({ onAnalyzed }: Props) {
     try {
       const fd = new FormData();
       fd.append("reference", file);
-      const res = await fetch("/api/analyze-reference", { method: "POST", body: fd });
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/analyze-reference", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
         throw new Error(b.error || `שגיאה ${res.status}`);

@@ -18,6 +18,8 @@ import { spawn } from "node:child_process";
 import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { requireUser } from "@/lib/apiAuth";
+import { rateLimit } from "@/lib/rateLimit";
 import {
   alignScriptToVideos,
   buildOutputSubtitles,
@@ -39,6 +41,13 @@ const ffmpegPath = getFfmpegPath;
 const ffprobePath = getFfprobePath;
 
 export async function POST(req: NextRequest) {
+  // Security (audit C2 + M8): auth + rate limit. Was anonymous — bigger
+  // DoS target than render (8 file uploads × Whisper × ffmpeg concat).
+  const user = await requireUser(req);
+  if (user instanceof NextResponse) return user;
+  const limited = rateLimit(req, { key: `multi-edit:${user.id}`, max: 2, windowSec: 60 });
+  if (limited) return limited;
+
   const formData = await req.formData();
   const script = (formData.get("script") as string) || "";
   const transitionsMode = ((formData.get("transitions") as string) || "none").toLowerCase();

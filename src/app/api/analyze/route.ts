@@ -3,11 +3,18 @@ import { spawn } from "node:child_process";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  // Security (audit C2): IP-rate-limit only. Like /transcribe, analyze is
+  // part of the guest preview flow (face detect / emphasis) — we don't
+  // gate it behind auth, but cap the burn from any single IP.
+  const limited = rateLimit(req, { key: "analyze", max: 10, windowSec: 60 * 60 });
+  if (limited) return limited;
+
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
   if (!file) {

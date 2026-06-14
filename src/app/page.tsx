@@ -495,7 +495,17 @@ export default function HomePage() {
         style.highlightColor.toLowerCase() !== style.color.toLowerCase();
       fd.append("perWordHighlight", String(hasHighlight));
 
-      const res = await fetch("/api/render", { method: "POST", body: fd });
+      // /api/render now requires auth (security audit C2). Fetch the
+      // Supabase session token and include it; guests never reach this
+      // path because SignupGate fires earlier.
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/render", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `שגיאת שרת ${res.status}`);

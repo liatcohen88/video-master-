@@ -14,12 +14,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
+import { requireUser } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
 
 const MAX_BYTES = 600 * 1024; // 600KB — vector Lottie JSONs are tiny
 
 export async function POST(req: NextRequest) {
+  // ADMIN ONLY (audit C6). Was anonymous → arbitrary file write.
+  const user = await requireUser(req, { requireAdmin: true });
+  if (user instanceof NextResponse) return user;
+
   const fd = await req.formData();
   const file = fd.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "חסר קובץ" }, { status: 400 });
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const id = `custom${Date.now()}`;
+  const id = `custom${Date.now()}_${randomBytes(3).toString("hex")}`;
   const dir = join(process.cwd(), "public", "lottie");
   await mkdir(dir, { recursive: true });
   const filePath = join(dir, `${id}.json`);

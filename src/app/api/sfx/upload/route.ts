@@ -11,6 +11,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
+import { requireUser } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,11 @@ const MAX_BYTES = 3 * 1024 * 1024; // 3MB — SFX should be short
 const OK_TYPES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg"];
 
 export async function POST(req: NextRequest) {
+  // ADMIN ONLY. Was anonymous → any visitor could fill the disk with
+  // 3 MB MP3s or pollute the shared SFX library with NSFW content.
+  const user = await requireUser(req, { requireAdmin: true });
+  if (user instanceof NextResponse) return user;
+
   const fd = await req.formData();
   const file = fd.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "חסר קובץ" }, { status: 400 });
@@ -28,7 +35,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "פורמט לא נתמך — רק MP3 / WAV / OGG" }, { status: 400 });
   }
 
-  const id = `custom${Date.now()}`;
+  // Random component prevents same-millisecond collisions between admins.
+  const id = `custom${Date.now()}_${randomBytes(3).toString("hex")}`;
   const dir = join(process.cwd(), "public", "sfx");
   await mkdir(dir, { recursive: true });
   // Always store as .mp3-named path to match the library convention; browsers
