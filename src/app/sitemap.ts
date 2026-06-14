@@ -19,6 +19,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // /multi is hidden pre-launch — see feature.multi.enabled in contentStore.ts.
     // Restore this entry when the feature ships publicly.
     {
+      url: `${base}/glossary`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
       url: `${base}/credits`,
       lastModified: now,
       changeFrequency: "monthly",

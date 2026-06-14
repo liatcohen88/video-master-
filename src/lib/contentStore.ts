@@ -409,6 +409,7 @@ export const CONTENT_DEFAULTS = {
   "footer.link.multi":    "חיבור סרטונים",
   "footer.link.credits":  "חבילות מאסטרים",
   "footer.link.help":     "שאלות נפוצות",
+  "footer.link.glossary": "מילון מאסטר וידאו",
   "footer.link.contact":  "יצירת קשר",
   "footer.link.policy":   "תקנון ופרטיות",
   "footer.bottom.terms":  "תנאי שימוש",
@@ -483,7 +484,24 @@ export const CONTENT_DEFAULTS = {
   // (home page card, footer link, /credits multi mode). The /multi page itself
   // stays accessible by direct URL so existing bookmarks don't 404.
   "feature.multi.enabled": false,
-} as const;
+
+  // Glossary / dictionary page (/glossary)
+  "glossary.intro":
+    "המדריך השקוף של מאסטר וידאו — בדיוק מה ה-AI יודע לזהות אוטומטית בסרטון שלך. " +
+    "כל הוספה באדמין מופיעה פה מיד.",
+  "glossary.brands.title":   "🏷️ לוגואי מותגים שה-AI מזהה",
+  "glossary.brands.body":
+    "כשאת/ה מזכיר/ה מותג בכתוביות, ה-AI ממקם את הלוגו אוטומטית בפינת המסך — " +
+    "בלי שתצטרכי להעלות אותו ידנית.",
+  "glossary.drama.title":    "🎬 מילות דרמה (שחור-לבן + סטינג)",
+  "glossary.drama.body":
+    "ברגע שאחת מהמילים הבאות מופיעה — המסך הופך לשחור-לבן ל-1.2 שניות ונוסף " +
+    "צליל סטינג דרמטי. אפשר להוסיף מילים משלך באדמין → תוכן.",
+  "glossary.elements.title": "✨ מילים שמזמינות אנימציה",
+  "glossary.elements.body":
+    "ה-AI מזהה רעיון (כסף, אהבה, מסיבה…) ומוסיף אנימציה Lottie + צליל אפקט. " +
+    "כל קטגוריה תומכת בעשרות מילים בעברית ובאנגלית.",
+  "glossary.backToApp":      "חזרה לאפליקציה",
 
 export type ContentKey = keyof typeof CONTENT_DEFAULTS;
 

@@ -139,8 +139,23 @@ def main():
     def clean(words):
         cleaned = []
         prev_clean = None  # lowercased + stripped of punctuation
+        # Punctuation that should hug the END of the previous word, never
+        # start a new one — Whisper sometimes prepends "." or "," to the
+        # next word ("אותך", ".זה") instead of suffixing the previous one,
+        # which makes the chunker split the period onto its own subtitle.
+        LEAD_PUNCT = ".,!?;:׃"
         for w in words:
             text = w["word"].strip()
+            # Peel leading punctuation off and attach it to the previous word
+            while text and text[0] in LEAD_PUNCT:
+                if cleaned:
+                    cleaned[-1] = {
+                        **cleaned[-1],
+                        "word": cleaned[-1]["word"] + text[0],
+                    }
+                text = text[1:].lstrip()
+            if not text:
+                continue
             # Strip surrounding punctuation when comparing for dup
             stripped = "".join(c for c in text if c.isalnum() or c.isalpha())
             low = stripped.lower()

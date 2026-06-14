@@ -596,6 +596,16 @@ export default function VideoPreview({
           ref={videoRef}
           src={videoUrl}
           controls
+          // Mobile Safari fullscreens any tap-played video by default, which
+          // hides our overlaid captions/effects. playsInline + disable-PiP +
+          // controlsList="nodownload nofullscreen" keep playback inline so
+          // the user sees the caption preview, exactly like desktop.
+          playsInline
+          // @ts-expect-error — webkit-only attr not in React types
+          webkit-playsinline="true"
+          x5-playsinline="true"
+          controlsList="nodownload nofullscreen noplaybackrate"
+          disablePictureInPicture
           className="block w-full h-full"
           style={{
             objectFit: hasAspect ? "cover" : "contain",

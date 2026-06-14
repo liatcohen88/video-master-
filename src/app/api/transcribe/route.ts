@@ -127,8 +127,20 @@ const FILLERS = new Set([
 function cleanFillers(words: { word: string; start: number; end: number }[]) {
   const out: typeof words = [];
   let prevLow: string | null = null;
-  for (const w of words) {
-    const stripped = w.word.replace(/[^\p{L}\p{N}]/gu, "");
+  // Punctuation that Whisper sometimes prepends to the NEXT word ("אותך",
+  // ".זה") instead of suffixing the previous one. Pull these back onto the
+  // previous word so the chunker can't split them onto a new subtitle.
+  const LEAD_PUNCT = /^[.,!?;:׃]+/;
+  for (const rawW of words) {
+    let text = rawW.word.trim();
+    const leadMatch = text.match(LEAD_PUNCT);
+    if (leadMatch && out.length > 0) {
+      out[out.length - 1] = { ...out[out.length - 1], word: out[out.length - 1].word + leadMatch[0] };
+      text = text.slice(leadMatch[0].length).trimStart();
+    }
+    if (!text) continue;
+    const w = { ...rawW, word: text };
+    const stripped = text.replace(/[^\p{L}\p{N}]/gu, "");
     const low = stripped.toLowerCase();
     if (!stripped) {
       // Pure punctuation — attach to the previous word so it doesn't dangle

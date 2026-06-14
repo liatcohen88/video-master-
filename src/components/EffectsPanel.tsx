@@ -873,14 +873,18 @@ function CustomLogoSection({
     setUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("logo", file);
-      const res = await fetch("/api/upload-logo", { method: "POST", body: fd });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || `שגיאה ${res.status}`);
-      }
-      const { url } = await res.json();
+      // Read as a data URL so the logo stays embedded in the project state.
+      // We were posting to /api/upload-logo and saving under public/, but that
+      // folder is ephemeral inside the Coolify container — each redeploy wiped
+      // the file, leaving a broken image icon. Data URLs survive everything
+      // (IndexedDB autosave, project export, page reload).
+      if (file.size > 5 * 1024 * 1024) throw new Error("קובץ גדול מדי (מקסימום 5MB)");
+      const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("שגיאה בקריאת הקובץ"));
+        reader.readAsDataURL(file);
+      });
       onChange([
         ...logos,
         {
