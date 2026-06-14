@@ -966,8 +966,9 @@ export const CONTENT_DEFAULTS = {
   "home.error.noSpeech":    "לא זוהה דיבור בסרטון",
   "home.error.noVideo":     "חסר קובץ וידאו",
   // Hero greeting (below header, above the upload card)
-  "home.hero.greeting":     "היי {{name}}, מה תרצה שנערוך לך היום?",
-  "home.hero.greetingGuest":"היי מאסטר, מה תרצה שנערוך לך היום?",
+  "home.hero.greeting":     "מעלים סרטון וה-AI עושה את כל השאר",
+  "home.hero.greetingGuest":"מעלים סרטון וה-AI עושה את כל השאר",
+  "home.hero.tagline":      "ללא צורך בהתקנה. מורידים ונהנים.",
 
   // Signup gate — popup shown when a guest clicks "Export"
   "signupGate.title":         "רגע לפני שמורידים…",

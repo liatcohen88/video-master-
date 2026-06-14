@@ -85,16 +85,13 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
   return (
     <div dir="rtl" className="space-y-20 mt-12 mb-16">
 
-      {/* ── 1. Trust badges (5 — exact order from CMS) ── */}
-      <div className="flex flex-wrap justify-center gap-2.5 text-xs">
-        <Badge icon={<Cloud className="w-3.5 h-3.5" />}        color="violet">{b1}</Badge>
-        <Badge icon={<Coins className="w-3.5 h-3.5" />}        color="amber">{b2}</Badge>
-        <Badge icon={<Languages className="w-3.5 h-3.5" />}    color="fuchsia">{b3}</Badge>
-        <Badge icon={<Zap className="w-3.5 h-3.5" />}          color="cyan">{b4}</Badge>
-        <Badge icon={<FileDown className="w-3.5 h-3.5" />}     color="emerald">{b5}</Badge>
-      </div>
+      {/* Trust badges moved UP to the page-hero (src/app/page.tsx) so
+          they sit right under the title + tagline. Kept the CMS keys
+          unchanged (landing.badge.1-5) and the Badge / b1..b5 imports
+          live in case admin wants to re-introduce a duplicate strip
+          below the upload zone — for now we keep the landing flat. */}
 
-      {/* ── 2. How it works (3 steps — NO NUMBERS, just icons) ── */}
+      {/* ── How it works (3 steps — NO NUMBERS, just icons) ── */}
       <section>
         <SectionHeader eyebrow={howEy} title={howT} subtitle={howS} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">

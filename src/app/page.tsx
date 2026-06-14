@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Wand2, Download, Sparkles, ArrowLeft } from "lucide-react";
+import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, FileDown } from "lucide-react";
 
 import VideoUploader from "@/components/VideoUploader";
 import ModeSelector from "@/components/ModeSelector";
@@ -85,6 +85,12 @@ export default function HomePage() {
   const toastVideoLoaded= useContent("home.toast.videoLoaded") as string;
   const heroGreeting     = useContent("home.hero.greeting") as string;
   const heroGreetingGuest= useContent("home.hero.greetingGuest") as string;
+  const heroTagline      = useContent("home.hero.tagline") as string;
+  const heroBadge1       = useContent("landing.badge.1") as string;
+  const heroBadge2       = useContent("landing.badge.2") as string;
+  const heroBadge3       = useContent("landing.badge.3") as string;
+  const heroBadge4       = useContent("landing.badge.4") as string;
+  const heroBadge5       = useContent("landing.badge.5") as string;
   const multiEnabled     = useContent("feature.multi.enabled") as boolean;
 
   // Auth — used to (a) personalize the hero greeting with display name,
@@ -541,13 +547,29 @@ export default function HomePage() {
         <div className="space-y-8 mt-8">
           {!videoFile ? (
             <>
-              {/* Hero greeting — personalized with display name when logged in. */}
-              <div className="text-center mb-2">
+              {/* Hero — bold value prop + 1-line tagline + 5 trust badges,
+                  all centered. Same pattern as polished SaaS landings
+                  (video-to-frames style) so a first-time visitor reads
+                  what the app does → why to trust it → uploads, in one
+                  scroll-free frame. */}
+              <div className="text-center mb-4 space-y-3">
                 <h1 className="text-2xl md:text-4xl font-black bg-gradient-to-r from-brand via-purple-400 to-accent-pink bg-clip-text text-transparent leading-tight">
                   {auth.status === "user" && auth.profile?.display_name
                     ? heroGreeting.replace("{{name}}", auth.profile.display_name)
                     : heroGreetingGuest}
                 </h1>
+                <p className="text-sm md:text-base text-white/60 leading-relaxed max-w-xl mx-auto">
+                  {heroTagline}
+                </p>
+                {/* 5 trust badges — same copy as LandingSections, exposed up
+                    top so the user sees them BEFORE they have to scroll. */}
+                <div className="flex flex-wrap justify-center gap-2 pt-2 text-[11px] md:text-xs">
+                  <HeroBadge icon={<Cloud className="w-3.5 h-3.5" />}        color="violet">{heroBadge1}</HeroBadge>
+                  <HeroBadge icon={<Coins className="w-3.5 h-3.5" />}        color="amber">{heroBadge2}</HeroBadge>
+                  <HeroBadge icon={<Languages className="w-3.5 h-3.5" />}    color="fuchsia">{heroBadge3}</HeroBadge>
+                  <HeroBadge icon={<Zap className="w-3.5 h-3.5" />}          color="cyan">{heroBadge4}</HeroBadge>
+                  <HeroBadge icon={<FileDown className="w-3.5 h-3.5" />}     color="emerald">{heroBadge5}</HeroBadge>
+                </div>
               </div>
               {multiEnabled && <a
                 href="/multi"
@@ -1139,5 +1161,32 @@ function ProfileMenuItem({ href, icon, label, highlight }: { href: string; icon:
       <span className="text-base">{icon}</span>
       <span>{label}</span>
     </a>
+  );
+}
+
+/** Compact trust-pill rendered in the hero strip. Same visual language as the
+ *  badges that used to live at the top of LandingSections — moved up here
+ *  so first-time visitors see them BEFORE scrolling, alongside the headline
+ *  + tagline + upload picker. Each color is a tailwind base; the chip uses
+ *  a translucent fill + matching border + icon tint. */
+function HeroBadge({
+  icon, color, children,
+}: {
+  icon: React.ReactNode;
+  color: "violet" | "amber" | "fuchsia" | "cyan" | "emerald";
+  children: React.ReactNode;
+}) {
+  const palette: Record<typeof color, string> = {
+    violet:   "bg-violet-500/12 border-violet-400/40 text-violet-100",
+    amber:    "bg-amber-500/12 border-amber-400/40 text-amber-100",
+    fuchsia:  "bg-fuchsia-500/12 border-fuchsia-400/40 text-fuchsia-100",
+    cyan:     "bg-cyan-500/12 border-cyan-400/40 text-cyan-100",
+    emerald:  "bg-emerald-500/12 border-emerald-400/40 text-emerald-100",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${palette[color]}`}>
+      <span className="opacity-90" aria-hidden>{icon}</span>
+      {children}
+    </span>
   );
 }
