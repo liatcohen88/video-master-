@@ -23,6 +23,7 @@ import PremiumPkgCard, { SharedFeatures } from "./PremiumPkgCard";
 import PackagesCarousel from "./PackagesCarousel";
 
 export default function LandingSections({ onScrollToUpload }: { onScrollToUpload?: () => void }) {
+  const multiEnabled = useContent("feature.multi.enabled") as boolean;
   // ── Badge texts (5, ordered) ─────────────────────────────────
   const b1 = useContent("landing.badge.1");
   const b2 = useContent("landing.badge.2");
@@ -130,7 +131,7 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-10">
           <Feature icon={<Languages />} color="violet"   title={f1T} body={f1B} />
           <Feature icon={<Sparkles />}  color="fuchsia"  title={f2T} body={f2B} />
-          <Feature icon={<Layers />}    color="pink"     title={f3T} body={f3B} />
+          {multiEnabled && <Feature icon={<Layers />} color="pink" title={f3T} body={f3B} />}
           <Feature icon={<Wand2 />}     color="cyan"     title={f4T} body={f4B} />
           <Feature icon={<Coins />}     color="amber"    title={f5T} body={f5B} />
           <Feature icon={<Save />}      color="emerald"  title={f6T} body={f6B} />

@@ -449,8 +449,8 @@ export const CONTENT_DEFAULTS = {
   "home.error.noSpeech":    "לא זוהה דיבור בסרטון",
   "home.error.noVideo":     "חסר קובץ וידאו",
   // Hero greeting (below header, above the upload card)
-  "home.hero.greeting":     "היי {{name}} 👋 מה תרצה שנערוך לך היום?",
-  "home.hero.greetingGuest":"היי מאסטר 👋 מה תרצה שנערוך לך היום?",
+  "home.hero.greeting":     "👋 היי {{name}}, מה תרצה שנערוך לך היום?",
+  "home.hero.greetingGuest":"👋 היי מאסטר, מה תרצה שנערוך לך היום?",
 
   // Signup gate — popup shown when a guest clicks "Export"
   "signupGate.title":         "רגע לפני שמורידים…",
@@ -472,7 +472,7 @@ export const CONTENT_DEFAULTS = {
   "purchase.error.retry": "חזרה לחבילות",
 
   // Upload drop-zone copy (home page)
-  "uploader.dropTitle":    "בחר את הסרטון שאותו תרצו שה-AI יערוך לכם",
+  "uploader.dropTitle":    "בחר את הסרטון שאותו תרצה שה-AI יערוך לך",
   "uploader.dragingTitle": "שחרר כאן",
   "uploader.checkingTitle":"בודק...",
   "uploader.formatsLine":  "תומך ב-MP4, MOV, AVI, MKV",

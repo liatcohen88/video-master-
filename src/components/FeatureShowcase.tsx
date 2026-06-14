@@ -27,9 +27,10 @@ export default function FeatureShowcase() {
   const s2Cap2  = useContent("landing.showcase2.caption2");
   const s2Cap2H = useContent("landing.showcase2.caption2Hi");
   const s2Emoji = useContent("landing.showcase2.emoji");
+  const multiEnabled = useContent("feature.multi.enabled") as boolean;
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <section className={`grid grid-cols-1 gap-5 ${multiEnabled ? "lg:grid-cols-2" : ""}`}>
       <ShowcaseCard
         title={s1Title} body={s1Body}
         videoSrc="/showcase-woman.mp4"
@@ -40,16 +41,18 @@ export default function FeatureShowcase() {
         emoji={s1Emoji}
         theme="warm"
       />
-      <ShowcaseCard
-        title={s2Title} body={s2Body}
-        captions={[
-          { text: s2Cap1, hiWord: s2Cap1H, effect: "pop"    },
-          { text: s2Cap2, hiWord: s2Cap2H, effect: "bounce" },
-        ]}
-        emoji={s2Emoji}
-        theme="cool"
-        lottie="multi-merge"
-      />
+      {multiEnabled && (
+        <ShowcaseCard
+          title={s2Title} body={s2Body}
+          captions={[
+            { text: s2Cap1, hiWord: s2Cap1H, effect: "pop"    },
+            { text: s2Cap2, hiWord: s2Cap2H, effect: "bounce" },
+          ]}
+          emoji={s2Emoji}
+          theme="cool"
+          lottie="multi-merge"
+        />
+      )}
     </section>
   );
 }
