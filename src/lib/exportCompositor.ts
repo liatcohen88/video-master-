@@ -128,9 +128,12 @@ export async function buildExportOverlays(opts: {
     const brands = effects.brandLogosDetect === false ? [] : detectBrands(subtitles);
     if (brands.length > 0) {
       const sharp = (await import("sharp")).default;
-      const cardHeight = Math.round(outputHeight * 0.10);
-      const maxW = Math.round(outputWidth * 0.55);
-      const defaultMaxH = Math.round(outputHeight * 0.12);
+      // Brand badge is square (logo only, no text — matches the preview).
+      // Default size 20% of output height so the logo inside (~70% of badge)
+      // lands at ~14% of frame, matching VideoPreview's `containerHeight * 0.14`.
+      const cardHeight = Math.round(outputHeight * 0.20);
+      const maxW = Math.round(outputWidth * 0.40);
+      const defaultMaxH = Math.round(outputHeight * 0.22);
       const cards = await prepareBrandCards(brands, cardHeight, effects.transparentLogoBg ?? false);
       const brandPxMap = effects.brandSizePx ?? {};
       const brandPosMap = effects.brandPosition ?? {};

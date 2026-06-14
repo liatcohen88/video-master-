@@ -19,17 +19,18 @@ import type { BrandLogo } from "./brandLogos";
 
 const CACHE_DIR = join(process.cwd(), "cache", "brand-logos");
 
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 /**
- * Return the local PNG path for a brand card at a given size, downloading
+ * Return the local PNG path for a brand badge at a given size, downloading
  * and rendering on first request. Throws if the logo can't be fetched.
+ *
+ * Mirrors the live preview's BrandOverlay (VideoPreview.tsx) exactly:
+ *   - Just the logo (no brand-name text — that was a CDN-failure fallback
+ *     and Liat asked to never add text alongside a working logo:
+ *     "תראה אמזון זה לא תואם צריך שממש יהיה את האיקון הלוגו שלהם")
+ *   - When transparentBg: just the logo with a drop shadow
+ *   - When !transparentBg: white rounded card with the logo centered inside
+ *
+ * Cache key bumped to v2 so old text-card PNGs in cache/ get bypassed.
  */
 export async function getBrandCardPng(
   brand: BrandLogo,
@@ -39,21 +40,17 @@ export async function getBrandCardPng(
   await mkdir(CACHE_DIR, { recursive: true });
 
   const sizeKey = Math.round(cardHeight);
-  // Transparent variants cached separately — otherwise a previous run with
-  // the white card sticks around forever and silently overrides the user's
-  // toggle. Suffix matches what Liat saw missing in the MP4 export.
+  // v2 in the cache key = post text-removal. Old cached files (no v2) live on
+  // disk but are never returned, so a sweep is optional.
   const variant = transparentBg ? "t" : "w";
-  const filename = `${brand.id}-${sizeKey}-${variant}.png`;
+  const filename = `${brand.id}-${sizeKey}-${variant}-v2.png`;
   const cachePath = join(CACHE_DIR, filename);
 
-  // Card dimensions
-  const logoSize = sizeKey * 0.62;
-  const padding = sizeKey * 0.2;
-  const fontSize = sizeKey * 0.46;
-  // Approximate card width based on brand name length
-  const approxCharWidth = fontSize * 0.55;
-  const textWidth = brand.name.length * approxCharWidth;
-  const cardWidth = Math.round(padding * 2 + logoSize + padding * 0.8 + textWidth + padding);
+  // Square badge: logo fills ~70% of the card with padding around it (matches
+  // the preview's logoSize * 0.18 padding ratio inside the card).
+  const logoSize = Math.round(sizeKey * 0.7);
+  const padding = Math.round((sizeKey - logoSize) / 2);
+  const cardWidth = sizeKey;
 
   if (existsSync(cachePath)) {
     return { path: cachePath, width: cardWidth, height: sizeKey };
@@ -68,18 +65,12 @@ export async function getBrandCardPng(
   const logoSvgText = await res.text();
   const logoB64 = Buffer.from(logoSvgText).toString("base64");
 
-  // Text color depends on background. Opaque card = brand color on white.
-  // Transparent = white text with a dark drop shadow so it stays readable
-  // against any video frame (mirrors VideoPreview.tsx BrandOverlay logic).
-  const textFill = transparentBg ? "#FFFFFF" : `#${brand.color}`;
-  const radius = sizeKey * 0.22;
-  const shadowStd = sizeKey * 0.04;
-
+  const radius = sizeKey * 0.18; // matches preview's borderRadius math
   const backgroundLayer = transparentBg
     ? ""
     : `<rect x="0" y="0" width="${cardWidth}" height="${sizeKey}" rx="${radius}" ry="${radius}"
-            fill="#FFFFFF" filter="url(#shadow)" />`;
-  const textShadow = transparentBg ? ` filter="url(#textShadow)"` : "";
+            fill="#FFFFFF" fill-opacity="0.96" filter="url(#shadow)" />`;
+  const logoShadow = transparentBg ? ` filter="url(#logoShadow)"` : "";
 
   const cardSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${cardWidth}" height="${sizeKey}" viewBox="0 0 ${cardWidth} ${sizeKey}">
@@ -90,23 +81,17 @@ export async function getBrandCardPng(
       <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="${shadowStd}" />
-      <feOffset dx="0" dy="${sizeKey * 0.025}" result="off" />
-      <feComponentTransfer><feFuncA type="linear" slope="0.75" /></feComponentTransfer>
+    <filter id="logoShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="${sizeKey * 0.04}" />
+      <feOffset dx="0" dy="${sizeKey * 0.03}" result="off" />
+      <feComponentTransfer><feFuncA type="linear" slope="0.6" /></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
   ${backgroundLayer}
-  <image x="${padding}" y="${(sizeKey - logoSize) / 2}"
+  <image x="${padding}" y="${padding}"
          width="${logoSize}" height="${logoSize}"
-         href="data:image/svg+xml;base64,${logoB64}" />
-  <text x="${padding * 2 + logoSize}" y="${sizeKey / 2}"
-        font-family="Heebo, Rubik, Arial, sans-serif"
-        font-weight="900"
-        font-size="${fontSize}"
-        fill="${textFill}"${textShadow}
-        dominant-baseline="central">${escapeXml(brand.name)}</text>
+         href="data:image/svg+xml;base64,${logoB64}"${logoShadow} />
 </svg>`;
 
   const png = await sharp(Buffer.from(cardSvg), { density: 300 })
