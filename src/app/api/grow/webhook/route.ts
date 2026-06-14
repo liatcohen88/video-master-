@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseGrowWebhook, verifyGrowWebhook, isApproved } from "@/lib/grow";
 import { adminClient } from "@/lib/supabase";
+import { creditsForAmount } from "@/lib/fulfillment";
 
 export const runtime = "nodejs";
 
@@ -87,11 +88,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "ignored" });
   }
 
+  // Recompute credits from the AMOUNT Grow actually charged — NEVER trust
+  // hook.credits, which comes from a custom field set at checkout (audit
+  // C3 equivalent for Grow). Otherwise an attacker who can override the
+  // checkout payload pays ₪10 and claims 1M credits.
+  const amountIls = Number(hook.sum ?? 0);
+  const credits = creditsForAmount(amountIls);
+
   console.log("[grow webhook] approved payment", {
     transactionId: hook.transactionId,
-    sum: hook.sum,
+    sum: amountIls,
     packageId: hook.packageId,
-    credits: hook.credits,
+    creditsResolved: credits,
+    creditsFromCustomField: hook.credits, // for log diff
   });
 
   // 3. Credit the buyer in Supabase (no-op if Supabase isn't configured yet).
@@ -101,9 +110,9 @@ export async function POST(req: NextRequest) {
     const result = await creditViaSupabase({
       email,
       userId: hook.userId,
-      credits: Number(hook.credits ?? 0),
+      credits,
       txnId: hook.transactionId,
-      amountIls: hook.sum,
+      amountIls,
       packageId: hook.packageId,
     });
     console.log("[grow webhook] credit result:", result);

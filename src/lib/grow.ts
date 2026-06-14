@@ -110,7 +110,17 @@ export function parseGrowWebhook(rawBody: string, contentType: string | null): G
 export function verifyGrowWebhook(hook: GrowWebhook): boolean {
   const secret = process.env.GROW_WEBHOOK_SECRET;
   if (!secret) return false;            // not configured → never auto-credit
-  return hook.secret === secret;
+  if (!hook.secret) return false;
+  // Constant-time compare to neutralise timing-attack inference of the
+  // shared secret (audit C7 equivalent for Grow).
+  if (hook.secret.length !== secret.length) return false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { timingSafeEqual } = require("node:crypto") as typeof import("node:crypto");
+    return timingSafeEqual(Buffer.from(hook.secret), Buffer.from(secret));
+  } catch {
+    return false;
+  }
 }
 
 /** Grow marks an approved charge with statusCode "1" (sandbox/live may differ). */
