@@ -69,6 +69,10 @@ export type VideoEffects = {
    *  back-compat. Independent of contextualElements so user can turn brand
    *  logos off without losing emoji auto-detect. */
   brandLogosDetect?: boolean;
+  /** SFX fired alongside the brand-logo overlay reveal (like an emoji has
+   *  one). undefined = use the default "whoosh"; "none" = silent. Per-event
+   *  overrides could be added later via brandSfxOverrides. */
+  brandSfxId?: string;
   /** Per-brand-occurrence size in px. Key = "<brandId>-<round(time*10)>" so
    *  each appearance of the same brand can be tuned independently. */
   brandSizePx?: Record<string, number>;

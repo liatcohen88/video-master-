@@ -16,7 +16,23 @@ export type CappedPlayHandle = {
 const DEFAULT_CAP_MS = 3500;
 const FADE_MS = 200;
 
-/** Play `url` with the cap. Caller decides volume (0..1). */
+// Singleton AudioContext — lets us amplify above 1.0 via GainNode, which
+// HTMLAudioElement.volume can't (it's hard-clamped to 0..1).
+let ctx: AudioContext | null = null;
+function getCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (ctx) return ctx;
+  type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
+  const w = window as WindowWithWebkit;
+  const AC = window.AudioContext ?? w.webkitAudioContext;
+  if (!AC) return null;
+  try { ctx = new AC(); } catch { return null; }
+  return ctx;
+}
+
+/** Play `url` with the cap. `volume` is a linear multiplier — values >1
+ *  amplify above the source. WebAudio path is used when available so
+ *  volumes like 2.0 actually produce louder output. */
 export function playSfxCapped(
   url: string,
   volume = 0.6,
@@ -24,7 +40,28 @@ export function playSfxCapped(
 ): CappedPlayHandle {
   const a = new Audio(url);
   a.preload = "auto";
-  a.volume = volume;
+  a.crossOrigin = "anonymous";
+
+  const audioCtx = getCtx();
+  let gainNode: GainNode | null = null;
+  let mediaSource: MediaElementAudioSourceNode | null = null;
+
+  if (audioCtx) {
+    try {
+      if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+      mediaSource = audioCtx.createMediaElementSource(a);
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = Math.max(0, volume);
+      mediaSource.connect(gainNode).connect(audioCtx.destination);
+      a.volume = 1;
+    } catch {
+      // CORS or already-connected — fall back to element volume (clamped).
+      a.volume = Math.min(1, Math.max(0, volume));
+    }
+  } else {
+    a.volume = Math.min(1, Math.max(0, volume));
+  }
+
   a.play().catch(() => { /* user gesture / load races — caller doesn't care */ });
 
   let stopped = false;
@@ -35,6 +72,7 @@ export function playSfxCapped(
     if (fadeTimer !== null) { window.clearTimeout(fadeTimer); fadeTimer = null; }
     if (fadeInterval !== null) { window.clearInterval(fadeInterval); fadeInterval = null; }
     try { a.pause(); a.src = ""; } catch { /* noop */ }
+    try { mediaSource?.disconnect(); gainNode?.disconnect(); } catch { /* noop */ }
   }
 
   function stop() {
@@ -50,11 +88,13 @@ export function playSfxCapped(
     if (stopped) return;
     const steps = 10;
     const stepMs = FADE_MS / steps;
-    const startVol = a.volume;
+    const startVol = gainNode ? gainNode.gain.value : a.volume;
     let i = 0;
     fadeInterval = window.setInterval(() => {
       i += 1;
-      a.volume = Math.max(0, startVol * (1 - i / steps));
+      const v = Math.max(0, startVol * (1 - i / steps));
+      if (gainNode) gainNode.gain.value = v;
+      else a.volume = v;
       if (i >= steps) {
         stopped = true;
         cleanup();

@@ -84,7 +84,25 @@ export default function VideoPreview({
       const url = getSfxAsset(logo.sfxId)?.url;
       if (url) triggers.push({ time: logo.time, url });
     }
+    // Auto brand-logo SFX — fires when a detected brand mention reveals
+    // its overlay. Default whoosh; "none" mutes; other id picks a specific
+    // SFX from the library (matches the per-emoji pattern).
+    if ((effects.brandLogosDetect ?? true) && effects.brandSfxId !== "none") {
+      const sfxId = effects.brandSfxId ?? DEFAULT_SFX_FOR_KIND.whoosh;
+      const url = getSfxAsset(sfxId)?.url;
+      if (url) {
+        for (const ev of detectBrands(subtitles)) {
+          triggers.push({ time: ev.time, url });
+        }
+      }
+    }
     if (triggers.length === 0) return;
+    // Compensate for the combined lag of (a) HTMLVideoElement timeupdate
+    // firing only every ~250ms, and (b) HTMLAudio start latency (~50-100ms).
+    // Fire each trigger slightly EARLIER so the perceived hit lands on-beat
+    // with the word/element. Liat noted SFX feels late by a fraction.
+    const SFX_LEAD_MS = 120;
+    for (const trig of triggers) trig.time = Math.max(0, trig.time - SFX_LEAD_MS / 1000);
     triggers.sort((a, b) => a.time - b.time);
 
     // Per-trigger live handle from playSfxCapped — lets us stop a still-
@@ -129,6 +147,8 @@ export default function VideoPreview({
     effects?.elementSfxOverrides,
     effects?.lottieElements,
     effects?.customLogos,
+    effects?.brandLogosDetect,
+    effects?.brandSfxId,
     effects,
   ]);
 

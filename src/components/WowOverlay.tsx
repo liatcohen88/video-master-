@@ -81,11 +81,14 @@ export default function WowOverlay({
   );
 }
 
-/** 8 sparkle particles flying out in a circle. */
+/** 10 sparkle particles flying out in a circle from the subtitle area
+ *  (lower-third of the preview), not the geometric center. The subtitle
+ *  text is what the user is reading — the burst should radiate FROM that
+ *  word, not from a random point in the sky. */
 function Burst({ drop: _drop }: { drop: BeatDrop }) {
   const N = 10;
   return (
-    <div className="absolute inset-0 grid place-items-center">
+    <div className="absolute inset-x-0 top-[72%] flex justify-center">
       <div className="relative w-1 h-1">
         {Array.from({ length: N }).map((_, i) => {
           const angle = (i / N) * Math.PI * 2;
