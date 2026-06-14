@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Print Lab – Loading</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;background:#07101d;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;}
+
+.scene{
+  position:relative;width:100%;max-width:520px;min-height:460px;
+  background:#07101d;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;overflow:hidden;padding:20px;
+}
+.bg-grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,120,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(0,120,255,.07) 1px,transparent 1px);
+  background-size:28px 28px;
+  -webkit-mask-image:radial-gradient(ellipse 90% 90% at 50% 50%,black 40%,transparent 100%);
+  mask-image:radial-gradient(ellipse 90% 90% at 50% 50%,black 40%,transparent 100%);
+}
+
+.printer{position:relative;width:340px;height:290px;z-index:2;flex-shrink:0;}
+
+.rail{position:absolute;top:0;bottom:50px;width:12px;border-radius:6px;background:linear-gradient(180deg,#2c5f9e,#1b3d6b 40%,#2c5f9e);box-shadow:0 0 14px rgba(44,95,158,.5);}
+.rail::before{content:'';position:absolute;top:8px;left:4px;right:4px;bottom:8px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 2px,transparent 2px,transparent 10px);border-radius:2px;}
+.rail-l{left:6px;}.rail-r{right:6px;}
+.rail-l::after,.rail-r::after{content:'';position:absolute;bottom:-6px;width:22px;height:10px;background:#1b3d6b;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.5);}
+.rail-l::after{left:0;}.rail-r::after{right:0;}
+
+.top-bar{position:absolute;top:0;left:6px;right:6px;height:12px;border-radius:6px;background:linear-gradient(180deg,#3070b0,#1b3d6b);box-shadow:0 0 20px rgba(44,95,158,.8),0 4px 8px rgba(0,0,0,.5);}
+.top-bar::after{content:'PL';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:6px;font-weight:900;letter-spacing:1px;color:rgba(0,229,255,.5);}
+
+.x-rail{position:absolute;top:26px;left:18px;right:18px;height:6px;border-radius:3px;background:#0f2240;border:1px solid rgba(44,95,158,.4);}
+
+.head{position:absolute;top:-18px;left:0;width:54px;height:60px;animation:head-slide 2.6s cubic-bezier(.37,0,.63,1) infinite;z-index:5;}
+@keyframes head-slide{0%{transform:translateX(0);}50%{transform:translateX(250px);}100%{transform:translateX(0);}}
+
+.tube{position:absolute;top:-24px;left:50%;transform:translateX(-50%);width:5px;height:28px;background:rgba(180,220,255,.2);border:1px solid rgba(180,220,255,.15);border-radius:2px;}
+.extruder{position:absolute;top:0;left:0;right:0;height:26px;border-radius:6px 6px 2px 2px;background:linear-gradient(135deg,#224070 0%,#2e5a96 50%,#1a3560 100%);border:1px solid rgba(44,95,158,.5);box-shadow:0 0 12px rgba(44,95,158,.4);display:flex;align-items:center;justify-content:center;gap:5px;overflow:hidden;}
+
+.fan{width:16px;height:16px;border-radius:50%;border:2px solid rgba(100,170,230,.35);background:rgba(0,0,0,.5);position:relative;overflow:hidden;animation:spin .45s linear infinite;flex-shrink:0;}
+.fan::before,.fan::after,.fan-b3{content:'';position:absolute;width:100%;height:2px;background:rgba(100,170,230,.55);top:50%;left:0;transform:translateY(-50%);}
+.fan::after{transform:translateY(-50%) rotate(60deg);}
+.fan-b3{position:absolute;width:100%;height:2px;background:rgba(100,170,230,.55);top:50%;left:0;transform:translateY(-50%) rotate(120deg);}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.heater{width:18px;height:14px;border-radius:3px;flex-shrink:0;animation:heat 1.1s ease-in-out infinite alternate;}
+@keyframes heat{from{background:#e64a19;box-shadow:0 0 6px rgba(230,74,25,.6);}to{background:#ff7043;box-shadow:0 0 14px rgba(255,112,67,.9);}}
+
+.nozzle{position:absolute;top:26px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;}
+.nozzle-body{width:8px;height:12px;background:linear-gradient(180deg,#ff7043,#e64a19);clip-path:polygon(12% 0%,88% 0%,100% 100%,0% 100%);}
+.nozzle-tip{width:4px;height:4px;background:#ff8a65;border-radius:0 0 50% 50%;}
+
+.extrusion{position:absolute;top:44px;left:50%;transform:translateX(-50%);width:4px;border-radius:2px;background:linear-gradient(180deg,#00e5ff,#0077ff);box-shadow:0 0 8px #00b0ff,0 0 16px #0044ff;animation:extrude 2.6s cubic-bezier(.37,0,.63,1) infinite;}
+@keyframes extrude{0%{height:14px;opacity:.9;}5%{height:7px;opacity:.5;}10%{height:16px;opacity:1;}90%{height:16px;opacity:1;}95%{height:7px;opacity:.5;}100%{height:14px;opacity:.9;}}
+
+.spool{position:absolute;right:-8px;top:10px;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#2a5a8a,#0d2040);border:3px solid #1b3d6b;box-shadow:0 0 8px rgba(44,95,158,.4);display:flex;align-items:center;justify-content:center;}
+.spool::after{content:'';width:12px;height:12px;border-radius:50%;background:#0d2040;border:2px solid #1b3d6b;}
+
+.temps{position:absolute;left:-62px;top:10px;display:flex;flex-direction:column;gap:5px;z-index:5;}
+.temp-row{font-size:8px;letter-spacing:.5px;color:rgba(44,95,158,.8);display:flex;flex-direction:column;gap:1px;}
+.temp-val{font-size:11px;font-weight:700;color:#ff7043;text-shadow:0 0 6px rgba(255,112,67,.6);}
+.temp-val.bed{color:#00aaff;text-shadow:0 0 6px rgba(0,170,255,.5);}
+
+.print-area{position:absolute;bottom:50px;left:18px;right:18px;height:190px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;}
+.printed{text-align:center;animation:build-up 8s ease-in-out infinite;position:relative;}
+@keyframes build-up{0%{clip-path:inset(100% 0 0 0);opacity:.3;}5%{clip-path:inset(90% 0 0 0);opacity:.6;}55%{clip-path:inset(0% 0 0 0);opacity:1;}85%{clip-path:inset(0% 0 0 0);opacity:1;}95%{clip-path:inset(0% 0 0 0);opacity:.2;}100%{clip-path:inset(100% 0 0 0);opacity:0;}}
+
+.word-print{display:block;font-family:'Arial Black',Impact,sans-serif;font-size:52px;font-weight:900;color:#00e5ff;letter-spacing:10px;text-shadow:0 0 12px rgba(0,229,255,.8),0 0 24px rgba(0,150,255,.5),0 0 48px rgba(0,80,255,.25);line-height:1;-webkit-text-stroke:1px rgba(0,180,255,.3);}
+.word-lab{display:block;font-family:'Arial Black',Impact,sans-serif;font-size:68px;font-weight:900;color:#00e5ff;letter-spacing:16px;text-shadow:0 0 12px rgba(0,229,255,.8),0 0 24px rgba(0,150,255,.5),0 0 48px rgba(0,80,255,.25);line-height:1;margin-top:-2px;-webkit-text-stroke:1px rgba(0,180,255,.3);}
+.domain-tag{font-size:9px;letter-spacing:3px;color:rgba(0,150,255,.45);margin-top:6px;animation:build-up 8s ease-in-out infinite;animation-delay:.8s;}
+
+.plate{position:absolute;bottom:12px;left:18px;right:18px;height:20px;border-radius:4px;background:linear-gradient(180deg,#162e50,#0c1e38);border:1px solid rgba(44,95,158,.4);overflow:hidden;}
+.plate::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(44,95,158,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(44,95,158,.25) 1px,transparent 1px);background-size:10px 10px;}
+.plate::before{content:'';position:absolute;bottom:0;left:0;right:0;height:8px;background:rgba(230,74,25,.1);filter:blur(2px);}
+
+.layer-panel{position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.layer-label{font-size:8px;letter-spacing:.5px;color:rgba(44,95,158,.7);}
+.layer-track{width:6px;height:110px;background:#0c1e38;border:1px solid rgba(44,95,158,.35);border-radius:3px;overflow:hidden;position:relative;}
+.layer-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(0deg,#00e5ff,#0044ff);border-radius:2px;box-shadow:0 0 8px #00b0ff;animation:lfill 8s ease-in-out infinite;}
+@keyframes lfill{0%{height:0%;}55%{height:100%;}85%{height:100%;}100%{height:0%;}}
+.layer-count{font-size:9px;color:rgba(0,229,255,.7);font-weight:700;}
+
+.progress-wrap{width:300px;margin-top:16px;z-index:3;}
+.progress-top{display:flex;justify-content:space-between;color:rgba(44,95,158,.7);font-size:9px;letter-spacing:2px;margin-bottom:4px;}
+.progress-track{height:4px;background:#0c1e38;border-radius:2px;border:1px solid rgba(44,95,158,.3);overflow:hidden;}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#0055cc,#00e5ff);box-shadow:0 0 8px #00b0ff;animation:pfill 8s ease-in-out infinite;}
+@keyframes pfill{0%{width:0%;}55%{width:96%;}85%{width:100%;}94%{width:100%;opacity:1;}99%{width:100%;opacity:0;}100%{width:0%;opacity:0;}}
+
+.status-row{display:flex;align-items:center;gap:8px;margin-top:10px;z-index:3;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00b0ff;animation:dpulse 1s ease-in-out infinite;}
+@keyframes dpulse{0%,100%{opacity:.4;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
+.status-txt{font-size:10px;letter-spacing:3px;color:rgba(0,180,255,.6);text-transform:uppercase;}
+
+.spark{position:absolute;pointer-events:none;z-index:20;border-radius:50%;background:#00e5ff;box-shadow:0 0 4px #00b0ff;}
+</style>
+</head>
+<body>
+<div class="scene" id="scene">
+  <div class="bg-grid"></div>
+
+  <div class="temps" style="position:absolute;left:calc(50% - 190px);top:calc(50% - 90px);z-index:5;">
+    <div class="temp-row"><span>נוזל</span><span class="temp-val">215°C</span></div>
+    <div class="temp-row" style="margin-top:6px;"><span>מגש</span><span class="temp-val bed">60°C</span></div>
+  </div>
+
+  <div class="printer" id="printer">
+    <div class="rail rail-l"></div>
+    <div class="rail rail-r"></div>
+    <div class="top-bar"></div>
+    <div class="x-rail">
+      <div class="head" id="head">
+        <div class="tube"></div>
+        <div class="extruder">
+          <div class="fan"><div class="fan-b3"></div></div>
+          <div class="heater"></div>
+        </div>
+        <div class="nozzle">
+          <div class="nozzle-body"></div>
+          <div class="nozzle-tip"></div>
+        </div>
+        <div class="extrusion"></div>
+      </div>
+    </div>
+    <div class="spool"></div>
+    <div class="layer-panel">
+      <div class="layer-label">שכבות</div>
+      <div class="layer-track"><div class="layer-fill"></div></div>
+      <div class="layer-count" id="lcount">0/32</div>
+    </div>
+    <div class="print-area">
+      <div class="printed">
+        <span class="word-print">PRINT</span>
+        <span class="word-lab">LAB</span>
+      </div>
+      <div class="domain-tag">print-lab.co.il</div>
+    </div>
+    <div class="plate"></div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-top"><span>הדפסה</span><span id="pct">0%</span></div>
+    <div class="progress-track"><div class="progress-fill"></div></div>
+  </div>
+
+  <div class="status-row">
+    <div class="status-dot"></div>
+    <div class="status-txt" id="statusTxt">מדפיס...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const CYCLE=8000,TOTAL=32;
+  const lc=document.getElementById('lcount');
+  const pc=document.getElementById('pct');
+  const st=document.getElementById('statusTxt');
+  const scene=document.getElementById('scene');
+  const head=document.getElementById('head');
+
+  const msgs=['מדפיס...','מחמם נוזל...','בונה שכבות...','מייצב...','מדפיס...'];
+  let mi=0;setInterval(()=>{mi=(mi+1)%msgs.length;st.textContent=msgs[mi];},2000);
+
+  function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+  function tick(){
+    const t=(Date.now()%CYCLE)/CYCLE;
+    let p=t<.55?ease(t/.55):t<.85?1:t<.95?1:Math.max(0,1-(t-.95)/.05);
+    lc.textContent=Math.round(p*TOTAL)+'/'+TOTAL;
+    pc.textContent=Math.round(p*100)+'%';
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  function spark(){
+    const hr=head.getBoundingClientRect(),sr=scene.getBoundingClientRect();
+    const cx=hr.left-sr.left+hr.width/2,cy=hr.bottom-sr.top+12;
+    const s=document.createElement('div');s.className='spark';
+    const sz=2+Math.random()*2;
+    s.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+cx+'px;top:'+cy+'px;';
+    scene.appendChild(s);
+    const ang=(Math.random()*140+20)*Math.PI/180;
+    const spd=20+Math.random()*25;
+    const vx=Math.cos(ang-Math.PI/2)*spd,vy=Math.sin(ang-Math.PI/2)*spd;
+    const life=500+Math.random()*400,t0=performance.now();
+    function a(now){
+      const p=(now-t0)/life;if(p>=1){s.remove();return;}
+      s.style.left=(cx+vx*p)+'px';s.style.top=(cy+vy*p+35*p*p)+'px';
+      s.style.opacity=1-p;requestAnimationFrame(a);
+    }
+    requestAnimationFrame(a);
+  }
+  setInterval(spark,90);
+})();
+</script>
+</body>
+</html>

@@ -1,492 +1,670 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
-/* ── tiny helpers ── */
-function useLoopAnim(intervalMs: number, cb: () => void) {
+/* ─── subtitle cycle data ─── */
+const SUBTITLE_CYCLE = [
+  { text: "חייבים לראות את זה!", color: "#FFD700", anim: "sub-pop 320ms cubic-bezier(0.34,1.56,0.64,1) both", icon: null },
+  { text: "לא תאמינו כמה זה קל", color: "#7BE8FF", anim: "sub-bounce 500ms cubic-bezier(0.34,1.56,0.64,1) both", icon: null },
+  { text: "אני לא מאמין שזה קרה!", color: "#fff", anim: "sub-slide-up 350ms ease-out both", icon: "🎭", drama: true },
+  { text: "פצצה של פיצ'ר!", color: "#FF6B6B", anim: "sub-zoom-burst 350ms cubic-bezier(0.25,0.46,0.45,0.94) both", icon: null },
+  { text: "וואו זה מטורף!", color: "#FFD700", anim: "sub-pop-strong 300ms cubic-bezier(0.34,1.56,0.64,1) both", icon: null, beat: true },
+  { text: "קיבלתי פרס! מדהים", color: "#C3B1FF", anim: "sub-wave 500ms ease-in-out both", icon: "⭐" },
+  { text: "קדימה נעשה היסטוריה", color: "#98FF98", anim: "sub-slide-left 350ms ease-out both", icon: null },
+  { text: "אש! זה עובד לבד!", color: "#FFA040", anim: "sub-pop 320ms cubic-bezier(0.34,1.56,0.64,1) both", icon: "🔥" },
+];
+
+const CHIPS = [
+  { label: "כתוביות אוטומטיות", icon: "✍️", side: "right", delay: 0.3 },
+  { label: "Beat-drop zoom", icon: "🎵", side: "right", delay: 0.7 },
+  { label: "23 אייקוני Lottie", icon: "⭐", side: "right", delay: 1.1 },
+  { label: "ייצוא FFmpeg מקצועי", icon: "🎬", side: "left", delay: 0.5 },
+  { label: "Drama mode AI", icon: "🎭", side: "left", delay: 0.9 },
+  { label: "רקעים דינמיים", icon: "✨", side: "left", delay: 1.3 },
+];
+
+const SUB_ANIMS_LIST = [
+  { id: "pop", label: "פופ", emoji: "💥", css: "sub-pop 320ms cubic-bezier(0.34,1.56,0.64,1) both", color: "#FFD700", text: "חייבים לראות!" },
+  { id: "bounce", label: "באונס", emoji: "🏀", css: "sub-bounce 500ms cubic-bezier(0.34,1.56,0.64,1) both", color: "#7BE8FF", text: "לא תאמין!" },
+  { id: "slide-up", label: "Slide up", emoji: "⬆️", css: "sub-slide-up 350ms ease-out both", color: "#98FF98", text: "רגע אחד..." },
+  { id: "slide-left", label: "Slide left", emoji: "⬅️", css: "sub-slide-left 350ms ease-out both", color: "#FF9EFF", text: "קדימה נצא!" },
+  { id: "zoom-burst", label: "Zoom burst", emoji: "🔭", css: "sub-zoom-burst 350ms cubic-bezier(0.25,0.46,0.45,0.94) both", color: "#FF6B6B", text: "פצצה!" },
+  { id: "wave", label: "Wave", emoji: "🌊", css: "sub-wave 500ms ease-in-out both", color: "#C3B1FF", text: "כיף מטורף" },
+  { id: "pop-strong", label: "פופ חזק", emoji: "💣", css: "sub-pop-strong 300ms cubic-bezier(0.34,1.56,0.64,1) both", color: "#FFA040", text: "אש!!!" },
+  { id: "slide-right", label: "Slide right", emoji: "➡️", css: "sub-slide-right 350ms ease-out both", color: "#40FFD4", text: "עוד רגע!" },
+];
+
+/* ─── Browser hero mockup ─── */
+function BrowserHero() {
+  const [subIndex, setSubIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [beatZoom, setBeatZoom] = useState(false);
+  const [dramaFlash, setDramaFlash] = useState(false);
+  const [particles, setParticles] = useState<{ x: number; y: number; color: string }[]>([]);
+  const [chips, setChipsVisible] = useState(false);
+  const subRef = useRef<HTMLSpanElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
+
   useEffect(() => {
-    cb();
-    const id = setInterval(cb, intervalMs);
+    const t = setTimeout(() => setChipsVisible(true), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const triggerParticles = useCallback(() => {
+    const colors = ["#AFA9EC", "#FFD700", "#FF6B6B", "#7BE8FF", "#98FF98"];
+    setParticles(Array.from({ length: 10 }, (_, i) => ({
+      x: 15 + Math.round((i / 10) * 70),
+      y: 30 + Math.round(Math.random() * 40),
+      color: colors[i % colors.length],
+    })));
+    setTimeout(() => setParticles([]), 1200);
+  }, []);
+
+  useEffect(() => {
+    const cycle = () => {
+      setVisible(false);
+      setTimeout(() => {
+        setSubIndex(prev => {
+          const next = (prev + 1) % SUBTITLE_CYCLE.length;
+          const sub = SUBTITLE_CYCLE[next];
+          if (sub.beat) {
+            setBeatZoom(true);
+            setTimeout(() => setBeatZoom(false), 700);
+          }
+          if (sub.drama) {
+            setDramaFlash(true);
+            setTimeout(() => setDramaFlash(false), 1200);
+          }
+          if (sub.icon === "⭐") triggerParticles();
+          return next;
+        });
+        setVisible(true);
+        setTimeout(() => {
+          if (subRef.current) {
+            const el = subRef.current;
+            el.style.animation = "none";
+            void el.offsetWidth;
+            el.style.animation = SUBTITLE_CYCLE[(subIndex + 1) % SUBTITLE_CYCLE.length].anim;
+          }
+        }, 20);
+      }, 200);
+    };
+    const id = setInterval(cycle, 2800);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalMs]);
+  }, [subIndex, triggerParticles]);
+
+  const current = SUBTITLE_CYCLE[subIndex];
+
+  return (
+    <div style={{ position: "relative", width: "100%", maxWidth: 900, margin: "0 auto" }}>
+
+      {/* floating chips RIGHT */}
+      <div style={{ position: "absolute", right: -10, top: "12%", zIndex: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+        {CHIPS.filter(c => c.side === "right").map((chip, i) => (
+          <div
+            key={chip.label}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 100,
+              padding: "7px 14px",
+              fontSize: 12,
+              color: "#fff",
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              transform: chips ? "translateX(0)" : "translateX(60px)",
+              opacity: chips ? 1 : 0,
+              transition: `transform 0.6s cubic-bezier(0.22,1,0.36,1) ${chip.delay}s, opacity 0.5s ease ${chip.delay}s`,
+              animation: chips ? `chip-float 3s ease-in-out ${i * 0.4}s infinite` : "none",
+            }}
+          >
+            <span>{chip.icon}</span>
+            <span style={{ opacity: 0.85 }}>{chip.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* floating chips LEFT */}
+      <div style={{ position: "absolute", left: -10, top: "20%", zIndex: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+        {CHIPS.filter(c => c.side === "left").map((chip, i) => (
+          <div
+            key={chip.label}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 100,
+              padding: "7px 14px",
+              fontSize: 12,
+              color: "#fff",
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              transform: chips ? "translateX(0)" : "translateX(-60px)",
+              opacity: chips ? 1 : 0,
+              transition: `transform 0.6s cubic-bezier(0.22,1,0.36,1) ${chip.delay}s, opacity 0.5s ease ${chip.delay}s`,
+              animation: chips ? `chip-float 3.2s ease-in-out ${i * 0.5 + 0.2}s infinite` : "none",
+            }}
+          >
+            <span>{chip.icon}</span>
+            <span style={{ opacity: 0.85 }}>{chip.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* browser frame */}
+      <div style={{
+        borderRadius: "14px 14px 10px 10px",
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.12)",
+        boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
+      }}>
+
+        {/* browser chrome bar */}
+        <div style={{
+          background: "#1a1a2e",
+          padding: "10px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#FF5F57" }} />
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#FEBC2E" }} />
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28C840" }} />
+          </div>
+          <div style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.06)",
+            borderRadius: 6,
+            padding: "5px 12px",
+            fontSize: 12,
+            color: "rgba(255,255,255,0.4)",
+            textAlign: "center",
+            fontFamily: "monospace",
+          }}>
+            videomaster.app/editor
+          </div>
+        </div>
+
+        {/* editor UI */}
+        <div style={{ background: "#0d0d1a", display: "flex", height: 480 }}>
+
+          {/* sidebar */}
+          <div style={{
+            width: 52,
+            background: "#111128",
+            borderLeft: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            paddingTop: 16,
+            gap: 20,
+          }}>
+            {["✂️","🎨","✍️","🎵","⚙️"].map((icon, i) => (
+              <div key={i} style={{
+                width: 36, height: 36, borderRadius: 8,
+                background: i === 2 ? "rgba(124,58,237,0.3)" : "rgba(255,255,255,0.04)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, cursor: "default",
+                border: i === 2 ? "1px solid rgba(124,58,237,0.5)" : "1px solid transparent",
+              }}>
+                {icon}
+              </div>
+            ))}
+          </div>
+
+          {/* main area */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+
+            {/* top toolbar */}
+            <div style={{
+              height: 40,
+              background: "#111128",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "0 14px",
+            }}>
+              {["ייצוא","תבנית","פונט","אנימציה"].map((btn, i) => (
+                <div key={i} style={{
+                  padding: "4px 10px",
+                  borderRadius: 5,
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  cursor: "default",
+                }}>
+                  {btn}
+                </div>
+              ))}
+              <div style={{ marginRight: "auto" }} />
+              <div style={{
+                padding: "4px 16px",
+                borderRadius: 5,
+                fontSize: 11,
+                color: "#fff",
+                background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                cursor: "default",
+                fontWeight: 600,
+              }}>
+                ▶ ייצוא
+              </div>
+            </div>
+
+            {/* video + right panel */}
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+              {/* video preview */}
+              <div style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#070710",
+                padding: 20,
+                position: "relative",
+              }}>
+                {/* the video frame */}
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: 440,
+                    aspectRatio: "16/9",
+                    background: "linear-gradient(135deg, #1a1a3e 0%, #0d0d20 50%, #1a1030 100%)",
+                    borderRadius: 8,
+                    position: "relative",
+                    overflow: "hidden",
+                    transform: beatZoom ? "scale(1.05)" : "scale(1)",
+                    filter: dramaFlash ? "grayscale(1) brightness(0.75)" : "grayscale(0) brightness(1)",
+                    transition: "transform 0.25s ease, filter 0.3s ease",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {/* scanlines */}
+                  <div style={{
+                    position: "absolute", inset: 0, opacity: 0.04,
+                    backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.5) 2px,rgba(255,255,255,0.5) 3px)",
+                    pointerEvents: "none",
+                  }} />
+
+                  {/* fake person silhouette */}
+                  <div style={{
+                    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+                    width: "30%", height: "75%",
+                    background: "linear-gradient(180deg, rgba(100,80,160,0.3), rgba(60,40,120,0.6))",
+                    borderRadius: "60% 60% 0 0",
+                    opacity: 0.5,
+                  }} />
+
+                  {/* particles */}
+                  {particles.map((p, i) => (
+                    <div key={i} style={{
+                      position: "absolute",
+                      left: `${p.x}%`, top: `${p.y}%`,
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: p.color,
+                      animation: "particle-up 1.2s ease-out both",
+                    }} />
+                  ))}
+
+                  {/* beat indicator */}
+                  {beatZoom && (
+                    <div style={{
+                      position: "absolute", top: 8, right: 8,
+                      background: "rgba(255,60,60,0.85)",
+                      borderRadius: 4,
+                      padding: "2px 6px",
+                      fontSize: 9,
+                      color: "#fff",
+                      fontWeight: 700,
+                      letterSpacing: "0.05em",
+                    }}>
+                      ● BEAT
+                    </div>
+                  )}
+
+                  {/* drama badge */}
+                  {dramaFlash && (
+                    <div style={{
+                      position: "absolute", top: 8, left: 8,
+                      background: "rgba(0,0,0,0.7)",
+                      borderRadius: 4,
+                      padding: "2px 6px",
+                      fontSize: 9,
+                      color: "#aaa",
+                    }}>
+                      🎬 DRAMA
+                    </div>
+                  )}
+
+                  {/* lottie icon */}
+                  {current.icon && visible && (
+                    <span
+                      ref={iconRef}
+                      style={{
+                        position: "absolute",
+                        bottom: "28%",
+                        right: "10%",
+                        fontSize: 32,
+                        display: "inline-block",
+                        animation: "lottie-pop 450ms cubic-bezier(0.175,0.885,0.32,1.275) both",
+                      }}
+                    >
+                      {current.icon}
+                    </span>
+                  )}
+
+                  {/* subtitle */}
+                  <div style={{
+                    position: "absolute", bottom: "12%",
+                    width: "100%", textAlign: "center",
+                    padding: "0 12%",
+                  }}>
+                    {visible && (
+                      <span
+                        ref={subRef}
+                        style={{
+                          display: "inline-block",
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: current.color,
+                          textShadow: `0 0 24px ${current.color}88, 0 2px 8px rgba(0,0,0,0.9)`,
+                          fontFamily: "var(--font-heebo), system-ui, sans-serif",
+                          animation: current.anim,
+                          lineHeight: 1.2,
+                          background: "rgba(0,0,0,0.4)",
+                          borderRadius: 6,
+                          padding: "4px 12px",
+                        }}
+                      >
+                        {current.text}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* progress bar */}
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0, height: 3,
+                    background: "rgba(255,255,255,0.1)",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      background: "linear-gradient(90deg, #7C3AED, #C084FC)",
+                      animation: "progress-bar 2.8s linear infinite",
+                    }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* right panel */}
+              <div style={{
+                width: 160,
+                background: "#111128",
+                borderRight: "1px solid rgba(255,255,255,0.06)",
+                padding: 12,
+                overflowY: "auto",
+              }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  אנימציה
+                </div>
+                {["פופ 💥","באונס 🏀","Zoom burst","Slide up","Wave 🌊"].map((opt, i) => (
+                  <div key={i} style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    color: i === 0 ? "#fff" : "rgba(255,255,255,0.45)",
+                    background: i === 0 ? "rgba(124,58,237,0.3)" : "transparent",
+                    border: i === 0 ? "1px solid rgba(124,58,237,0.4)" : "1px solid transparent",
+                    marginBottom: 3,
+                    cursor: "default",
+                  }}>
+                    {opt}
+                  </div>
+                ))}
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "14px 0 8px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  אפקטים
+                </div>
+                {["Beat-drop ✓","Drama ✓","Lottie ✓"].map((opt, i) => (
+                  <div key={i} style={{
+                    padding: "5px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    color: "#98FF98",
+                    background: "rgba(0,255,100,0.07)",
+                    border: "1px solid rgba(0,255,100,0.15)",
+                    marginBottom: 3,
+                    cursor: "default",
+                  }}>
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* timeline */}
+            <div style={{
+              height: 80,
+              background: "#0d0d1a",
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              padding: "8px 14px",
+            }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 6 }}>0:00 — 0:45</div>
+              <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                {/* video track */}
+                <div style={{
+                  height: 28, flex: 1,
+                  background: "linear-gradient(135deg, #1e1e4a, #2d1b69)",
+                  borderRadius: 4,
+                  border: "1px solid rgba(124,58,237,0.3)",
+                  display: "flex", alignItems: "center", padding: "0 8px",
+                  fontSize: 10, color: "rgba(255,255,255,0.5)",
+                }}>
+                  🎬 וידאו ראשי
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 3, marginTop: 4, alignItems: "center" }}>
+                {/* subtitle clips */}
+                {[35, 22, 28, 18, 32].map((w, i) => (
+                  <div key={i} style={{
+                    height: 18,
+                    width: `${w}%`,
+                    background: i % 2 === 0 ? "rgba(255,215,0,0.15)" : "rgba(124,58,237,0.15)",
+                    borderRadius: 3,
+                    border: `1px solid ${i % 2 === 0 ? "rgba(255,215,0,0.3)" : "rgba(124,58,237,0.3)"}`,
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.35)",
+                    display: "flex", alignItems: "center", padding: "0 4px",
+                    overflow: "hidden", whiteSpace: "nowrap",
+                  }}>
+                    כתובית {i + 1}
+                  </div>
+                ))}
+              </div>
+
+              {/* playhead */}
+              <div style={{
+                position: "absolute",
+                top: 0, bottom: 0,
+                width: 2,
+                background: "#7C3AED",
+                animation: "playhead-move 2.8s linear infinite",
+                boxShadow: "0 0 6px rgba(124,58,237,0.8)",
+              }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function replayAnim(el: HTMLElement | null, animation: string) {
-  if (!el) return;
-  el.style.animation = "none";
-  void el.offsetWidth;
-  el.style.animation = animation;
-}
-
-/* ── types ── */
-type SubAnim = {
-  id: string;
-  label: string;
-  emoji: string;
-  css: string;
-  color: string;
-  text: string;
-};
-
-type IntroAnim = {
-  id: string;
-  label: string;
-  emoji: string;
-  desc: string;
-  css: string;
-};
-
-/* ── data ── */
-const SUB_ANIMS: SubAnim[] = [
-  { id: "pop",        label: "פופ",         emoji: "💥", css: "sub-pop 320ms cubic-bezier(0.34,1.56,0.64,1) both",        color: "#FFD700", text: "חייבים לראות!" },
-  { id: "bounce",     label: "באונס",       emoji: "🏀", css: "sub-bounce 500ms cubic-bezier(0.34,1.56,0.64,1) both",     color: "#7BE8FF", text: "לא תאמין!" },
-  { id: "slide-up",   label: "Slide up",    emoji: "⬆️", css: "sub-slide-up 350ms ease-out both",                         color: "#98FF98", text: "רגע אחד..." },
-  { id: "slide-left", label: "Slide left",  emoji: "⬅️", css: "sub-slide-left 350ms ease-out both",                       color: "#FF9EFF", text: "קדימה נצא!" },
-  { id: "zoom-burst", label: "Zoom burst",  emoji: "🔭", css: "sub-zoom-burst 350ms cubic-bezier(0.25,0.46,0.45,0.94) both", color: "#FF6B6B", text: "פצצה!" },
-  { id: "wave",       label: "Wave",        emoji: "🌊", css: "sub-wave 500ms ease-in-out both",                          color: "#C3B1FF", text: "כיף מטורף" },
-  { id: "pop-strong", label: "פופ חזק",    emoji: "💣", css: "sub-pop-strong 300ms cubic-bezier(0.34,1.56,0.64,1) both",  color: "#FFA040", text: "אש!!!" },
-  { id: "slide-right",label: "Slide right", emoji: "➡️", css: "sub-slide-right 350ms ease-out both",                      color: "#40FFD4", text: "עוד רגע!" },
-];
-
-const INTRO_ANIMS: IntroAnim[] = [
-  { id: "punch",   label: "Punch zoom",   emoji: "👊", desc: "MrBeast style",         css: "intro-punch 700ms cubic-bezier(0.22,1,0.36,1) both" },
-  { id: "shake",   label: "Shake",        emoji: "💥", desc: "אגרסיבי ודרמטי",       css: "intro-shake 500ms ease both" },
-  { id: "flash",   label: "Flash white",  emoji: "⚡", desc: "פלאש שמגלה הכל",       css: "intro-flash 600ms ease both" },
-  { id: "iris",    label: "Iris open",    emoji: "🎬", desc: "עיגול קולנועי",         css: "intro-iris 600ms ease both" },
-  { id: "fade",    label: "Fade in",      emoji: "🌅", desc: "כניסה קלאסית ונקייה",  css: "intro-fade 600ms ease both" },
-  { id: "slide-up",label: "Slide up",     emoji: "📱", desc: "נכנס מלמטה",           css: "intro-slide-up 500ms cubic-bezier(0.22,1,0.36,1) both" },
-];
-
-const AI_EFFECTS = [
-  {
-    id: "beat",
-    label: "Beat-drop zoom",
-    emoji: "🎵",
-    badge: "AI",
-    badgeColor: "#7C3AED",
-    desc: "מזהה מילות כוח בטרנסקריפט — \"וואו\", \"אש\", \"מטורף\" — ומזום בדיוק על הבית",
-    demo: "beat",
-  },
-  {
-    id: "drama",
-    label: "Drama mode",
-    emoji: "🎭",
-    badge: "AI",
-    badgeColor: "#7C3AED",
-    desc: "מזהה משפטי דרמה → גרייסקייל + מוסיקה דרמטית. \"אני לא מאמין שזה קרה לי\"",
-    demo: "drama",
-  },
-  {
-    id: "lottie",
-    label: "אייקון חכם",
-    emoji: "⭐",
-    badge: "Lottie",
-    badgeColor: "#059669",
-    desc: "מזהה הקשר מהטרנסקריפט ומוסיף אייקון וקטורי מונפש אוטומטית — 23 אייקונים",
-    demo: "lottie",
-  },
-  {
-    id: "particles",
-    label: "Particle burst",
-    emoji: "✨",
-    badge: "AI",
-    badgeColor: "#7C3AED",
-    desc: "פיצוץ חלקיקים על מומנטים מרגשים — חתונה, לידה, קידום, ניצחון",
-    demo: "particles",
-  },
-];
-
-const BACKGROUNDS = [
-  { id: "sunset",   label: "Sunset",   colors: ["#FF6B35", "#F7C59F", "#EFEFD0"] },
-  { id: "cyber",    label: "Cyber",    colors: ["#0a0a1a", "#1a0a2e", "#16213e"] },
-  { id: "bokeh",    label: "Bokeh",    colors: ["#1a1a2e", "#16213e", "#0f3460"] },
-  { id: "wave",     label: "Wave",     colors: ["#4facfe", "#00f2fe", "#a18cd1"] },
-  { id: "particles",label: "Particles",colors: ["#0c0c0c", "#1a1a1a", "#111"] },
-  { id: "mesh",     label: "Mesh",     colors: ["#667eea", "#764ba2", "#f093fb"] },
-];
-
-/* ── SubtitleDemo card ── */
-function SubtitleCard({ anim, index }: { anim: SubAnim; index: number }) {
-  const textRef = useRef<HTMLSpanElement>(null);
-
-  useLoopAnim(2800 + index * 300, () => {
-    replayAnim(textRef.current, anim.css);
-  });
+/* ─── small subtitle demo card ─── */
+function SubCard({ anim, index }: { anim: typeof SUB_ANIMS_LIST[0]; index: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const play = () => {
+      if (!ref.current) return;
+      ref.current.style.animation = "none";
+      void ref.current.offsetWidth;
+      ref.current.style.animation = anim.css;
+    };
+    play();
+    const id = setInterval(play, 2600 + index * 280);
+    return () => clearInterval(id);
+  }, [anim.css, index]);
 
   return (
     <div
-      className="group relative overflow-hidden rounded-2xl cursor-pointer select-none"
+      className="group relative overflow-hidden rounded-xl cursor-pointer"
       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-      onClick={() => replayAnim(textRef.current, anim.css)}
+      onClick={() => {
+        if (!ref.current) return;
+        ref.current.style.animation = "none";
+        void ref.current.offsetWidth;
+        ref.current.style.animation = anim.css;
+      }}
     >
-      {/* preview area */}
-      <div className="relative flex items-center justify-center" style={{ height: 110, background: "rgba(0,0,0,0.5)" }}>
-        {/* fake video bars */}
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.15) 3px, rgba(255,255,255,0.15) 4px)",
-        }} />
+      <div style={{ height: 90, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, opacity: 0.08, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.2) 3px,rgba(255,255,255,0.2) 4px)" }} />
         <span
-          ref={textRef}
-          className="relative z-10 font-bold text-center px-3"
-          style={{
-            fontSize: 20,
-            color: anim.color,
-            textShadow: `0 0 20px ${anim.color}88, 0 2px 8px rgba(0,0,0,0.9)`,
-            fontFamily: "var(--font-heebo), sans-serif",
-            display: "inline-block",
-          }}
+          ref={ref}
+          style={{ fontSize: 18, fontWeight: 700, color: anim.color, textShadow: `0 0 16px ${anim.color}88`, fontFamily: "var(--font-heebo), sans-serif", display: "inline-block", padding: "3px 10px" }}
         >
           {anim.text}
         </span>
       </div>
-
-      {/* info */}
-      <div className="px-3 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 14 }}>{anim.emoji}</span>
-          <span className="font-semibold text-white" style={{ fontSize: 13 }}>{anim.label}</span>
+      <div style={{ padding: "8px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13 }}>{anim.emoji}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{anim.label}</span>
         </div>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>לחץ לחזרה</p>
-      </div>
-
-      {/* replay hint on hover */}
-      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(124,58,237,0.8)", color: "#fff" }}>↺</span>
+        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>לחץ לחזרה</p>
       </div>
     </div>
   );
 }
 
-/* ── IntroDemo card ── */
-function IntroCard({ anim, index }: { anim: IntroAnim; index: number }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  useLoopAnim(3500 + index * 400, () => {
-    const el = boxRef.current;
-    if (!el) return;
-    el.style.animation = "none";
-    void el.offsetWidth;
-    el.style.animation = `${anim.css}`;
-  });
-
-  return (
-    <div
-      className="group relative overflow-hidden rounded-2xl cursor-pointer"
-      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-      onClick={() => {
-        const el = boxRef.current;
-        if (!el) return;
-        el.style.animation = "none";
-        void el.offsetWidth;
-        el.style.animation = anim.css;
-      }}
-    >
-      <div className="relative flex items-center justify-center" style={{ height: 110, background: "rgba(0,0,0,0.6)", overflow: "hidden" }}>
-        <div
-          ref={boxRef}
-          className="rounded-xl flex items-center justify-center"
-          style={{
-            width: "75%", height: 70,
-            background: "linear-gradient(135deg, #1e1e3a, #2d1b69)",
-            border: "1px solid rgba(124,58,237,0.4)",
-            transformOrigin: "center center",
-          }}
-        >
-          <span className="text-white font-bold text-sm opacity-70">תוכן הוידאו שלך</span>
-        </div>
-      </div>
-      <div className="px-3 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 14 }}>{anim.emoji}</span>
-          <span className="font-semibold text-white" style={{ fontSize: 13 }}>{anim.label}</span>
-        </div>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{anim.desc}</p>
-      </div>
-    </div>
-  );
-}
-
-/* ── AI effect card ── */
-function AICard({ effect }: { effect: typeof AI_EFFECTS[0] }) {
-  const demoRef = useRef<HTMLDivElement>(null);
-  const [particles, setParticles] = useState<{ x: number; y: number; color: string; delay: number }[]>([]);
-
-  useLoopAnim(3000, () => {
-    if (effect.demo === "particles") {
-      const colors = ["#AFA9EC", "#FFD700", "#FF6B6B", "#7BE8FF", "#98FF98", "#FF9EFF"];
-      setParticles(
-        Array.from({ length: 14 }, (_, i) => ({
-          x: 5 + Math.floor((i / 14) * 90),
-          y: 10 + Math.floor(Math.random() * 65),
-          color: colors[i % colors.length],
-          delay: i * 80,
-        }))
-      );
-      setTimeout(() => setParticles([]), 1800);
-      return;
-    }
-    if (demoRef.current) {
-      demoRef.current.style.animation = "none";
-      void demoRef.current.offsetWidth;
-      if (effect.demo === "beat") demoRef.current.style.animation = "beat-drop-zoom 800ms ease both";
-      if (effect.demo === "drama") demoRef.current.style.animation = "drama-flash 1200ms ease both";
-      if (effect.demo === "lottie") demoRef.current.style.animation = "lottie-pop 500ms cubic-bezier(0.175,0.885,0.32,1.275) both";
-    }
-  });
-
-  return (
-    <div
-      className="group relative overflow-hidden rounded-2xl"
-      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
-      <div
-        className="relative flex items-center justify-center gap-3"
-        style={{ height: 120, background: "rgba(0,0,0,0.6)", overflow: "hidden" }}
-      >
-        {effect.demo === "beat" && (
-          <div ref={demoRef} className="flex items-center gap-2">
-            <span className="text-xl" style={{ color: "#FF6B6B", fontSize: 11, opacity: 0.8 }}>🎵 BEAT</span>
-            <span className="font-bold" style={{ fontSize: 20, color: "#FFD700", fontFamily: "var(--font-heebo), sans-serif", textShadow: "0 0 20px #FFD70088" }}>
-              וואו זה מטורף!
-            </span>
-          </div>
-        )}
-        {effect.demo === "drama" && (
-          <div ref={demoRef} style={{ textAlign: "center" }}>
-            <span className="font-bold" style={{ fontSize: 16, color: "#fff", fontFamily: "var(--font-heebo), sans-serif" }}>
-              אני לא מאמין שזה קרה לי
-            </span>
-            <div style={{ fontSize: 10, color: "#aaa", marginTop: 4 }}>🎬 DRAMA MODE</div>
-          </div>
-        )}
-        {effect.demo === "lottie" && (
-          <div ref={demoRef} className="flex items-center gap-2">
-            <span style={{ fontSize: 42, display: "inline-block" }}>⭐</span>
-            <span className="font-bold" style={{ fontSize: 18, color: "#fff", fontFamily: "var(--font-heebo), sans-serif" }}>
-              קיבלתי פרס!
-            </span>
-          </div>
-        )}
-        {effect.demo === "particles" && (
-          <div className="absolute inset-0" style={{ overflow: "hidden" }}>
-            {particles.map((p, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full"
-                style={{
-                  left: `${p.x}%`,
-                  top: `${p.y}%`,
-                  width: 7, height: 7,
-                  background: p.color,
-                  animation: `particle-fly 1.4s ease-out ${p.delay}ms both`,
-                }}
-              />
-            ))}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="font-bold" style={{ fontSize: 18, color: "#fff", fontFamily: "var(--font-heebo), sans-serif" }}>
-                קנינו בית! 🏠
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="px-3 py-3">
-        <div className="flex items-center gap-2 mb-1">
-          <span
-            className="text-xs font-bold px-2 py-0.5 rounded-full"
-            style={{ background: effect.badgeColor, color: "#fff", fontSize: 10 }}
-          >
-            {effect.badge}
-          </span>
-          <span className="font-semibold text-white" style={{ fontSize: 13 }}>{effect.label}</span>
-        </div>
-        <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>{effect.desc}</p>
-      </div>
-    </div>
-  );
-}
-
-/* ── Background thumbnail ── */
-function BgThumb({ bg }: { bg: typeof BACKGROUNDS[0] }) {
-  return (
-    <div
-      className="rounded-xl overflow-hidden relative cursor-pointer group"
-      style={{
-        height: 80,
-        background: `linear-gradient(135deg, ${bg.colors[0]}, ${bg.colors[1]}, ${bg.colors[2]})`,
-        border: "1px solid rgba(255,255,255,0.1)",
-      }}
-    >
-      <div className="absolute inset-0 flex items-end p-2">
-        <span className="text-xs font-semibold text-white" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{bg.label}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── Main page ── */
+/* ─── main page ─── */
 export default function AnimationPreviewPage() {
   return (
     <>
       <style>{`
-        /* ─── page resets ─── */
         body { background: #070710 !important; }
 
-        /* ─── intro keyframes ─── */
-        @keyframes intro-punch {
-          0%   { transform: scale(1.45); }
-          100% { transform: scale(1); }
-        }
-        @keyframes intro-shake {
-          0%   { transform: translate(0,0) rotate(0); }
-          10%  { transform: translate(-7px, 5px) rotate(-1.5deg); }
-          20%  { transform: translate(6px,-4px) rotate(1.2deg); }
-          30%  { transform: translate(-5px, 6px) rotate(-1deg); }
-          45%  { transform: translate(3px,-3px) rotate(0.5deg); }
-          60%  { transform: translate(-2px, 2px); }
-          80%  { transform: translate(1px,-1px); }
-          100% { transform: translate(0,0) rotate(0); }
-        }
-        @keyframes intro-flash {
-          0%   { filter: brightness(12) saturate(0); opacity: 0.95; }
-          100% { filter: brightness(1) saturate(1); opacity: 1; }
-        }
-        @keyframes intro-iris {
-          from { clip-path: circle(0% at 50% 50%); }
-          to   { clip-path: circle(80% at 50% 50%); }
-        }
-        @keyframes intro-fade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes intro-slide-up {
-          from { transform: translateY(60px); opacity: 0; }
-          to   { transform: translateY(0); opacity: 1; }
-        }
-
-        /* ─── AI effect keyframes ─── */
-        @keyframes beat-drop-zoom {
-          0%,100% { transform: scale(1); }
-          15%,55% { transform: scale(1.08); }
-        }
-        @keyframes drama-flash {
-          0%,100% { filter: grayscale(0) brightness(1); }
-          25%,75% { filter: grayscale(1) brightness(0.75); }
+        @keyframes chip-float {
+          0%,100% { transform: translateY(0); }
+          50%      { transform: translateY(-6px); }
         }
         @keyframes lottie-pop {
           0%  { transform: scale(0) rotate(-20deg); opacity: 0; }
-          60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+          60% { transform: scale(1.25) rotate(5deg); opacity: 1; }
           100%{ transform: scale(1) rotate(0); opacity: 1; }
         }
-        @keyframes particle-fly {
-          0%   { transform: translateY(0) scale(0); opacity: 0; }
-          30%  { opacity: 1; transform: translateY(-25px) scale(1); }
-          100% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+        @keyframes particle-up {
+          0%   { transform: translateY(0) scale(0); opacity:0; }
+          30%  { opacity:1; transform:translateY(-22px) scale(1); }
+          100% { transform:translateY(-55px) scale(0.4); opacity:0; }
+        }
+        @keyframes progress-bar {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+        @keyframes playhead-move {
+          from { left: 14px; }
+          to   { left: calc(100% - 14px); }
+        }
+        @keyframes title-in {
+          from { opacity:0; transform:translateY(24px); }
+          to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes hero-in {
+          from { opacity:0; transform:translateY(40px) scale(0.97); }
+          to   { opacity:1; transform:translateY(0) scale(1); }
         }
       `}</style>
 
-      <div className="min-h-screen" style={{ background: "#070710", color: "#fff", direction: "rtl" }}>
+      <div style={{ minHeight: "100vh", background: "#070710", color: "#fff", direction: "rtl", overflow: "hidden" }}>
 
-        {/* ── Hero ── */}
-        <div className="text-center px-6" style={{ paddingTop: "5rem", paddingBottom: "3rem" }}>
-          <div className="inline-block mb-4 px-4 py-1.5 rounded-full text-sm font-semibold"
-            style={{ background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.4)", color: "#a78bfa" }}>
-            ✨ הצצה למערכת האנימציות
-          </div>
-          <h1 className="font-bold leading-tight" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", fontFamily: "var(--font-heebo), sans-serif" }}>
-            כל אנימציה שקיימת
-            <br />
-            <span style={{ background: "linear-gradient(90deg, #7C3AED, #C084FC, #7C3AED)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              במערכת — כאן חיה
+        {/* purple glow bg */}
+        <div style={{
+          position: "fixed", top: "-20%", left: "50%", transform: "translateX(-50%)",
+          width: 800, height: 500,
+          background: "radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 70%)",
+          pointerEvents: "none", zIndex: 0,
+        }} />
+
+        {/* ── HERO ── */}
+        <section style={{ padding: "5rem 2rem 4rem", maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 1 }}>
+
+          {/* badge */}
+          <div style={{ textAlign: "center", marginBottom: "1.5rem", animation: "title-in 0.6s ease both" }}>
+            <span style={{
+              display: "inline-block", padding: "6px 18px", borderRadius: 100,
+              background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.35)",
+              color: "#a78bfa", fontSize: 13, fontWeight: 600,
+            }}>
+              ✨ עורך הוידאו החכם לתוכן ישראלי
             </span>
-          </h1>
-          <p className="mt-4 max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, lineHeight: 1.7 }}>
-            לחץ על כל כרטיס כדי לראות את האנימציה שוב. כולן כבר קיימות — אלה הן הפיצ'רים האמיתיים.
-          </p>
-        </div>
+          </div>
 
-        {/* ── Section: כתוביות ── */}
-        <section className="px-6 pb-16 max-w-6xl mx-auto">
-          <SectionHeader
-            label="כתוביות"
-            title="8 אנימציות כניסה לכתוביות"
-            sub="משמשות גם בתצוגה מקדימה וגם בייצוא — ASS + CSS מסונכרנים"
-          />
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
-            {SUB_ANIMS.map((a, i) => <SubtitleCard key={a.id} anim={a} index={i} />)}
+          {/* headline */}
+          <div style={{ textAlign: "center", marginBottom: "3rem", animation: "title-in 0.7s ease 0.1s both" }}>
+            <h1 style={{
+              fontSize: "clamp(2rem, 5vw, 3.8rem)",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              fontFamily: "var(--font-heebo), system-ui, sans-serif",
+              margin: 0,
+            }}>
+              כתוביות, אנימציות ואפקטים
+              <br />
+              <span style={{ background: "linear-gradient(90deg, #7C3AED, #C084FC, #7C3AED 200%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                שנדלקים לבד — ב-AI
+              </span>
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 17, marginTop: "1rem", lineHeight: 1.7 }}>
+              העלה וידאו. קבל כתוביות מונפשות, beat-drops, אייקונים ו-drama mode — בלחיצה אחת.
+            </p>
+          </div>
+
+          {/* browser mockup */}
+          <div style={{ animation: "hero-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both", padding: "0 4rem" }}>
+            <BrowserHero />
           </div>
         </section>
 
-        {/* ── Section: פתיחות ── */}
-        <section className="px-6 pb-16 max-w-6xl mx-auto">
-          <SectionHeader
-            label="פתיחות"
-            title="6 אנימציות פתיחה לוידאו"
-            sub="מופעלות על הפריים הראשון — CSS בתצוגה, FFmpeg filter chain בייצוא"
-          />
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-            {INTRO_ANIMS.map((a, i) => <IntroCard key={a.id} anim={a} index={i} />)}
+        {/* ── subtitle cards ── */}
+        <section style={{ padding: "4rem 2rem", maxWidth: 1000, margin: "0 auto", position: "relative", zIndex: 1 }}>
+          <div style={{ marginBottom: 28 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", letterSpacing: "0.12em", textTransform: "uppercase" }}>כתוביות</span>
+            <h2 style={{ fontSize: "clamp(1.4rem,3vw,1.9rem)", fontWeight: 700, margin: "6px 0 4px", fontFamily: "var(--font-heebo), sans-serif" }}>8 אנימציות כניסה</h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>CSS בתצוגה מקדימה • ASS override codes בייצוא FFmpeg</p>
           </div>
-        </section>
-
-        {/* ── Section: AI effects ── */}
-        <section className="px-6 pb-16 max-w-6xl mx-auto">
-          <SectionHeader
-            label="AI-powered"
-            title="4 אפקטים שנדלקים לבד"
-            sub="המערכת מנתחת את הטרנסקריפט ומוסיפה אפקטים בדיוק במקום הנכון"
-          />
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
-            {AI_EFFECTS.map(e => <AICard key={e.id} effect={e} />)}
-          </div>
-        </section>
-
-        {/* ── Section: רקעים ── */}
-        <section className="px-6 pb-16 max-w-6xl mx-auto">
-          <SectionHeader
-            label="רקעים דינמיים"
-            title="6 רקעים זזים בזמן אמת"
-            sub="מונפשים ב-CSS בתצוגה — נוצרים דרך FFmpeg lavfi בייצוא"
-          />
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-            {BACKGROUNDS.map(b => <BgThumb key={b.id} bg={b} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px,1fr))", gap: 14 }}>
+            {SUB_ANIMS_LIST.map((a, i) => <SubCard key={a.id} anim={a} index={i} />)}
           </div>
         </section>
 
         {/* ── CTA ── */}
-        <div className="text-center pb-24 px-6">
-          <div
-            className="inline-block px-8 py-4 rounded-2xl font-bold text-lg"
-            style={{
-              background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-              boxShadow: "0 0 40px rgba(124,58,237,0.4)",
-              cursor: "default",
-            }}
-          >
-            🚀 כל זה כבר בנוי — הלאנדינג יראה אותו חי
+        <div style={{ textAlign: "center", padding: "2rem 2rem 6rem", position: "relative", zIndex: 1 }}>
+          <div style={{
+            display: "inline-block", padding: "1rem 2.5rem", borderRadius: 16,
+            background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
+            boxShadow: "0 0 50px rgba(124,58,237,0.4)",
+            fontSize: 16, fontWeight: 700, cursor: "default",
+          }}>
+            🚀 כל הפיצ'רים האלה — בנויים ומוכנים ללאנדינג
           </div>
         </div>
-
       </div>
     </>
-  );
-}
-
-function SectionHeader({ label, title, sub }: { label: string; title: string; sub: string }) {
-  return (
-    <div className="mb-8">
-      <span
-        className="text-xs font-bold tracking-widest uppercase mb-3 inline-block"
-        style={{ color: "#7C3AED", letterSpacing: "0.12em" }}
-      >
-        {label}
-      </span>
-      <h2 className="font-bold mb-2" style={{ fontSize: "clamp(1.3rem, 3vw, 1.8rem)", fontFamily: "var(--font-heebo), sans-serif" }}>
-        {title}
-      </h2>
-      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>{sub}</p>
-    </div>
   );
 }

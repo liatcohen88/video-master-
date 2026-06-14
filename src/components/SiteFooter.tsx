@@ -70,6 +70,7 @@ export default function SiteFooter() {
               <li><Link href="/glossary"  className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.glossary")}</Link></li>
               <li><Link href="/contact"   className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.contact")}</Link></li>
               <li><Link href="/policy"    className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.policy")}</Link></li>
+              <li><Link href="/accessibility-statement" className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.a11y")}</Link></li>
             </ul>
           </div>
         </div>

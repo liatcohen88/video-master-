@@ -2,6 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Accessibility panel toggles ─────────────────────────────────────── */
+/* Applied as classes on <html> from AccessibilityPanel.tsx. */
+
+/* Text size scales via inline html.style.fontSize — no class needed here. */
+
+/* High contrast: strip gradients, raise text contrast to AAA. */
+html.a11y-high-contrast,
+html.a11y-high-contrast body {
+  background: #000 !important;
+  color: #fff !important;
+}
+html.a11y-high-contrast *:not(svg):not(path) {
+  background-image: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+html.a11y-high-contrast a,
+html.a11y-high-contrast button {
+  color: #ffeb3b !important;
+}
+
+/* Link highlight: yellow underline + background on every <a>. */
+html.a11y-link-highlight a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  background: rgba(255, 235, 59, 0.18) !important;
+  padding: 0 2px !important;
+  border-radius: 2px !important;
+}
+
+/* Dyslexia-friendly font: bigger letter spacing + heavier weight. */
+html.a11y-dyslexic-font,
+html.a11y-dyslexic-font * {
+  font-family: var(--font-assistant), Verdana, sans-serif !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.12em !important;
+  line-height: 1.7 !important;
+  font-weight: 500 !important;
+}
+
+/* Big cursor: 2x system cursor via inline SVG data-URI. */
+html.a11y-big-cursor,
+html.a11y-big-cursor *,
+html.a11y-big-cursor button,
+html.a11y-big-cursor a {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="black" stroke="white" stroke-width="1.5"><path d="M3 2l7 18 2-8 8-2L3 2z"/></svg>') 0 0, auto !important;
+}
+
+/* Reduce motion: kill animations + transitions globally. Respects user
+ * intent without depending on @media (prefers-reduced-motion). */
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* Subtitle template font families resolve to Next.js Google Font CSS vars */
 .tpl-font-Heebo { font-family: var(--font-heebo), system-ui, sans-serif; }
 .tpl-font-Rubik { font-family: var(--font-rubik), system-ui, sans-serif; }

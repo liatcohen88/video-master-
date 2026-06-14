@@ -7,6 +7,7 @@ import OnboardingSplash from "@/components/OnboardingSplash";
 import SfxCustomLoader from "@/components/SfxCustomLoader";
 import ConfirmDialogRoot from "@/components/ConfirmDialog";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import AccessibilityPanel from "@/components/AccessibilityPanel";
 import { pageMetadata, softwareJsonLd, getSiteUrl } from "@/lib/seo";
 
 const heebo = Heebo({ subsets: ["hebrew", "latin"], variable: "--font-heebo", display: "swap" });
@@ -53,6 +54,7 @@ export default function RootLayout({
         <OnboardingSplash />
         <ConfirmDialogRoot />
         <SfxCustomLoader />
+        <AccessibilityPanel />
       </body>
     </html>
   );
