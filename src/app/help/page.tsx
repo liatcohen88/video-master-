@@ -6,102 +6,56 @@ import { ChevronDown, Search, HelpCircle, Sparkles, Coins, Download, AlertTriang
 import { useContent } from "@/lib/useContent";
 import SiteHeader from "@/components/SiteHeader";
 
-type FAQ = { q: string; a: string };
-type Category = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; faqs: FAQ[] };
+type FAQ = { cat: string; q: string; a: string };
+type CategoryDef = { id: string; icon: React.ComponentType<{ className?: string }> };
 
-const CATEGORIES: Category[] = [
-  {
-    id: "general",
-    label: "כללי",
-    icon: Sparkles,
-    faqs: [
-      { q: "מה האפליקציה הזו עושה?",
-        a: "מעלים סרטון, ה-AI מתמלל לכתוביות בעברית מקצועית, ומאפשר לעצב, להוסיף אפקטים (זום, חיתוך שתיקה, אנימציות, סאונד), ולייצא MP4 מוכן לעלייה לרילס/טיקטוק/יוטיוב." },
-      { q: "האם זה באמת חינמי?",
-        a: "כן — הגרסה הבסיסית. כתוביות בלבד = 10 קרדיט, אפקטים = 20, אפקטים מתקדמים = 40. כל משתמש חדש מקבל 25 קרדיט מתנה (כ-2-3 סרטונים לטעימה)." },
-      { q: "באיזו שפה התמלול?",
-        a: "המודל הראשי הוא 'עברית מקצועי' — מאומן ספציפית לעברית, ההכי מדויק. יש גם 'כללי מדויק' שתומך בכל השפות." },
-      { q: "מה ההבדל בין המצבים?",
-        a: "כתוביות בלבד = תמלול + עיצוב, בלי שינוי בוידאו. אפקטים בסיסיים = + זום ועריכה. פודקאסט = חיתוך שתיקות + כתוביות גדולות. מתקדמים = הכל + אנימציות + סאונד." },
-    ],
-  },
-  {
-    id: "credits",
-    label: "קרדיט ותשלום",
-    icon: Coins,
-    faqs: [
-      { q: "מה זה מאסטרים?",
-        a: "מאסטרים זה המטבע הפנימי שלנו 🪙 — את קונה חבילה (לדוגמה 50 מאסטרים ב-₪25) ומשתמשת בהם לעריכת סרטונים. ככה את משלמת רק עבור מה שאת באמת משתמשת, בלי מנוי חודשי שגובה כסף גם כשאת לא עורכת." },
-      { q: "כמה עולה סרטון?",
-        a: "תלוי במצב: כתוביות בלבד = 10 מאסטרים (קבוע), פודקאסט = 20 (קבוע), חיבור סרטונים = 20 (קבוע). אפקטים מתקדמים הם דינמיים — מתחיל ב-25 וכל אפקט שתפעילי מוסיף 2-3 מאסטרים, עד תקרה של 40. ככה את משלמת רק עבור מה שבאמת משתמשת. ניתן לראות את העלות העדכנית על כפתור הייצוא בזמן אמת." },
-      { q: "האם הקרדיט פג?",
-        a: "לא — הקרדיט תקף לתמיד. אין חידוש אוטומטי. את משלמת רק כשרוצה לקנות עוד." },
-      { q: "איך משלמים?",
-        a: "כרטיס אשראי דרך מערכת סליקה ישראלית מאובטחת (PayPlus). חשבונית מס נשלחת אוטומטית למייל." },
-      { q: "אפשר לקבל החזר?",
-        a: "כן — בתוך 14 ימים אם הקרדיט לא נוצל. צרי קשר במייל ונחזיר את התשלום." },
-    ],
-  },
-  {
-    id: "export",
-    label: "ייצוא והורדה",
-    icon: Download,
-    faqs: [
-      { q: "באיזה פורמט הסרטון יורד?",
-        a: "MP4 ברזולוציה המקורית של הסרטון שהעלית, או SRT (כתוביות בלבד לפרמייר/דיוינצ'י). ניתן לבחור בלשונית 'ייצוא'." },
-      { q: "כמה זמן לוקח לייצא?",
-        a: "סרטון של דקה = בערך 2-3 דקות עיבוד. סרטון של 3 דקות = 7-10 דקות. אפקטים מתקדמים יוסיפו עוד 30%." },
-      { q: "הסרטון יוצא חתוך / לא במיקום הנכון",
-        a: "ודאי שהאספקט (יחס תצוגה) נכון — בדרך כלל 'מקורי' עובד הכי טוב. אם בחרת 9:16 אבל הסרטון מקורי 16:9, הוא יחתוך אוטומטית למרכז." },
-      { q: "האם הכתוביות נשמרות?",
-        a: "כן — האפליקציה שומרת אוטומטית את כל ההגדרות שלך (כתוביות, סגנון, אפקטים) ב-localStorage. ברענון את ממשיכה מאיפה שהפסקת. רק את הוידאו עצמו צריך להעלות שוב." },
-    ],
-  },
-  {
-    id: "problems",
-    label: "בעיות נפוצות",
-    icon: AlertTriangle,
-    faqs: [
-      { q: "התמלול שגוי / חסר מילים",
-        a: "וודאי שבחרת את מודל 'עברית מקצועי'. אם הוידאו רועש או הדובר רחוק מהמיקרופון, אפשר לערוך את הכתוביות ידנית בלשונית 'עורך כתוביות'." },
-      { q: "הייצוא תקוע / לא מסתיים",
-        a: "ייצוא ארוך (3+ דקות) במחשבים עם זיכרון נמוך עלול להיתקע. סגרי טאבים אחרים ונסי שוב. אם זה חוזר — נסי מצב 'כתוביות בלבד' שצורך פחות זיכרון." },
-      { q: "האמוג'ים לא במקום הנכון",
-        a: "בעורך הכתוביות לכל כתובית — לחיצה על האמוג'י משנה את המיקום (5 אפשרויות: 4 פינות + מעל). השינוי משתקף מיידית בלייב וביצוא." },
-      { q: "ה-SFX לא נשמע בייצוא",
-        a: "ודאי ש'אפקטי SFX' מופעלים בלשונית האפקטים. הצליל מתנגן רק כשיש אלמנט (אמוג'י/אנימציה/לוגו) עם המילה המתאימה." },
-    ],
-  },
-  {
-    id: "advanced",
-    label: "פיצ'רים מתקדמים",
-    icon: SettingsIcon,
-    faqs: [
-      { q: "איך משתמשים במולטי-וידאו AI Editor?",
-        a: "בדף הראשי, לחיצה על הכרטיס '✨ מולטי-וידאו' למעלה. מעלים 2-8 סרטונים, מדביקים תסריט (שורה לכל פלח), וה-AI יחתוך ויאחד אוטומטית לפי דמיון טקסטואלי." },
-      { q: "איך מוסיפים אנימציה (Lottie) לכתובית?",
-        a: "בעורך הכתוביות, לחיצה על כפתור ✨ ליד כל משפט. בדיאלוג שנפתח: לשונית 'אנימציה' — בוחרים מתוך 23 אנימציות וקטוריות, משך, מיקום, וצבע." },
-      { q: "אפשר להוסיף צליל לאמוג'י?",
-        a: "כן! בעורך הכתוביות, ליד כל אמוג'י או אנימציה שמוסיפים יש אייקון רמקול 🔊. לחיצה פותחת בוחר עם 65 צלילי SFX (קליקים, וושש, מטבעות, ויראלי...) ניתן לבחור צליל או 'ללא צליל'." },
-      { q: "מה ההבדל בין 'כתוביות מוכנות' ל'סגנון כתוביות'?",
-        a: "'כתוביות מוכנות' (בראש פאנל העיצוב) = שילובים שלמים — Hormozi / Instagram מודרני / TikTok וכו'. לחיצה אחת = הכל נטען. 'סגנון כתוביות' (מתחת) = גרסה ידנית עדינה עם 10+ אופציות בסיסיות." },
-    ],
-  },
+/**
+ * Category visuals (icon + ID) stay in code — they're not user-facing copy.
+ * Labels and FAQ corpus come from the CMS so the admin can edit any question
+ * or answer without a deploy. Adding a new category = add it here + add
+ * faqs entries with the matching `cat` id from the admin.
+ */
+const CATEGORY_DEFS: CategoryDef[] = [
+  { id: "general",  icon: Sparkles },
+  { id: "credits",  icon: Coins },
+  { id: "export",   icon: Download },
+  { id: "problems", icon: AlertTriangle },
+  { id: "advanced", icon: SettingsIcon },
 ];
 
 export default function HelpPage() {
   const [query, setQuery] = useState("");
-  const appName = useContent("brand.appName");
+  const appName = useContent("brand.appName") as string;
+  const heading = useContent("help.heading") as string;
+  const subheading = (useContent("help.subheading") as string).replace("{{appName}}", appName);
+  const searchPh = useContent("help.searchPlaceholder") as string;
+  const emptyText = useContent("help.emptyResults") as string;
+  const cardTitle = useContent("help.contactCard.title") as string;
+  const cardBody = useContent("help.contactCard.body") as string;
+  const cardCta = useContent("help.contactCard.cta") as string;
+  const backToApp = useContent("help.backToApp") as string;
+  const contactEmail = useContent("footer.contactEmail") as string;
 
-  // Filter FAQs by query (across question + answer)
-  const filtered = CATEGORIES.map((cat) => ({
-    ...cat,
-    faqs: cat.faqs.filter((f) =>
-      !query
-      || f.q.toLowerCase().includes(query.toLowerCase())
-      || f.a.toLowerCase().includes(query.toLowerCase()),
-    ),
-  })).filter((cat) => cat.faqs.length > 0);
+  const catLabels: Record<string, string> = {
+    general:  useContent("help.cat.general.label") as string,
+    credits:  useContent("help.cat.credits.label") as string,
+    export:   useContent("help.cat.export.label") as string,
+    problems: useContent("help.cat.problems.label") as string,
+    advanced: useContent("help.cat.advanced.label") as string,
+  };
+
+  const allFaqs = (useContent("help.faqs") as FAQ[]) ?? [];
+
+  // Group by category, preserving CATEGORY_DEFS order. Filter by query.
+  const grouped = CATEGORY_DEFS.map((def) => {
+    const faqs = allFaqs.filter((f) =>
+      f.cat === def.id &&
+      (!query
+        || f.q.toLowerCase().includes(query.toLowerCase())
+        || f.a.toLowerCase().includes(query.toLowerCase()))
+    );
+    return { ...def, label: catLabels[def.id] ?? def.id, faqs };
+  }).filter((c) => c.faqs.length > 0);
 
   return (
     <div dir="rtl" className="min-h-screen text-white relative">
@@ -113,53 +67,53 @@ export default function HelpPage() {
       <div className="relative max-w-3xl mx-auto px-6 py-10">
         <div className="text-center mb-8">
           <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-brand to-pink-500 mb-3">
-            <HelpCircle className="w-6 h-6 text-white" />
+            <HelpCircle className="w-6 h-6 text-white" aria-hidden />
           </div>
-          <h1 className="text-3xl font-black mb-2">איך אפשר לעזור?</h1>
-          <p className="text-sm text-white/50">השאלות הנפוצות על {appName}</p>
+          <h1 className="text-3xl font-black mb-2">{heading}</h1>
+          <p className="text-sm text-white/50">{subheading}</p>
         </div>
 
         {/* Search */}
         <div className="relative mb-8">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" aria-hidden />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="חיפוש בשאלות הנפוצות..."
+            placeholder={searchPh}
             className="w-full bg-bg-card border border-white/10 focus:border-brand/50 rounded-xl pr-10 pl-4 py-3 text-sm placeholder-white/30 outline-none"
           />
         </div>
 
-        {filtered.length === 0 && (
+        {grouped.length === 0 && (
           <div className="text-center py-12 text-white/40">
-            לא נמצאו תשובות. נסי מילים אחרות או צרי קשר במייל.
+            {emptyText}
           </div>
         )}
 
-        {filtered.map((cat) => (
+        {grouped.map((cat) => (
           <div key={cat.id} className="mb-6">
             <div className="flex items-center gap-2 mb-3 text-sm text-white/60 font-bold uppercase tracking-wider">
-              <cat.icon className="w-4 h-4" />
+              <cat.icon className="w-4 h-4" aria-hidden />
               {cat.label}
             </div>
             <div className="space-y-2">
-              {cat.faqs.map((f, i) => <FaqItem key={i} faq={f} />)}
+              {cat.faqs.map((f, i) => <FaqItem key={`${cat.id}-${i}`} faq={f} />)}
             </div>
           </div>
         ))}
 
         <div className="bg-bg-card border border-white/10 rounded-2xl p-6 mt-10 text-center">
-          <div className="text-sm font-bold mb-2">לא מצאת תשובה?</div>
-          <p className="text-xs text-white/50 mb-3">צרי קשר ואנחנו נחזור אלייך תוך 24 שעות</p>
-          <a href={`mailto:${useContent("footer.contactEmail")}`}
+          <div className="text-sm font-bold mb-2">{cardTitle}</div>
+          <p className="text-xs text-white/50 mb-3">{cardBody}</p>
+          <a href={`mailto:${contactEmail}`}
              className="inline-block bg-brand hover:bg-brand/80 text-white px-5 py-2 rounded-lg text-sm font-bold">
-            צרי קשר
+            {cardCta}
           </a>
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-xs text-white/40 hover:text-white">← חזרה לאפליקציה</Link>
+          <Link href="/" className="text-xs text-white/40 hover:text-white">{backToApp}</Link>
         </div>
       </div>
     </div>
@@ -176,10 +130,10 @@ function FaqItem({ faq }: { faq: FAQ }) {
         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right"
       >
         <span className={`font-medium text-sm ${open ? "text-white" : "text-white/85"}`}>{faq.q}</span>
-        <ChevronDown className={`w-4 h-4 text-white/40 transition-transform shrink-0 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-4 h-4 text-white/40 transition-transform shrink-0 ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open && (
-        <div className="px-4 pb-4 text-sm text-white/70 leading-relaxed border-t border-white/5 pt-3">
+        <div className="px-4 pb-4 text-sm text-white/70 leading-relaxed border-t border-white/5 pt-3 whitespace-pre-line">
           {faq.a}
         </div>
       )}
