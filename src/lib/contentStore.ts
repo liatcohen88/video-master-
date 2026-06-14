@@ -430,6 +430,17 @@ export const CONTENT_DEFAULTS = {
   "help.cat.export.label":   "ייצוא והורדה",
   "help.cat.problems.label": "בעיות נפוצות",
   "help.cat.advanced.label": "פיצ'רים מתקדמים",
+  // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
+  // nameOverrides: change the Hebrew name shown next to a brand
+  //   { "amazon": "אמזון", "google": "גוגל" }
+  // hidden: brand IDs to skip in detection AND glossary
+  // custom: extra brands the admin adds. Each entry needs:
+  //   { id, name, slug, color, patterns: [<Hebrew alias>, <English alias>] }
+  //   patterns are simple words (admin doesn't write regex); we wrap them.
+  "brands.nameOverrides": {} as Record<string, string>,
+  "brands.hidden": [] as string[],
+  "brands.custom": [] as Array<{ id: string; name: string; slug: string; color: string; patterns: string[] }>,
+
   "help.faqs": [
     { cat: "general",  q: "מה האפליקציה הזו עושה?",
       a: "מעלים סרטון, ה-AI מתמלל לכתוביות בעברית מקצועית, ומאפשר לעצב, להוסיף אפקטים (זום, חיתוך שתיקה, אנימציות, סאונד), ולייצא MP4 מוכן לעלייה לרילס/טיקטוק/יוטיוב." },

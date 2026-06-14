@@ -31,6 +31,13 @@ export const DRAMA_WORDS_BASE: { key: string; re: RegExp }[] = [
   { key: "לא נכון",          re: /לא\s+נכון/u },
   { key: "אין מצב",         re: /אין\s+מצב/u },
   { key: "שיט",             re: heWord("שיט") },
+  { key: "מטורף",           re: heWord("מטורף") },
+  { key: "מטורפת",          re: heWord("מטורפת") },
+  { key: "מדהים",           re: heWord("מדהים") },
+  { key: "מדהימה",          re: heWord("מדהימה") },
+  { key: "וואו",            re: heWord("וואו") },
+  { key: "מהמם",            re: heWord("מהמם") },
+  { key: "מהממת",           re: heWord("מהממת") },
   // English — Israelis say these too. Multi-word/whole phrase only.
   { key: "no way",          re: /\bno\s+way\b/i },
   { key: "omg",             re: /\bomg\b|\boh\s+my\s+god\b/i },

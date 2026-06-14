@@ -18,6 +18,7 @@
 
 import type { Subtitle } from "./types";
 import { heWord } from "./hebrewRegex";
+import { getContent } from "./contentStore";
 
 export type BrandLogo = {
   id: string;
@@ -230,6 +231,49 @@ export const BRAND_LOGOS: BrandLogo[] = [
   },
 ];
 
+/**
+ * Resolve the EFFECTIVE brand list — applies CMS overrides on top of the
+ * built-in BRAND_LOGOS. Admin controls:
+ *   - brands.hidden:        string[]  — IDs to skip in detection + glossary
+ *   - brands.nameOverrides: Record<id, string> — change Hebrew label
+ *   - brands.custom:        BrandLogo-like[] — add new brands with plain
+ *                           word patterns (wrapped to RegExp here)
+ *
+ * Custom brands' `patterns` arrive as plain strings from the admin's array
+ * editor. We wrap Hebrew tokens with `heWord` and English tokens with `\b`.
+ */
+export function resolveBrandLogos(): BrandLogo[] {
+  const hidden = new Set((getContent("brands.hidden") as string[]) ?? []);
+  const nameOv = (getContent("brands.nameOverrides") as Record<string, string>) ?? {};
+  const custom = (getContent("brands.custom") as Array<{
+    id: string; name: string; slug: string; color: string; patterns: string[];
+  }>) ?? [];
+
+  const base = BRAND_LOGOS
+    .filter((b) => !hidden.has(b.id))
+    .map((b) => nameOv[b.id] ? { ...b, name: nameOv[b.id] } : b);
+
+  const extras: BrandLogo[] = custom
+    .filter((c) => c && c.id && c.slug && Array.isArray(c.patterns))
+    .filter((c) => !hidden.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: nameOv[c.id] ?? c.name ?? c.id,
+      slug: c.slug,
+      color: (c.color ?? "111111").replace(/^#/, ""),
+      patterns: c.patterns.map((word) => {
+        const w = String(word).trim();
+        if (!w) return /^_no_match_$/;
+        // Hebrew detection: any Hebrew letter present → use heWord
+        return /[֐-׿]/.test(w)
+          ? heWord(w)
+          : new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      }),
+    }));
+
+  return [...base, ...extras];
+}
+
 export type BrandEvent = {
   /** Time in OUTPUT timeline (seconds) */
   time: number;
@@ -243,11 +287,12 @@ export type BrandEvent = {
  */
 export function detectBrands(subtitles: Subtitle[]): BrandEvent[] {
   const events: BrandEvent[] = [];
+  const brands = resolveBrandLogos();
 
   for (const sub of subtitles) {
     if (!sub.text.trim()) continue;
 
-    for (const brand of BRAND_LOGOS) {
+    for (const brand of brands) {
       for (const pat of brand.patterns) {
         const m = sub.text.match(pat);
         if (!m) continue;

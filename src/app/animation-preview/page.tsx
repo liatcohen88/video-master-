@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-/* ─── real subtitle lines from demo video ─── */
+/* ─── subtitle lines matching showcase woman content ─── */
 const SUBS = [
-  { start: "0:00.60", dur: "0:00.00", text: "פחות נכון," },
-  { start: "0:01.10", dur: "0:00.72", text: "אני בסוד" },
-  { start: "0:01.68", dur: "0:01.10", text: "בא ללמד" },
-  { start: "0:02.78", dur: "0:00.85", text: "איך להרוויח יותר" },
-  { start: "0:03.63", dur: "0:01.20", text: "בלי לעבוד יותר שעות" },
-  { start: "0:04.83", dur: "0:00.90", text: "וזה עובד!" },
+  { start: "0:00.40", dur: "0:00.52", text: "גיליתי סוד" },
+  { start: "0:00.92", dur: "0:00.68", text: "שכל יוצרת תוכן" },
+  { start: "0:01.60", dur: "0:00.75", text: "חייבת לדעת" },
+  { start: "0:02.35", dur: "0:00.80", text: "כתוביות בעברית" },
+  { start: "0:03.15", dur: "0:00.70", text: "תוך שניות!" },
+  { start: "0:03.85", dur: "0:01.15", text: "זה שינה לי הכל 🔥" },
 ];
 
 const TEMPLATES = [
@@ -276,7 +276,7 @@ function BrowserMockup() {
               {/* video controls bar */}
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.7)", padding: "4px 10px", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "#fff", cursor: "default" }}>▶</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "monospace" }}>0:01 / 0:38</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "monospace" }}>0:01 / 0:05</span>
                 <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.15)", borderRadius: 2, position: "relative" }}>
                   <div style={{ width: "3%", height: "100%", background: "#fff", borderRadius: 2 }} />
                 </div>
@@ -294,7 +294,7 @@ function BrowserMockup() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "var(--font-heebo),sans-serif" }}>עריכת כתוביות</span>
                   <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", cursor: "default" }}>⌃</span>
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "var(--font-heebo),sans-serif" }}>57 כתוביות</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "var(--font-heebo),sans-serif" }}>6 כתוביות</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "var(--font-heebo),sans-serif", marginTop: 2, lineHeight: 1.4 }}>
                   פותחים כדי לערוך טקסט, להוסיף אמוג׳ים, סאונדים ומיקום צדדים לכל שורה
                 </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Sparkles, Film, Tag } from "lucide-react";
 import { useContent } from "@/lib/useContent";
-import { BRAND_LOGOS, brandLogoCdnUrl } from "@/lib/brandLogos";
+import { resolveBrandLogos, brandLogoCdnUrl } from "@/lib/brandLogos";
 import { DRAMA_WORDS_BASE } from "@/lib/dramaEffects";
 import { KEYWORD_CATEGORIES } from "@/lib/keywordElements";
 import SiteHeader from "@/components/SiteHeader";
@@ -58,7 +58,7 @@ export default function GlossaryPage() {
           iconBg="bg-violet-500/20 text-violet-200"
         >
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {BRAND_LOGOS.map((b) => (
+            {resolveBrandLogos().map((b) => (
               <div key={b.id}
                 className="bg-bg-card border border-white/10 rounded-xl p-3 flex flex-col items-center text-center hover:border-white/25 transition-colors">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -162,36 +162,75 @@ function Section({ icon, title, body, accent, iconBg, children }: {
 
 /**
  * Turn a RegExp pattern into a readable Hebrew phrase for display.
- * Strips word-boundary lookarounds, escapes, etc. so users see e.g.
- * "אני לא מאמין" instead of /(?<=^|\s)אני\s+לא\s+מאמין(?=\s|$)/u.
+ * Strips lookarounds, non-capturing groups, alternation, quantifiers, and
+ * escapes — so users see "אני לא מאמין" instead of
+ * /(?:^|\s)(?:אני|אנחנו)\s+לא\s+מאמין(?=\s|$)/u (with the `?:` and `?` and
+ * `|` characters leaking through).
+ *
+ * If the cleaned form is still messy (multiple alternatives, complex
+ * groups), returns the longest readable alternative inside the pattern.
  */
 function previewPattern(re: RegExp): string {
-  return re.source
-    .replace(/\(\?<[!=][^)]*\)/g, "")
-    .replace(/\(\?[!=][^)]*\)/g, "")
+  let s = re.source
+    // Strip all lookarounds: (?=...) (?!...) (?<=...) (?<!...)
+    .replace(/\(\?<?[=!][^)]*\)/g, "")
+    // Strip non-capturing group MARKERS (?:  — keep contents, just drop the marker
+    .replace(/\(\?:/g, "(")
+    // Strip word boundaries and common whitespace patterns
     .replace(/\\b/g, "")
     .replace(/\\s\+/g, " ")
     .replace(/\\s\*/g, " ")
+    .replace(/\\s\?/g, " ")
+    // Collapse remaining double-backslash
     .replace(/\\\\/g, "\\")
-    .replace(/\\([.()\[\]+*?])/g, "$1")
+    // Unescape punctuation we'd otherwise show with a backslash
+    .replace(/\\([.()\[\]+*?|])/g, "$1");
+
+  // If the (cleaned) pattern has alternation, prefer the first/longest
+  // alternative so we don't show "אני|אנחנו לא מאמין".
+  if (s.includes("|")) {
+    // Pick the longest alternative on the TOP level inside the outermost group
+    const inner = s.match(/^\(([^()]*)\)/)?.[1] ?? s.replace(/^\(|\)$/g, "");
+    const alts = inner.split("|");
+    s = alts.reduce((a, b) => (b.trim().length > a.trim().length ? b : a), "");
+  }
+
+  // Remove leftover parens + standalone quantifiers
+  return s
+    .replace(/[()]/g, "")
+    .replace(/\?(?![^ ]*[א-ת])/g, "") // drop ? quantifiers but keep Hebrew "?" punctuation
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function categoryLabel(id: string): string {
   const map: Record<string, string> = {
-    money: "כסף",
-    love: "אהבה",
-    fire: "אש / חזק",
-    party: "מסיבה / חגיגה",
-    food: "אוכל",
-    travel: "טיולים",
-    music: "מוזיקה",
-    sports: "ספורט",
-    tech: "טכנולוגיה",
-    nature: "טבע",
-    time: "זמן",
-    star: "כוכב / סלב",
+    money:       "כסף",
+    speed:       "מהירות / זריזות",
+    important:   "חשוב / דחוף",
+    question:    "שאלה",
+    love:        "אהבה",
+    growth:      "צמיחה / הצלחה",
+    free:        "חינם / מתנה",
+    secret:      "סוד",
+    cta:         "קריאה לפעולה",
+    fire:        "אש / לוהט",
+    car:         "רכב",
+    food:        "אוכל",
+    place:       "מקום",
+    time:        "זמן",
+    winner:      "ניצחון",
+    thinking:    "חשיבה",
+    shocked:     "הלם / הפתעה",
+    warning:     "אזהרה",
+    celebration: "חגיגה",
+    party:       "מסיבה",
+    travel:      "טיולים",
+    music:       "מוזיקה",
+    sports:      "ספורט",
+    tech:        "טכנולוגיה",
+    nature:      "טבע",
+    star:        "כוכב / סלב",
   };
   return map[id] ?? id;
 }
