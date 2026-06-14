@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "subtitles-studio",
-      "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "echo already-running"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3001
     }
   ]
