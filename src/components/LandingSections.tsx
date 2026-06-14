@@ -21,6 +21,7 @@ import { useContent } from "@/lib/useContent";
 import FeatureShowcase from "./FeatureShowcase";
 import PremiumPkgCard, { SharedFeatures } from "./PremiumPkgCard";
 import PackagesCarousel from "./PackagesCarousel";
+import HeroBrowserMockup from "./HeroBrowserMockup";
 
 export default function LandingSections({ onScrollToUpload }: { onScrollToUpload?: () => void }) {
   const multiEnabled = useContent("feature.multi.enabled") as boolean;
@@ -106,24 +107,8 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
       {/* ── 2.5. Feature showcase — phone mockups with floating UI bits ── */}
       <FeatureShowcase />
 
-      {/* ── 3. Big claim ── */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-pink-500/20 border border-white/10 p-8 md:p-12 text-center">
-        <div className="absolute -top-10 -right-10 w-48 h-48 bg-violet-500/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-pink-500/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative">
-          <div className="inline-block text-[11px] uppercase tracking-widest text-violet-300 font-bold mb-3">{clEy}</div>
-          <h2 className="text-3xl md:text-5xl font-black leading-tight max-w-3xl mx-auto">
-            {clTp}{" "}
-            <span className="bg-gradient-to-r from-violet-300 to-pink-300 bg-clip-text text-transparent">{clTh}</span>{" "}
-            {clTs}
-          </h2>
-          <p className="text-base md:text-lg text-white/70 mt-5 max-w-2xl mx-auto leading-relaxed">{clB}</p>
-          <button onClick={() => onScrollToUpload?.()}
-            className="mt-8 bg-white text-bg font-bold px-6 py-3 rounded-xl text-sm hover:opacity-90 inline-flex items-center gap-2">
-            {clCta} <ArrowLeft className="w-4 h-4" />
-          </button>
-        </div>
-      </section>
+      {/* ── 3. Browser mockup hero ── */}
+      <HeroBrowserMockup />
 
       {/* ── 4. Features grid (6) ── */}
       <section>

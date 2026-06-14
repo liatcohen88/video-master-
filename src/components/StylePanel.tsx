@@ -7,6 +7,7 @@ import { HEBREW_FONTS } from "@/lib/types";
 import { TEMPLATES, type SubtitleTemplate } from "@/lib/templates";
 import { fontClassFor } from "@/lib/fonts";
 import EffectsPanel from "./EffectsPanel";
+import { useContent } from "@/lib/useContent";
 import type { EditMode } from "@/lib/types";
 
 type Props = {
@@ -34,6 +35,49 @@ export default function StylePanel({
 }: Props) {
   const [openSection, setOpenSection] = useState<SectionId | null>("templates");
 
+  // CMS-editable copy for every section heading + field label + summary word
+  const c = {
+    heading:        useContent("style.heading") as string,
+    notSelected:    useContent("style.notSelected") as string,
+    secStyle:       useContent("style.section.subtitleStyle") as string,
+    secExtras:      useContent("style.section.extras") as string,
+    secTypo:        useContent("style.section.typography") as string,
+    secColors:      useContent("style.section.colors") as string,
+    secBackground:  useContent("style.section.background") as string,
+    secPosition:    useContent("style.section.position") as string,
+    previewText:    useContent("style.previewText") as string,
+    extrasPriceTpl: useContent("style.extras.priceNote") as string,
+    extrasHelp:     useContent("style.extras.help") as string,
+    font:           useContent("style.field.font") as string,
+    sizeTpl:        useContent("style.field.size") as string,
+    weight:         useContent("style.field.weight") as string,
+    wRegular:       useContent("style.weight.regular") as string,
+    wSemibold:      useContent("style.weight.semibold") as string,
+    wBold:          useContent("style.weight.bold") as string,
+    wBlack:         useContent("style.weight.black") as string,
+    fColor:         useContent("style.field.color") as string,
+    fStroke:        useContent("style.field.stroke") as string,
+    strokeWidthTpl: useContent("style.field.strokeWidth") as string,
+    fHighlight:     useContent("style.field.highlightColor") as string,
+    hintHighlight:  useContent("style.hint.highlightSame") as string,
+    bgNone:         useContent("style.bg.none") as string,
+    fBgColor:       useContent("style.field.bgColor") as string,
+    bgOpacityTpl:   useContent("style.field.bgOpacity") as string,
+    fVerticalPos:   useContent("style.field.verticalPos") as string,
+    pTop:           useContent("style.position.top") as string,
+    pMiddle:        useContent("style.position.middle") as string,
+    pBottom:        useContent("style.position.bottom") as string,
+    offsetTpl:      useContent("style.field.offset") as string,
+    fAlign:         useContent("style.field.align") as string,
+    aRight:         useContent("style.align.right") as string,
+    aCenter:        useContent("style.align.center") as string,
+    aLeft:          useContent("style.align.left") as string,
+    sumCut:         useContent("style.summary.cutSilence") as string,
+    sumSubtle:      useContent("style.summary.subtleZoom") as string,
+    sumKen:         useContent("style.summary.kenBurns") as string,
+    sumNone:        useContent("style.summary.none") as string,
+  };
+
   const update = <K extends keyof SubtitleStyle>(
     key: K,
     value: SubtitleStyle[K],
@@ -46,15 +90,15 @@ export default function StylePanel({
     <div className="bg-bg-panel border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
       <div className="flex items-center gap-2 p-4">
         <Palette className="w-5 h-5 text-accent-pink" />
-        <h3 className="text-lg font-bold flex-1">עריכת הסרטון</h3>
+        <h3 className="text-lg font-bold flex-1">{c.heading}</h3>
       </div>
 
       {topSlot && <div className="p-4 border-t border-white/5">{topSlot}</div>}
 
       <Accordion
         icon={<Sparkles className="w-4 h-4" />}
-        title="סגנון כתוביות"
-        subtitle={TEMPLATES.find((t) => t.id === templateId)?.name ?? "לא נבחר"}
+        title={c.secStyle}
+        subtitle={TEMPLATES.find((t) => t.id === templateId)?.name ?? c.notSelected}
         open={openSection === "templates"}
         onToggle={() => toggle("templates")}
       >
@@ -91,7 +135,7 @@ export default function StylePanel({
                       lineHeight: 1.1,
                     }}
                   >
-                    שלום
+                    {c.previewText}
                   </span>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm py-1">
@@ -112,28 +156,27 @@ export default function StylePanel({
           // these automatically. They're MANUAL toggles you opt into and
           // each one adds to the master count. Title now signals that
           // explicitly: "אפקטים נוספים (כל אפקט = +2 מאסטרים)".
-          title="אפקטים נוספים"
-          subtitle={`${effectsSubtitle(effects)} · כל אפקט מוסיף 2-3 מאסטרים`}
+          title={c.secExtras}
+          subtitle={c.extrasPriceTpl.replace("{{summary}}", effectsSubtitle(effects, c))}
           open={openSection === "effects"}
           onToggle={() => toggle("effects")}
         >
-          <div className="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11px] text-amber-200/90 leading-relaxed">
-            💡 <strong>תוספת אופציונלית</strong> — ה-AI לא מפעיל אותם אוטומטית.
-            תוכלי לבחור בכל אחד מהם, ולשלם רק עבור מה שבחרת.
-            המחיר מתעדכן בזמן אמת על כפתור הייצוא.
-          </div>
+          <div
+            className="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11px] text-amber-200/90 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: c.extrasHelp }}
+          />
           <EffectsPanel effects={effects} onChange={onEffectsChange} mode={mode} subtitles={subtitles} />
         </Accordion>
       )}
 
       <Accordion
         icon={<Type className="w-4 h-4" />}
-        title="טיפוגרפיה"
+        title={c.secTypo}
         subtitle={`${style.fontFamily} · ${style.fontSize}px`}
         open={openSection === "typography"}
         onToggle={() => toggle("typography")}
       >
-        <Field label="פונט">
+        <Field label={c.font}>
           <select
             value={style.fontFamily}
             onChange={(e) => update("fontFamily", e.target.value)}
@@ -145,13 +188,13 @@ export default function StylePanel({
           </select>
         </Field>
 
-        <Field label={`גודל: ${style.fontSize}px`}>
+        <Field label={c.sizeTpl.replace("{{px}}", String(style.fontSize))}>
           <input type="range" min={20} max={120} value={style.fontSize}
             onChange={(e) => update("fontSize", parseInt(e.target.value))}
             className="w-full" />
         </Field>
 
-        <Field label="עובי">
+        <Field label={c.weight}>
           <div className="grid grid-cols-4 gap-2">
             {[400, 600, 800, 900].map((w) => (
               <button key={w}
@@ -161,7 +204,7 @@ export default function StylePanel({
                     ? "border-brand bg-brand/20 text-white"
                     : "border-white/10 bg-bg-input text-white/60 hover:border-white/30"}`}
                 style={{ fontWeight: w }}>
-                {w === 400 ? "רגיל" : w === 600 ? "סמיבולד" : w === 800 ? "בולד" : "שחור"}
+                {w === 400 ? c.wRegular : w === 600 ? c.wSemibold : w === 800 ? c.wBold : c.wBlack}
               </button>
             ))}
           </div>
@@ -170,34 +213,34 @@ export default function StylePanel({
 
       <Accordion
         icon={<Palette className="w-4 h-4" />}
-        title="צבעים"
+        title={c.secColors}
         subtitle={style.color}
         open={openSection === "colors"}
         onToggle={() => toggle("colors")}
       >
-        <ColorField label="צבע הטקסט" value={style.color} onChange={(v) => update("color", v)} />
-        <ColorField label="צבע הקו (Stroke)" value={style.strokeColor} onChange={(v) => update("strokeColor", v)} />
-        <Field label={`עובי קו: ${style.strokeWidth}px`}>
+        <ColorField label={c.fColor} value={style.color} onChange={(v) => update("color", v)} />
+        <ColorField label={c.fStroke} value={style.strokeColor} onChange={(v) => update("strokeColor", v)} />
+        <Field label={c.strokeWidthTpl.replace("{{px}}", String(style.strokeWidth))}>
           <input type="range" min={0} max={12} value={style.strokeWidth}
             onChange={(e) => update("strokeWidth", parseInt(e.target.value))} className="w-full" />
         </Field>
-        <ColorField label="צבע הדגשה (מילה פעילה)" value={style.highlightColor}
+        <ColorField label={c.fHighlight} value={style.highlightColor}
           onChange={(v) => update("highlightColor", v)} />
         <p className="text-xs text-white/40 -mt-1">
-          טיפ: צבע זהה לצבע הטקסט = ללא הדגשה
+          {c.hintHighlight}
         </p>
       </Accordion>
 
       <Accordion
         icon={<Layout className="w-4 h-4" />}
-        title="רקע"
-        subtitle={style.backgroundOpacity > 0 ? `${Math.round(style.backgroundOpacity * 100)}%` : "ללא"}
+        title={c.secBackground}
+        subtitle={style.backgroundOpacity > 0 ? `${Math.round(style.backgroundOpacity * 100)}%` : c.bgNone}
         open={openSection === "background"}
         onToggle={() => toggle("background")}
       >
-        <ColorField label="צבע רקע" value={style.backgroundColor}
+        <ColorField label={c.fBgColor} value={style.backgroundColor}
           onChange={(v) => update("backgroundColor", v)} />
-        <Field label={`שקיפות רקע: ${Math.round(style.backgroundOpacity * 100)}%`}>
+        <Field label={c.bgOpacityTpl.replace("{{pct}}", String(Math.round(style.backgroundOpacity * 100)))}>
           <input type="range" min={0} max={100} value={style.backgroundOpacity * 100}
             onChange={(e) => update("backgroundOpacity", parseInt(e.target.value) / 100)}
             className="w-full" />
@@ -206,12 +249,12 @@ export default function StylePanel({
 
       <Accordion
         icon={<MoveVertical className="w-4 h-4" />}
-        title="מיקום"
-        subtitle={`${style.position === "top" ? "למעלה" : style.position === "middle" ? "אמצע" : "למטה"} · ${style.positionOffset}px`}
+        title={c.secPosition}
+        subtitle={`${style.position === "top" ? c.pTop : style.position === "middle" ? c.pMiddle : c.pBottom} · ${style.positionOffset}px`}
         open={openSection === "position"}
         onToggle={() => toggle("position")}
       >
-        <Field label="מיקום אנכי">
+        <Field label={c.fVerticalPos}>
           <div className="grid grid-cols-3 gap-2">
             {(["top", "middle", "bottom"] as SubtitlePosition[]).map((p) => (
               <button key={p} onClick={() => update("position", p)}
@@ -219,16 +262,16 @@ export default function StylePanel({
                   ${style.position === p
                     ? "border-brand bg-brand/20"
                     : "border-white/10 bg-bg-input text-white/60 hover:border-white/30"}`}>
-                {p === "top" ? "למעלה" : p === "middle" ? "אמצע" : "למטה"}
+                {p === "top" ? c.pTop : p === "middle" ? c.pMiddle : c.pBottom}
               </button>
             ))}
           </div>
         </Field>
-        <Field label={`היסט: ${style.positionOffset}px`}>
+        <Field label={c.offsetTpl.replace("{{px}}", String(style.positionOffset))}>
           <input type="range" min={0} max={400} value={style.positionOffset}
             onChange={(e) => update("positionOffset", parseInt(e.target.value))} className="w-full" />
         </Field>
-        <Field label="יישור טקסט">
+        <Field label={c.fAlign}>
           <div className="grid grid-cols-3 gap-2">
             {(["right", "center", "left"] as const).map((a) => (
               <button key={a} onClick={() => update("textAlign", a)}
@@ -236,7 +279,7 @@ export default function StylePanel({
                   ${style.textAlign === a
                     ? "border-brand bg-brand/20"
                     : "border-white/10 bg-bg-input text-white/60 hover:border-white/30"}`}>
-                {a === "right" ? "ימין" : a === "center" ? "מרכז" : "שמאל"}
+                {a === "right" ? c.aRight : a === "center" ? c.aCenter : c.aLeft}
               </button>
             ))}
           </div>
@@ -246,12 +289,17 @@ export default function StylePanel({
   );
 }
 
-function effectsSubtitle(e: VideoEffects): string {
+/** Summary copy in the "Effects" accordion subtitle. Takes the CMS-resolved
+ *  word bag so the admin can rename "חיתוך שתיקות" → "חיתוך אוטומטי" etc. */
+function effectsSubtitle(
+  e: VideoEffects,
+  copy: { sumCut: string; sumSubtle: string; sumKen: string; sumNone: string },
+): string {
   const bits: string[] = [];
   if (e.aspectRatio !== "original") bits.push(e.aspectRatio);
-  if (e.cutSilence) bits.push("חיתוך שתיקות");
-  if (e.zoomEffect !== "none") bits.push(e.zoomEffect === "subtle" ? "זום עדין" : "Ken Burns");
-  return bits.length ? bits.join(" · ") : "ללא אפקטים";
+  if (e.cutSilence) bits.push(copy.sumCut);
+  if (e.zoomEffect !== "none") bits.push(e.zoomEffect === "subtle" ? copy.sumSubtle : copy.sumKen);
+  return bits.length ? bits.join(" · ") : copy.sumNone;
 }
 
 function Accordion({
