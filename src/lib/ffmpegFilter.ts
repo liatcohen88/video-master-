@@ -101,6 +101,35 @@ function buildWhipZoomExpr(boundaries: number[], peak: number): string {
 }
 
 /**
+ * Build a sinusoidal X/Y shake offset that is nonzero only during a short
+ * window after each beat-drop moment. Used for the punch-shake effect:
+ * mirrors WowOverlay's wow-shake-kf — ~220ms wiggle of a few px.
+ *
+ * Returns {x, y} expressions in pixels. Both are added to crop x/y so the
+ * window translates by that much during the shake. Outside the window: 0.
+ */
+function buildShakeOffsetExpr(beats: number[], amplitudePx: number): { x: string; y: string } {
+  if (beats.length === 0 || amplitudePx <= 0) return { x: "0", y: "0" };
+  const dur = 0.22; // 220ms wiggle
+  const freq = 28;  // Hz — ~6 wiggles in 220ms
+  const A = amplitudePx.toFixed(2);
+  const xTerms = beats.map((t) => {
+    const a = t.toFixed(3);
+    const b = (t + dur).toFixed(3);
+    return `if(between(t,${a},${b}),${A}*sin(2*PI*${freq}*(t-${a}))*(1-(t-${a})/${dur}),0)`;
+  });
+  const yTerms = beats.map((t) => {
+    const a = t.toFixed(3);
+    const b = (t + dur).toFixed(3);
+    return `if(between(t,${a},${b}),${A}*cos(2*PI*${freq}*(t-${a}))*0.7*(1-(t-${a})/${dur}),0)`;
+  });
+  return {
+    x: `(${xTerms.join("+")})`,
+    y: `(${yTerms.join("+")})`,
+  };
+}
+
+/**
  * Build an FFmpeg expression for "punch zoom" — zoom stays at 1.0 most of the
  * time and PUNCHES up to (1+peak) at each emphasis moment, then settles back.
  *
@@ -143,6 +172,14 @@ export function buildFilterChain(
   /** Cut-boundary timestamps (in the OUTPUT timeline, after silence cut).
    *  At each, a brief whip-zoom is added to disguise the jump. */
   cutBoundaries: number[] = [],
+  /** Beat-drop moments (output-timeline). When effects.beatDropZoom is on,
+   *  these are added to the punch-zoom expression. When effects.punchShake
+   *  is on, they drive a 220ms wiggle on crop x/y. Mirrors WowOverlay. */
+  beatDrops: number[] = [],
+  /** Drama windows (output-timeline). When effects.dramaMode is on, the
+   *  frame is desaturated (hue saturation = 0) inside each window with a
+   *  small contrast boost. Mirrors VideoPreview's grayscale flash. */
+  dramaWindows: Array<{ start: number; end: number }> = [],
 ): FilterChain {
   const videoFilters: string[] = [];
   const audioFilters: string[] = [];
@@ -203,21 +240,37 @@ export function buildFilterChain(
   // The trick that kills sub-pixel scaling artifacts: scale the source UP
   // ONCE to a headroom resolution, then animate ONLY the crop window. The
   // pixel grid stays stable; the crop just moves.
-  if (effects.zoomEffect === "punch") {
-    const peak = effects.zoomIntensity; // e.g. 0.08
+  // Promote to the punch-zoom code path whenever ANY animated crop effect is
+  // requested — punch zoom, beat-drop zoom, or punch-shake. They all need
+  // the same "scale up to headroom, animate crop" trick.
+  const wantsBeatZoom = (effects.beatDropZoom ?? false) && beatDrops.length > 0;
+  const wantsShake = (effects.punchShake ?? false) && beatDrops.length > 0;
+  const wantsPunch = effects.zoomEffect === "punch";
+  if (wantsPunch || wantsBeatZoom || wantsShake) {
+    const peak = wantsPunch ? effects.zoomIntensity : 0; // user's punch zoom
+    const beatPeak = wantsBeatZoom ? 0.06 : 0;          // beat-drop ~3-6% pop
     // Whip transitions are stronger and shorter than emphasis punches.
-    // Combine both into one zoom expression. Cap headroom at the max possible.
-    const whipPeak = 0.15;
-    const maxPossible = Math.max(peak, whipPeak);
-    const headroom = 1 + maxPossible + 0.01;
+    // Combine all into one zoom expression. Cap headroom at the max possible.
+    const whipPeak = wantsPunch ? 0.15 : 0;
+    const shakeAmpPx = wantsShake ? Math.round(outputWidth * 0.012) : 0; // ~12px on 1080
+    const maxPossible = Math.max(peak, whipPeak, beatPeak);
+    const headroom = 1 + maxPossible + (shakeAmpPx > 0 ? 0.03 : 0.01);
     const moments = effects.emphasisMoments ?? [];
     const punchExpr = buildPunchZoomExpr(moments, peak);
-    const whipExpr = buildWhipZoomExpr(cutBoundaries, whipPeak);
-    // Sum both contributions (max() would clip; sum makes them stack if overlap)
+    const beatZoomExpr = buildPunchZoomExpr(beatDrops, beatPeak);
+    const whipExpr = buildWhipZoomExpr(wantsPunch ? cutBoundaries : [], whipPeak);
+    // Sum all contributions. Each expr returns (1 + sum) so we subtract
+    // the extra 1s when combining.
+    const exprs: string[] = [];
+    if (peak > 0 && moments.length > 0) exprs.push(punchExpr);
+    if (beatPeak > 0) exprs.push(beatZoomExpr);
+    if (whipPeak > 0 && cutBoundaries.length > 0) exprs.push(whipExpr);
     const Z =
-      cutBoundaries.length > 0
-        ? `(${punchExpr}+${whipExpr}-1)`
-        : punchExpr;
+      exprs.length === 0 ? "1" :
+      exprs.length === 1 ? exprs[0] :
+      `(${exprs.join("+")}-${exprs.length - 1})`;
+
+    const shake = buildShakeOffsetExpr(beatDrops, shakeAmpPx);
 
     // Scale up to headroom resolution (ONCE, not per-frame)
     const scaledW = Math.round(outputWidth * headroom);
@@ -226,11 +279,12 @@ export function buildFilterChain(
       `scale=${scaledW}:${scaledH}:flags=lanczos`,
       // Animated crop: window shrinks symmetrically around center as Z increases.
       // Output dims stay constant (no scaling artifacts during zoom).
+      // x/y add the shake offset (0 when shake is off).
       `crop=` +
         `w='${outputWidth}/${Z}':` +
         `h='${outputHeight}/${Z}':` +
-        `x='(iw-${outputWidth}/${Z})/2':` +
-        `y='(ih-${outputHeight}/${Z})/2'`,
+        `x='(iw-${outputWidth}/${Z})/2+${shake.x}':` +
+        `y='(ih-${outputHeight}/${Z})/2+${shake.y}'`,
       // Final scale fills output dims smoothly even when crop is non-integer.
       `scale=${outputWidth}:${outputHeight}:flags=bicubic`,
     );
@@ -253,6 +307,21 @@ export function buildFilterChain(
         `(iw-${outputWidth})/2 + sin(t/${T.toFixed(3)}*PI)*iw*0.04:` +
         `(ih-${outputHeight})/2 + cos(t/${T.toFixed(3)}*PI)*ih*0.02`,
     );
+  }
+
+  // Drama mode — desaturate + contrast bump inside each detected drama
+  // window. Mirrors VideoPreview's `grayscale(1) contrast(1.25)` flash on
+  // dramaActiveAt(). Applied BEFORE intro/color so the look is preserved
+  // through the rest of the chain.
+  if ((effects.dramaMode ?? false) && dramaWindows.length > 0) {
+    const windows = dramaWindows
+      .filter((w) => w.end > w.start)
+      .map((w) => `between(t,${w.start.toFixed(3)},${w.end.toFixed(3)})`)
+      .join("+");
+    if (windows) {
+      videoFilters.push(`hue=s='if(${windows},0,1)'`);
+      videoFilters.push(`eq=contrast='if(${windows},1.25,1)':brightness='if(${windows},-0.02,0)'`);
+    }
   }
 
   // Intro animation — appended AFTER geometric filters so the animation

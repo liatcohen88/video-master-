@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildFilterChain, cinematicColorFilter } from "@/lib/ffmpegFilter";
 import { buildColorFilterFfmpeg } from "@/lib/colorFilterFfmpeg";
+import { detectBeatDrops } from "@/lib/wowEffects";
+import { detectDramaMoments } from "@/lib/dramaEffects";
 import {
   detectSilences,
   buildKeepIntervals,
@@ -106,8 +108,25 @@ export async function POST(req: NextRequest) {
       ? (effects.emphasisMoments ?? []).map((t) => retimeTimestamp(t, appliedSilences))
       : (effects.emphasisMoments ?? []);
 
+    // Beat-drop + drama detection (output-timeline). Drives the export-side
+    // beat-drop zoom, punch-shake, and B&W drama flash so the MP4 matches
+    // what the live preview overlays. Subtitles here are already retimed
+    // through the silence cut.
+    const beatDrops = (effects.beatDropZoom || effects.punchShake)
+      ? detectBeatDrops(finalSubtitles).map((d) => d.t)
+      : [];
+    const dramaWindows = (effects.dramaMode ?? false)
+      ? detectDramaMoments(finalSubtitles).map((m) => ({ start: m.t, end: m.t + m.duration }))
+      : [];
+
     // ── Geometric base filters (crop / scale / zoom) ──────────────────
-    const chain = buildFilterChain(effects, width, height, duration);
+    const chain = buildFilterChain(
+      { ...effects, emphasisMoments: emphasisRetimed },
+      width, height, duration,
+      [], // cutBoundaries — silence-cut whip transitions tracked separately
+      beatDrops,
+      dramaWindows,
+    );
     const baseVideoFilters: string[] = [...chain.videoFilters];
     if (effects.cinematicColor) {
       baseVideoFilters.push(...cinematicColorFilter(emphasisRetimed));
