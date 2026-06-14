@@ -32,10 +32,15 @@ type FilterChain = {
  * "flash" at each emphasis point — synchronized with the punch zoom.
  */
 export function cinematicColorFilter(emphasisMoments: number[] = []): string[] {
+  // Numbers mirror the live preview's CSS exactly:
+  //   filter: contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)
+  // FFmpeg eq's brightness is additive (-1..1) vs CSS multiplicative;
+  // brightness(1.02) ≈ +0.02 added. Sepia(0.06) is a very subtle warm
+  // shift approximated with colorbalance toward red/yellow.
   if (emphasisMoments.length === 0) {
     return [
-      "eq=contrast=1.06:saturation=1.12:gamma=0.96",
-      "curves=preset=increase_contrast",
+      "eq=contrast=1.08:saturation=1.16:brightness=0.02:gamma=0.96",
+      "colorbalance=rs=0.04:gs=0.02:bs=-0.03",
     ];
   }
 
@@ -60,13 +65,13 @@ export function cinematicColorFilter(emphasisMoments: number[] = []): string[] {
 
   const P = `(${pulse})`; // 0..1 envelope
   return [
-    // Base cinematic look + emphasis pulse on top
+    // Base cinematic look (matches CSS) + emphasis pulse on top
     `eq=` +
-      `contrast='1.06+0.18*${P}':` +
-      `saturation='1.12+0.20*${P}':` +
-      `brightness='0.04*${P}':` +
+      `contrast='1.08+0.18*${P}':` +
+      `saturation='1.16+0.20*${P}':` +
+      `brightness='0.02+0.04*${P}':` +
       `gamma=0.96`,
-    "curves=preset=increase_contrast",
+    "colorbalance=rs=0.04:gs=0.02:bs=-0.03",
   ];
 }
 

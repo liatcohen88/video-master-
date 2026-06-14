@@ -108,16 +108,25 @@ export function buildIntroAnimationFilters(
         `crop=${outputW}:${outputH}:0:'if(lt(t,${d}), ih/2*(1-t/${d}) + ih/2, ih/2)':eval=frame`,
       ];
 
-    case "shake":
-      // True multi-axis jitter needs per-frame coordinate randomness, which
-      // FFmpeg can do with `if(lt(t,d), random(...))` but it's expensive
-      // and looks robotic. Fallback to a quick punch+fade-in — still
-      // dramatic, just not jittery. Live-preview keeps the real shake.
+    case "shake": {
+      // Real multi-axis jitter: oscillate crop x/y with decaying sin/cos so
+      // the camera "wobbles" on impact then settles. Mirrors the live
+      // preview's per-frame shake (introFrameAt) instead of the old
+      // punch+fade fallback. Cheap: just expressions inside crop x/y.
+      const ampPx = Math.round(outputW * 0.02); // ~22px on 1080
+      const freq = 18; // Hz — fast wiggle that decays inside the d-second window
+      // Pad on both axes so crop has room to translate without exposing edge.
+      const pad = ampPx + 2;
+      // Decay envelope: 1.0 at t=0 → 0 at t=d (linear).
+      const decay = `max(0,1-t/${d.toFixed(3)})`;
+      const xExpr = `(${pad} + ${ampPx}*${decay}*sin(2*PI*${freq}*t))`;
+      const yExpr = `(${pad} + ${ampPx}*${decay}*cos(2*PI*${freq}*t*1.3))`;
       return [
-        `scale=w='iw*if(lt(t,${d}), 1.06 - 0.06*t/${d}, 1)':h='ih*if(lt(t,${d}), 1.06 - 0.06*t/${d}, 1)':eval=frame:flags=lanczos`,
-        `crop=${outputW}:${outputH}:(iw-${outputW})/2:(ih-${outputH})/2`,
-        `fade=in:st=0:d=${d * 0.6}`,
+        `pad=iw+${pad * 2}:ih+${pad * 2}:${pad}:${pad}:black`,
+        `crop=${outputW}:${outputH}:'${xExpr}':'${yExpr}':eval=frame`,
+        `fade=in:st=0:d=${(d * 0.4).toFixed(3)}`,
       ];
+    }
 
     case "whipPan":
       // Horizontal slide-in from off-screen-right. Same pad+crop trick as
