@@ -28,6 +28,9 @@ import type { Subtitle, SubtitleStyle, VideoEffects } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimit } from "@/lib/rateLimit";
+import { spendCredits } from "@/lib/serverCredits";
+import { calcDynamicCost, CREDIT_COSTS } from "@/lib/credits";
+import type { EditMode } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 1800;
@@ -70,6 +73,28 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON in subtitles/style/effects" }, { status: 400 });
   }
+
+  // Server-side credit spend (audit C1). Compute cost from the same
+  // formula the UI shows so the user is never charged more than they saw.
+  // mode comes from the form; default to subtitles_only (cheapest base).
+  const mode = (formData.get("mode") as EditMode) || "subtitles_only";
+  if (!(mode in CREDIT_COSTS)) {
+    return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+  }
+  const { total: cost } = calcDynamicCost(mode, effects);
+  const spend = await spendCredits(user.id, cost);
+  if (!spend.ok) {
+    if (spend.reason === "insufficient") {
+      return NextResponse.json(
+        { error: `אין מספיק מאסטרים (צריך ${cost}, יש לך ${spend.balance})`, code: "INSUFFICIENT" },
+        { status: 402 },
+      );
+    }
+    return NextResponse.json({ error: "מערכת התשלום לא זמינה" }, { status: 503 });
+  }
+  // Note: if FFmpeg later throws, we DO NOT auto-refund — Liat can
+  // manually refund via /admin → user → +credits. Render failures are
+  // rare on the happy path and refund logic adds race-condition risk.
 
   const baseTmp = join(tmpdir(), "subtitles-studio");
   const timestamp = Date.now();

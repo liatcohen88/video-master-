@@ -480,6 +480,8 @@ export default function HomePage() {
       fd.append("subtitles", JSON.stringify(subtitles));
       fd.append("style", JSON.stringify(style));
       fd.append("effects", JSON.stringify(effects));
+      // mode is needed by the server-side credit spend (audit C1).
+      fd.append("mode", mode);
       // Background music is stored client-side as a blob: URL, which the
       // server can't fetch. Re-fetch the blob here and attach as a file.
       if (effects.bgMusicUrl) {

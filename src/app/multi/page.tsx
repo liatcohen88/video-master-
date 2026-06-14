@@ -220,20 +220,39 @@ export default function MultiEditorPage() {
    */
   async function downloadVideo() {
     if (!result) return;
-    if (getCredits() < multiCost) {
-      toast.error(cInsufficientTpl.replace("{{currency}}", currency).replace("{{cost}}", String(multiCost)));
-      router.push("/credits");
-      return;
-    }
     setOverlay({ title: cPrepDlTitle, subtitle: cPrepDlSubtitle });
-    // Let the overlay paint before the (sync) download work.
     await new Promise((r) => setTimeout(r, 600));
     try {
-      if (!spend(multiCost)) {
+      // Server-side credit spend (audit C1). localStorage credits aren't
+      // trusted — the only authoritative deduction happens server-side
+      // via /api/credits/spend → spend_credits RPC.
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const spendRes = await fetch("/api/credits/spend", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ amount: multiCost, reason: "multi-edit-download" }),
+      });
+      if (!spendRes.ok) {
         setOverlay(null);
-        toast.error(cInsufficientShort.replace("{{currency}}", currency));
+        const body = await spendRes.json().catch(() => ({}));
+        if (spendRes.status === 402) {
+          toast.error(body.error || cInsufficientTpl.replace("{{currency}}", currency).replace("{{cost}}", String(multiCost)));
+          router.push("/credits");
+        } else if (spendRes.status === 401) {
+          toast.error(cInsufficientShort.replace("{{currency}}", currency));
+        } else {
+          toast.error(body.error || cDownloadErr);
+        }
         return;
       }
+      // Sync the local credit cache so the header pill updates immediately.
+      window.dispatchEvent(new Event("credits-change"));
+
       const blob = b64ToBlob(result.videoBase64, "video/mp4");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
