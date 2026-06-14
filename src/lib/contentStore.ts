@@ -477,6 +477,12 @@ export const CONTENT_DEFAULTS = {
   "uploader.checkingTitle":"בודק...",
   "uploader.formatsLine":  "תומך ב-MP4, MOV, AVI, MKV",
   "uploader.durationNote": "תמיכה בסרטונים עד 60 שניות (בינתיים 😉)",
+
+  // Feature flags — toggle to hide pre-launch features without removing code.
+  // multi.enabled = false → hides every visible reference to "חיבור סרטונים AI"
+  // (home page card, footer link, /credits multi mode). The /multi page itself
+  // stays accessible by direct URL so existing bookmarks don't 404.
+  "feature.multi.enabled": false,
 } as const;
 
 export type ContentKey = keyof typeof CONTENT_DEFAULTS;

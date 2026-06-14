@@ -62,7 +62,9 @@ export default function SiteFooter() {
             <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">מפת אתר</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/"          className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.home")}</Link></li>
-              <li><Link href="/multi"     className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.multi")}</Link></li>
+              {(useContent("feature.multi.enabled") as boolean) && (
+                <li><Link href="/multi" className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.multi")}</Link></li>
+              )}
               <li><Link href="/credits"   className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.credits")}</Link></li>
               <li><Link href="/help"      className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.help")}</Link></li>
               <li><Link href="/contact"   className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.contact")}</Link></li>

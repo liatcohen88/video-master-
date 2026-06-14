@@ -84,6 +84,7 @@ export default function HomePage() {
   const toastVideoLoaded= useContent("home.toast.videoLoaded") as string;
   const heroGreeting     = useContent("home.hero.greeting") as string;
   const heroGreetingGuest= useContent("home.hero.greetingGuest") as string;
+  const multiEnabled     = useContent("feature.multi.enabled") as boolean;
 
   // Auth — used to (a) personalize the hero greeting with display name,
   // and (b) gate the export button (guests get a signup popup instead).
@@ -534,7 +535,7 @@ export default function HomePage() {
                     : heroGreetingGuest}
                 </h1>
               </div>
-              <a
+              {multiEnabled && <a
                 href="/multi"
                 className="block group bg-gradient-to-br from-brand/15 via-purple-500/10 to-cyan-500/5 border border-brand/30 hover:border-brand/60 rounded-2xl p-5 transition-colors"
               >
@@ -553,7 +554,7 @@ export default function HomePage() {
                   </div>
                   <div className="text-brand-light group-hover:translate-x-1 transition-transform text-2xl">←</div>
                 </div>
-              </a>
+              </a>}
               <div ref={uploadRef}>
                 {/* If a previous video is still cached, show one-click resume.
                     Self-hides when no cached video exists. */}
