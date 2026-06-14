@@ -649,6 +649,33 @@ export const CONTENT_DEFAULTS = {
 
   // ── AILoadingOverlay (default hint copy) ────────────
   "aiLoader.defaultHint":    "ה-AI מקשיב ומבין כל מילה. זה ייקח בערך דקה עד שתיים — תלוי באורך הסרטון.",
+
+  // ── EffectsPanel — tabs + the big section headings users see most ──
+  "effects.tab.magic":    "אפקטים מיוחדים",
+  "effects.tab.color":    "צבע",
+  "effects.tab.brand":    "לוגואים",
+  "effects.tab.sound":    "סאונדים",
+  "effects.tab.captions": "כתוביות",
+  "effects.section.aspect":      "יחס תצוגה",
+  "effects.field.cropFocus":     "מיקוד החיתוך",
+  "effects.cropFocus.top":       "למעלה",
+  "effects.cropFocus.center":    "מרכז",
+  "effects.cropFocus.bottom":    "למטה",
+  "effects.section.intro":       "אנימציית כניסה לסרטון",
+  "effects.intro.hint":          "האנימציה רצה רק בשנייה הראשונה. נגן את התצוגה מהתחלה כדי לראות.",
+  "effects.section.silenceCut":  "חיתוך שתיקות",
+  "effects.section.zoom":        "זום על דובר",
+  "effects.section.subtitleIntro":"אנימציית כניסה לכתוביות",
+  "effects.section.bgMusic":     "מוזיקת רקע",
+  "effects.section.sfxVolume":   "עוצמת סאונד אפקטים",
+  "effects.sfx.volumeHint":      "משפיע על כל הצלילים בסרטון",
+  "effects.section.colorFilter": "פילטר צבע",
+  "effects.colorFilter.hint":    "הפילטרים מוחלים על כל הסרטון…",
+  "effects.section.parallax":    "עומק תלת-ממדי (Parallax)",
+  "effects.section.brandLogo":   "לוגו אישי ומיתוג",
+  "effects.section.autoLogos":   "זיהוי לוגואים אוטומטי",
+  "effects.autoLogos.label":     "זיהוי לוגואים של מותגים גדולים",
+  "effects.autoLogos.extraHint": "💡 ה-AI מזהה לוגואים…",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

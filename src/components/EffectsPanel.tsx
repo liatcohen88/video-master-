@@ -44,19 +44,35 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
   // Intro presets with admin label/desc overrides applied
   const visibleIntros = resolveIntroAnimations().filter((i) => !hiddenIntros?.[i.id]);
 
+  // CMS-editable tab + section copy
+  const c = {
+    tabMagic:       useContent("effects.tab.magic") as string,
+    tabColor:       useContent("effects.tab.color") as string,
+    tabBrand:       useContent("effects.tab.brand") as string,
+    tabSound:       useContent("effects.tab.sound") as string,
+    tabCaptions:    useContent("effects.tab.captions") as string,
+    secAspect:      useContent("effects.section.aspect") as string,
+    cropFocus:      useContent("effects.field.cropFocus") as string,
+    cfTop:          useContent("effects.cropFocus.top") as string,
+    cfCenter:       useContent("effects.cropFocus.center") as string,
+    cfBottom:       useContent("effects.cropFocus.bottom") as string,
+    secIntro:       useContent("effects.section.intro") as string,
+    introHint:      useContent("effects.intro.hint") as string,
+  };
+
   // Which tabs to show. A tab disappears when EVERY block inside it is
   // disabled for the current edit mode — so "subtitles_only" gets the
   // skinniest panel (only Captions + maybe Color), not 4 empty boxes.
   const tabsAvailable: { id: EffectsTab; label: string; icon: React.ReactNode; visible: boolean }[] = [
     {
       id: "magic",
-      label: "אפקטים מיוחדים",
+      label: c.tabMagic,
       icon: <Wand2 className="w-3.5 h-3.5" />,
       visible: caps.silenceCut || caps.faceZoom || caps.aspectCrop,
     },
     {
       id: "color",
-      label: "צבע",
+      label: c.tabColor,
       icon: <Palette className="w-3.5 h-3.5" />,
       // Color filters are pure CSS — available in every mode (subtitles_only
       // included). Cinematic toggle stays gated by colorGrade cap.
@@ -64,13 +80,13 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
     },
     {
       id: "brand",
-      label: "לוגואים",
+      label: c.tabBrand,
       icon: <ImagePlus className="w-3.5 h-3.5" />,
       visible: caps.logo,
     },
     {
       id: "sound",
-      label: "סאונדים",
+      label: c.tabSound,
       icon: <Music className="w-3.5 h-3.5" />,
       // Sounds tab is universal — every mode can attach music and tune
       // volumes, even subtitles_only.
@@ -78,7 +94,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
     },
     {
       id: "captions",
-      label: "כתוביות",
+      label: c.tabCaptions,
       icon: <Type className="w-3.5 h-3.5" />,
       visible: true,
     },
@@ -111,7 +127,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
       {/* ── Aspect ratio (under "אפקטים מיוחדים" tab — it's output format, not branding) ── */}
       {tab === "magic" && caps.aspectCrop && (
-      <Section icon={<Crop className="w-4 h-4" />} title="יחס תצוגה">
+      <Section icon={<Crop className="w-4 h-4" />} title={c.secAspect}>
         <div className="grid grid-cols-5 gap-2">
           {ASPECT_RATIOS.map((ar) => {
             const info = ASPECT_RATIO_INFO[ar];
@@ -140,7 +156,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
         {effects.aspectRatio !== "original" && (
           <div className="mt-3">
             <label className="block text-xs text-white/60 mb-1.5">
-              מיקוד החיתוך
+              {c.cropFocus}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {(["top", "center", "bottom"] as const).map((f) => (
@@ -154,7 +170,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
                       : "border-white/10 bg-bg-input text-white/60 hover:border-white/30"}
                   `}
                 >
-                  {f === "top" ? "למעלה" : f === "center" ? "מרכז" : "למטה"}
+                  {f === "top" ? c.cfTop : f === "center" ? c.cfCenter : c.cfBottom}
                 </button>
               ))}
             </div>
@@ -166,7 +182,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
       {/* Intro animation (under "אפקטים מיוחדים" tab) — every mode, since
           a punchy opener is value even for "subtitles_only". */}
       {tab === "magic" && (
-      <Section icon={<Sparkles className="w-4 h-4" />} title="אנימציית כניסה לסרטון">
+      <Section icon={<Sparkles className="w-4 h-4" />} title={c.secIntro}>
         <div className="grid grid-cols-3 gap-2">
           {visibleIntros.map((opt) => {
             const active = (effects.introAnimation ?? "none") === opt.id;
@@ -185,7 +201,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
           })}
         </div>
         <p className="text-[11px] text-white/40 mt-2">
-          האנימציה רצה רק בשנייה הראשונה. נגן את התצוגה מהתחלה כדי לראות.
+          {c.introHint}
         </p>
 
         {/* Intro SFX picker — appears only when an animation is selected.
