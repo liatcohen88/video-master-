@@ -104,8 +104,7 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
       {/* ── 2.5. Feature showcase — hidden ── */}
       {/* <FeatureShowcase /> */}
 
-      {/* ── 3. Browser mockup hero ── */}
-      <HeroBrowserMockup />
+      {/* ── 3. Browser mockup hero — moved to page.tsx hero area ── */}
 
       {/* ── 4. Features grid (6) ── */}
       <section>

@@ -37,6 +37,7 @@ import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
 import LandingSections from "@/components/LandingSections";
+import HeroBrowserMockup from "@/components/HeroBrowserMockup";
 import { useAutoSavedState } from "@/lib/useAutoSave";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
@@ -571,6 +572,12 @@ export default function HomePage() {
                   <HeroBadge icon={<FileDown className="w-3.5 h-3.5" />}     color="emerald">{heroBadge5}</HeroBadge>
                 </div>
               </div>
+
+              {/* ── Browser mockup — shows the app UI with video demo ── */}
+              <div className="mt-6 px-2 overflow-visible">
+                <HeroBrowserMockup />
+              </div>
+
               {multiEnabled && <a
                 href="/multi"
                 className="block group bg-gradient-to-br from-brand/15 via-purple-500/10 to-cyan-500/5 border border-brand/30 hover:border-brand/60 rounded-2xl p-5 transition-colors"

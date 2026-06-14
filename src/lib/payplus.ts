@@ -84,11 +84,13 @@ export async function createPaymentLink(
     refURL_success: input.successUrl,
     refURL_failure: input.cancelUrl,
     refURL_callback: input.webhookUrl,
-    // `more_info` round-trips to the webhook so we can credit the right account
+    // `more_info` round-trips to the webhook so we can find the right
+    // account. credits are NOT trusted from here — the webhook recomputes
+    // them server-side from the paid amount (see fulfillment.ts).
     more_info: JSON.stringify({
       packageId: input.packageId,
-      credits: input.credits,
       userId: input.userId ?? "",
+      email: input.customerEmail ?? "",
     }),
     items: [{
       name: `${input.credits} קרדיט ל-Video Master`,
@@ -151,15 +153,29 @@ export async function verifyAndParseWebhook(
   // PayPlus signs the raw body with HMAC-SHA256 hex
   const crypto = await import("node:crypto");
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  // PayPlus header is sometimes raw hex, sometimes base64 — accept both
+  // PayPlus header is sometimes raw hex, sometimes base64 — accept both.
+  // Use timingSafeEqual to prevent timing-attack inference of the secret.
   const expectedB64 = Buffer.from(expected, "hex").toString("base64");
-  const ok = signatureHeader === expected || signatureHeader === expectedB64;
+  const ok = constantTimeMatch(signatureHeader, expected)
+        || constantTimeMatch(signatureHeader, expectedB64);
   if (!ok) return null;
 
   try {
     return JSON.parse(rawBody) as PayPlusWebhookPayload;
   } catch {
     return null;
+  }
+}
+
+/** Constant-time string compare. Returns false fast on length mismatch
+ *  (length itself isn't secret), then uses timingSafeEqual for the bytes. */
+function constantTimeMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    const { timingSafeEqual } = require("node:crypto") as typeof import("node:crypto");
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
   }
 }
 

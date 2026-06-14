@@ -24,19 +24,14 @@ export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { key: "checkout", max: 10, windowSec: 60 });
   if (limited) return limited;
 
-  const { packageId, packageOverride, customerEmail } = await req.json().catch(() => ({}));
+  const { packageId, customerEmail } = await req.json().catch(() => ({}));
 
-  let pkg: { id: string; credits: number; priceIls: number } | undefined =
-    CREDIT_PACKAGES.find((p) => p.id === packageId);
-  if (!pkg && packageOverride
-      && typeof packageOverride.credits === "number" && packageOverride.credits > 0
-      && typeof packageOverride.priceIls === "number" && packageOverride.priceIls > 0) {
-    pkg = {
-      id: String(packageOverride.id ?? packageId),
-      credits: packageOverride.credits,
-      priceIls: packageOverride.priceIls,
-    };
-  }
+  // Pricing is ALWAYS server-side. We deliberately do NOT accept any
+  // packageOverride from the client — that bypass let an attacker pay ₪1
+  // for a "1,000,000 credits" override. The only trusted source is the
+  // server-side CREDIT_PACKAGES list (which mirrors the admin's CMS
+  // pricing.packages array — pricing edits ship via deploy + cms-sync).
+  const pkg = CREDIT_PACKAGES.find((p) => p.id === packageId);
   if (!pkg) {
     return NextResponse.json({ error: "חבילה לא מזוהה" }, { status: 400 });
   }
