@@ -1,26 +1,28 @@
 "use client";
 
 import LogoMark from "./LogoMark";
+import { useContent } from "@/lib/useContent";
 
 type Props = {
   /** Main headline — e.g. "AI מתמלל לך את הסרטון" */
   title: string;
   /** Optional secondary line — current pipeline stage */
   subtitle?: string;
-  /** Small reassuring footnote. Defaults to the transcription wording; pass a
-   *  custom string for other operations, or "" to hide it entirely. */
+  /** Small reassuring footnote. Defaults to the CMS aiLoader.defaultHint;
+   *  pass a custom string for other operations, or "" to hide it entirely. */
   hint?: string;
 };
-
-const DEFAULT_HINT = "ה-AI מקשיב ומבין כל מילה. זה ייקח בערך דקה עד שתיים — תלוי באורך הסרטון.";
 
 /**
  * Full-screen overlay shown while the heavy AI pipeline is running
  * (transcription + analysis). Spinning brand logo + animated dots +
  * customizable title so the caller can switch wording per edit mode
- * ("מתמלל" vs "מתמלל ועורך").
+ * ("מתמלל" vs "מתמלל ועורך"). The default hint comes from the CMS so
+ * admin can rephrase without a deploy.
  */
-export default function AILoadingOverlay({ title, subtitle, hint = DEFAULT_HINT }: Props) {
+export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
+  const cmsHint = useContent("aiLoader.defaultHint") as string;
+  const finalHint = hint !== undefined ? hint : cmsHint;
   return (
     <div
       dir="rtl"
@@ -54,8 +56,8 @@ export default function AILoadingOverlay({ title, subtitle, hint = DEFAULT_HINT 
           <div className="h-full w-1/3 bg-gradient-to-r from-brand to-pink-500 rounded-full animate-shimmer" />
         </div>
 
-        {hint && (
-          <p className="text-[11px] text-white/40 max-w-xs leading-relaxed">{hint}</p>
+        {finalHint && (
+          <p className="text-[11px] text-white/40 max-w-xs leading-relaxed">{finalHint}</p>
         )}
       </div>
 

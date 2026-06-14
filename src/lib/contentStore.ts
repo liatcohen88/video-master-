@@ -609,6 +609,46 @@ export const CONTENT_DEFAULTS = {
   "editor.sfx.none":             "ללא צליל",
   "editor.defaultLabel":         "ברירת מחדל",
   "editor.btn.addSubtitle":      "הוסף כתובית",
+
+  // ── AccessibilityPanel (floating ♿ drawer) ─────────────
+  "a11yPanel.openLabel":   "פתיחת פאנל נגישות",
+  "a11yPanel.label":       "פאנל נגישות",
+  "a11yPanel.heading":     "הגדרות נגישות",
+  "a11yPanel.close":       "סגירה",
+  "a11yPanel.section.textSize":"גודל טקסט",
+  "a11yPanel.textSize.normal":"רגיל",
+  "a11yPanel.textSize.medium":"בינוני",
+  "a11yPanel.textSize.large":"גדול",
+  "a11yPanel.textSize.xl":   "ענק",
+  "a11yPanel.contrast.label":  "ניגודיות גבוהה",
+  "a11yPanel.contrast.hint":   "טקסט לבן על שחור, ללא גרדיאנטים",
+  "a11yPanel.links.label":     "הדגשת קישורים",
+  "a11yPanel.links.hint":      "קו תחתון + רקע צהוב על כל קישור",
+  "a11yPanel.dyslexia.label":  "גופן ידידותי לדיסלקציה",
+  "a11yPanel.dyslexia.hint":   "מרווח אותיות גדול + משקל מודגש",
+  "a11yPanel.bigCursor.label": "סמן עכבר גדול",
+  "a11yPanel.bigCursor.hint":  "עכבר במידה כפולה",
+  "a11yPanel.reduceMotion.label":"הפחתת אנימציות",
+  "a11yPanel.reduceMotion.hint": "כיבוי תנועות ומעברים",
+  "a11yPanel.reset":           "איפוס להגדרות ברירת מחדל",
+  "a11yPanel.statementLink":   "הצהרת הנגישות של האתר",
+
+  // ── ResumeProjectBanner (auto-saved video resumer) ─────
+  "resume.time.justNow":     "לפני פחות מדקה",
+  "resume.time.minutesTpl":  "לפני {{n}} דקות",
+  "resume.time.hoursTpl":    "לפני {{n}} שעות",
+  "resume.time.daysTpl":     "לפני {{n}} ימים",
+  "resume.title":            "המשך עריכה מאיפה שהפסקת",
+  "resume.descriptionTpl":   "יש לנו את הסרטון שלך שמור ({{name}} • {{mb}} MB)",
+  "resume.savedAtTpl":       "נשמר {{age}}",
+  "resume.cta.continue":     "▶ המשך עריכה",
+  "resume.previousVersionsTpl":"גרסאות קודמות ({{n}})",
+  "resume.cta.discard":      "מחק שמור",
+  "resume.versionSubtitleTpl":"{{time}} • {{count}} כתוביות",
+  "resume.cta.restore":      "שחזר ←",
+
+  // ── AILoadingOverlay (default hint copy) ────────────
+  "aiLoader.defaultHint":    "ה-AI מקשיב ומבין כל מילה. זה ייקח בערך דקה עד שתיים — תלוי באורך הסרטון.",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

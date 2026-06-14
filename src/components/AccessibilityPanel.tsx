@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Accessibility, X, Type, Eye, Link2, BookOpen, MousePointer2, ZapOff, RotateCcw } from "lucide-react";
+import { useContent } from "@/lib/useContent";
 
 /**
  * In-house accessibility panel — replaces paid third-party widgets.
@@ -65,6 +66,31 @@ export default function AccessibilityPanel() {
   const [open, setOpen] = useState(false);
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
 
+  // Every label/hint is CMS-editable (a11yPanel.*)
+  const c = {
+    openLabel:     useContent("a11yPanel.openLabel") as string,
+    label:         useContent("a11yPanel.label") as string,
+    heading:       useContent("a11yPanel.heading") as string,
+    close:         useContent("a11yPanel.close") as string,
+    sectionText:   useContent("a11yPanel.section.textSize") as string,
+    sizeNormal:    useContent("a11yPanel.textSize.normal") as string,
+    sizeMedium:    useContent("a11yPanel.textSize.medium") as string,
+    sizeLarge:     useContent("a11yPanel.textSize.large") as string,
+    sizeXl:        useContent("a11yPanel.textSize.xl") as string,
+    contrastLabel: useContent("a11yPanel.contrast.label") as string,
+    contrastHint:  useContent("a11yPanel.contrast.hint") as string,
+    linksLabel:    useContent("a11yPanel.links.label") as string,
+    linksHint:     useContent("a11yPanel.links.hint") as string,
+    dyslexiaLabel: useContent("a11yPanel.dyslexia.label") as string,
+    dyslexiaHint:  useContent("a11yPanel.dyslexia.hint") as string,
+    bigCursorLabel:useContent("a11yPanel.bigCursor.label") as string,
+    bigCursorHint: useContent("a11yPanel.bigCursor.hint") as string,
+    motionLabel:   useContent("a11yPanel.reduceMotion.label") as string,
+    motionHint:    useContent("a11yPanel.reduceMotion.hint") as string,
+    reset:         useContent("a11yPanel.reset") as string,
+    statementLink: useContent("a11yPanel.statementLink") as string,
+  };
+
   // Load + apply on mount
   useEffect(() => {
     const loaded = loadSettings();
@@ -94,7 +120,7 @@ export default function AccessibilityPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="פתיחת פאנל נגישות"
+        aria-label={c.openLabel}
         className="fixed bottom-4 left-4 z-[60] w-12 h-12 rounded-full bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/40 flex items-center justify-center transition-all hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-400/50"
       >
         <Accessibility className="w-6 h-6" aria-hidden />
@@ -106,7 +132,7 @@ export default function AccessibilityPanel() {
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="פאנל נגישות"
+          aria-label={c.label}
         >
           <aside
             dir="rtl"
@@ -116,12 +142,12 @@ export default function AccessibilityPanel() {
             <header className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <Accessibility className="w-5 h-5 text-violet-300" aria-hidden />
-                <h2 className="text-lg font-bold">הגדרות נגישות</h2>
+                <h2 className="text-lg font-bold">{c.heading}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="סגירה"
+                aria-label={c.close}
                 className="text-white/60 hover:text-white p-1 rounded-md hover:bg-white/10"
               >
                 <X className="w-5 h-5" aria-hidden />
@@ -129,7 +155,7 @@ export default function AccessibilityPanel() {
             </header>
 
             {/* Text size */}
-            <Section icon={<Type className="w-4 h-4" />} title="גודל טקסט">
+            <Section icon={<Type className="w-4 h-4" />} title={c.sectionText}>
               <div className="grid grid-cols-4 gap-1 bg-bg-card rounded-lg p-1">
                 {[1, 1.15, 1.3, 1.5].map((v, i) => (
                   <button
@@ -141,7 +167,7 @@ export default function AccessibilityPanel() {
                       s.textScale === v ? "bg-violet-600 text-white" : "text-white/70 hover:bg-white/5"
                     }`}
                   >
-                    {["רגיל", "בינוני", "גדול", "ענק"][i]}
+                    {[c.sizeNormal, c.sizeMedium, c.sizeLarge, c.sizeXl][i]}
                   </button>
                 ))}
               </div>
@@ -149,36 +175,36 @@ export default function AccessibilityPanel() {
 
             <Toggle
               icon={<Eye className="w-4 h-4" />}
-              label="ניגודיות גבוהה"
-              hint="טקסט לבן על שחור, ללא גרדיאנטים"
+              label={c.contrastLabel}
+              hint={c.contrastHint}
               value={s.highContrast}
               onChange={(v) => update({ highContrast: v })}
             />
             <Toggle
               icon={<Link2 className="w-4 h-4" />}
-              label="הדגשת קישורים"
-              hint="קו תחתון + רקע צהוב על כל קישור"
+              label={c.linksLabel}
+              hint={c.linksHint}
               value={s.linkHighlight}
               onChange={(v) => update({ linkHighlight: v })}
             />
             <Toggle
               icon={<BookOpen className="w-4 h-4" />}
-              label="גופן ידידותי לדיסלקציה"
-              hint="מרווח אותיות גדול + משקל מודגש"
+              label={c.dyslexiaLabel}
+              hint={c.dyslexiaHint}
               value={s.dyslexicFont}
               onChange={(v) => update({ dyslexicFont: v })}
             />
             <Toggle
               icon={<MousePointer2 className="w-4 h-4" />}
-              label="סמן עכבר גדול"
-              hint="עכבר במידה כפולה"
+              label={c.bigCursorLabel}
+              hint={c.bigCursorHint}
               value={s.bigCursor}
               onChange={(v) => update({ bigCursor: v })}
             />
             <Toggle
               icon={<ZapOff className="w-4 h-4" />}
-              label="הפחתת אנימציות"
-              hint="כיבוי תנועות ומעברים"
+              label={c.motionLabel}
+              hint={c.motionHint}
               value={s.reduceMotion}
               onChange={(v) => update({ reduceMotion: v })}
             />
@@ -189,14 +215,14 @@ export default function AccessibilityPanel() {
               className="w-full mt-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white/80 flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" aria-hidden />
-              איפוס להגדרות ברירת מחדל
+              {c.reset}
             </button>
 
             <a
               href="/accessibility-statement"
               className="block mt-3 text-center text-xs text-violet-300 hover:text-violet-200 underline underline-offset-2"
             >
-              הצהרת הנגישות של האתר
+              {c.statementLink}
             </a>
           </aside>
         </div>
