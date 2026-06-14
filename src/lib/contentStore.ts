@@ -676,6 +676,46 @@ export const CONTENT_DEFAULTS = {
   "effects.section.autoLogos":   "זיהוי לוגואים אוטומטי",
   "effects.autoLogos.label":     "זיהוי לוגואים של מותגים גדולים",
   "effects.autoLogos.extraHint": "💡 ה-AI מזהה לוגואים…",
+
+  // ── VideoUploader (validation + busy overlay) ──────────
+  "uploader.error.tooLongTpl":   "הסרטון ארוך מ-{{max}} שניות ({{dur}} שנ׳). כרגע מעלים סרטונים עד דקה — חתכי או קצרי ונסי שוב.",
+  "uploader.checkingSubtitle":   "רגע אחד — בודקים את הסרטון",
+
+  // ── ModeSelector (price-per-video + advanced-mode dynamic hint) ─
+  "mode.priceSuffix":             "{{currency}} לסרטון",
+  "mode.advancedDynamicHint":     "💡 משתנה לפי כמות האפקטים — עד 40 מאסטרים",
+
+  // ── SubtitleSettingsPanel (Whisper model card) ─────
+  "settings.modelCard.hebrewAccuracy":"דיוק עברית: ",
+  "settings.modelCard.speed":         "מהירות: ",
+
+  // ── ExportFormatToggle (MP4 vs SRT card) ─────
+  "export.format.title":          "פורמט יצוא",
+  "export.format.mp4.subtitle":   "וידאו עם כתוביות צרובות",
+  "export.format.srt.subtitle":   "קובץ כתוביות לפרמייר",
+
+  // ── PackagesCarousel + PremiumPkgCard shared feature copy ─
+  "carousel.btn":                "קנה עכשיו ←",
+  "carousel.strapline":          "תשלום חד-פעמי | הקרדיט לא פג",
+  "carousel.oneTimeLabel":       "חיוב חד-פעמי",
+  "carousel.defaultHighlight":   "מבצע השקה",
+
+  // ── Onboarding gift suffix ────────────────────────
+  "onboarding.giftSuffix":       "מתנה ✨",
+
+  // ── Signup / SignupGate shared validations ────────
+  "auth.error.passwordTooShort":  "הסיסמה צריכה להיות לפחות 8 תווים.",
+  "auth.error.invalidCreds":      "אימייל או סיסמה שגויים.",
+  "auth.signup.namePlaceholder":  "ליאת",
+  "auth.signup.termsLinkLabel":   "תנאי השימוש",
+  "auth.signup.error.emailExists":"האימייל כבר רשום. אולי שכחת סיסמה?",
+  "signupGate.error.emailExists": "האימייל כבר רשום. עברי להתחברות 👇",
+  "signupGate.notice.confirmEmail":"שלחנו לך אימייל אישור — אשרי ואז את יכולה לחזור להוריד.",
+  "signupGate.namePlaceholder":   "השם שלך",
+
+  // ── /contact small bits ─────────────────────────
+  "contact.recommendedBadge":     "המומלץ",
+  "contact.cardCta":              "לחיצה כדי לשלוח",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

@@ -33,6 +33,8 @@ export default function VideoUploader({ onVideoSelected }: Props) {
   const checkingTitle= useContent("uploader.checkingTitle") as string;
   const formatsLine  = useContent("uploader.formatsLine") as string;
   const durationNote = useContent("uploader.durationNote") as string;
+  const tooLongTpl   = useContent("uploader.error.tooLongTpl") as string;
+  const checkingSub  = useContent("uploader.checkingSubtitle") as string;
   const [isDragging, setIsDragging] = useState(false);
   const [checking, setChecking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,8 +46,9 @@ export default function VideoUploader({ onVideoSelected }: Props) {
     setChecking(false);
     if (dur > MAX_VIDEO_SECONDS + 0.5) {
       toast.error(
-        `הסרטון ארוך מ-${MAX_VIDEO_SECONDS} שניות (${Math.round(dur)} שנ׳). ` +
-          `כרגע מעלים סרטונים עד דקה — חתכי או קצרי ונסי שוב.`,
+        tooLongTpl
+          .replace("{{max}}", String(MAX_VIDEO_SECONDS))
+          .replace("{{dur}}", String(Math.round(dur))),
       );
       return;
     }
@@ -96,7 +99,7 @@ export default function VideoUploader({ onVideoSelected }: Props) {
         <div className="absolute inset-0 bg-bg-dark/85 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center gap-3 z-10">
           <Loader2 className="w-10 h-10 text-brand animate-spin" />
           <div className="text-base font-bold text-white">{checkingTitle}</div>
-          <div className="text-xs text-white/60">רגע אחד — בודקים את הסרטון</div>
+          <div className="text-xs text-white/60">{checkingSub}</div>
         </div>
       )}
       <div className="flex flex-col items-center gap-4">
