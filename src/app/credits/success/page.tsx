@@ -1,10 +1,17 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, AlertCircle, ShoppingBag, Wand2, Sparkles } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import LogoMark from "@/components/LogoMark";
+
+// useSearchParams() suspends during prerender, so the page must be wrapped
+// in a Suspense boundary or Next 15 fails the build with "Error occurred
+// prerendering". Force-dynamic avoids prerender entirely for this route —
+// it's a payment-callback page that always needs fresh URL params anyway.
+export const dynamic = "force-dynamic";
 
 /**
  * /credits/success — PayPlus redirects here after the user finishes the
@@ -15,6 +22,14 @@ import LogoMark from "@/components/LogoMark";
  * (/api/payplus/webhook); this page is purely the visual receipt.
  */
 export default function CreditsSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <SuccessInner />
+    </Suspense>
+  );
+}
+
+function SuccessInner() {
   const sp = useSearchParams();
   const failed     = sp.get("status") === "fail";
   const creditsStr = sp.get("credits");
