@@ -23,7 +23,9 @@ import { getCredits } from "@/lib/credits";
 import { confirm } from "@/components/ConfirmDialog";
 import { toast } from "@/components/Toaster";
 
-const MODE_LABEL: Record<UserVideo["mode"], string> = {
+// Default mode labels. Per-row Hebrew label is now CMS-overridable via
+// dashboard.modeLabel.* — see useModeLabel() below.
+const MODE_LABEL_DEFAULT: Record<UserVideo["mode"], string> = {
   subtitles_only: "כתוביות",
   basic_effects:  "אפקטים",
   podcast:        "פודקאסט",
@@ -55,6 +57,60 @@ export default function DashboardPage() {
   const dashInvoices    = useContent("dashboard.sections.invoices") as string;
   const dashEmptyNone   = useContent("dashboard.empty.noHistory") as string;
   const dashEmptySaved  = useContent("dashboard.empty.savedVideo") as string;
+  // Extended dashboard copy — every user-visible string editable from admin.
+  const cEditBtn        = useContent("dashboard.editBtn") as string;
+  const cCloseBtn       = useContent("dashboard.closeBtn") as string;
+  const cStatsLine      = useContent("dashboard.statsLineFull") as string;
+  const cStatVideos     = useContent("dashboard.stat.videos") as string;
+  const cStatMonths     = useContent("dashboard.stat.monthsActive") as string;
+  const cStatMember     = useContent("dashboard.stat.memberSince") as string;
+  const cQATitle        = useContent("dashboard.quickAction.title") as string;
+  const cQASubtitle     = useContent("dashboard.quickAction.subtitle") as string;
+  const cQAMultiLink    = useContent("dashboard.quickAction.multiLinkLabel") as string;
+  const cMyVidsHeading  = useContent("dashboard.myVideos.heading") as string;
+  const cMyVidsTotal    = useContent("dashboard.myVideos.totalSuffix") as string;
+  const cMyVidsEmpty    = useContent("dashboard.myVideos.empty") as string;
+  const cMyVidsEmptyCta = useContent("dashboard.myVideos.emptyCta") as string;
+  const cDelVidTitle    = useContent("dashboard.confirm.deleteVideo.title") as string;
+  const cDelVidBodyTpl  = useContent("dashboard.confirm.deleteVideo.body") as string;
+  const cDelVidBtn      = useContent("dashboard.confirm.deleteVideo.btn") as string;
+  const cVidDeletedToast= useContent("dashboard.toast.videoDeleted") as string;
+  const cDelSnapTitle   = useContent("dashboard.confirm.deleteSnapshot.title") as string;
+  const cDelSnapBody    = useContent("dashboard.confirm.deleteSnapshot.body") as string;
+  const cDelSnapBtn     = useContent("dashboard.confirm.deleteSnapshot.btn") as string;
+  const cSnapDeletedToast= useContent("dashboard.toast.snapshotDeleted") as string;
+  const cSnapCountHint  = useContent("dashboard.snapshots.countHint") as string;
+  const cSnapResumeBtn  = useContent("dashboard.snapshots.resumeBtn") as string;
+  const cSnapEmptyHas   = useContent("dashboard.snapshots.empty.hasVideo") as string;
+  const cSnapEmptyNo    = useContent("dashboard.snapshots.empty.noVideo") as string;
+  const cSnapCountSuffix= useContent("dashboard.snapshots.countSuffix") as string;
+  const cSnapRestoreBtn = useContent("dashboard.snapshots.restoreBtn") as string;
+  const cSnapDelTooltip = useContent("dashboard.snapshots.deleteTooltip") as string;
+  const cInvCountHint   = useContent("dashboard.invoices.countHint") as string;
+  const cInvDlTooltip   = useContent("dashboard.invoices.downloadTooltip") as string;
+  const cDangerTitle    = useContent("dashboard.danger.title") as string;
+  const cDangerBody     = useContent("dashboard.danger.body") as string;
+  const cDangerCfTitle  = useContent("dashboard.danger.confirm.title") as string;
+  const cDangerCfBody   = useContent("dashboard.danger.confirm.body") as string;
+  const cDangerCfBtn    = useContent("dashboard.danger.confirm.btn") as string;
+  const cWipeAllToast   = useContent("dashboard.toast.wipeAll") as string;
+  const cDangerBtn      = useContent("dashboard.danger.btn") as string;
+  const cDemoCfTitle    = useContent("dashboard.demoReset.confirm.title") as string;
+  const cDemoCfBody     = useContent("dashboard.demoReset.confirm.body") as string;
+  const cDemoCfBtn      = useContent("dashboard.demoReset.confirm.btn") as string;
+  const cDemoResetToast = useContent("dashboard.toast.demoReset") as string;
+  const cDemoBtn        = useContent("dashboard.demoReset.btn") as string;
+  const cNotifTitle     = useContent("header.notifications.title") as string;
+  const cNotifMark      = useContent("header.notifications.markAllRead") as string;
+  const cNotifEmpty     = useContent("header.notifications.empty") as string;
+  // Mode-label overrides (keyed by mode id, with fall-back to defaults)
+  const modeLabels: Record<UserVideo["mode"], string> = {
+    subtitles_only:   (useContent("dashboard.modeLabel.subtitles_only") as string) || MODE_LABEL_DEFAULT.subtitles_only,
+    basic_effects:    (useContent("dashboard.modeLabel.basic_effects") as string) || MODE_LABEL_DEFAULT.basic_effects,
+    podcast:          (useContent("dashboard.modeLabel.podcast") as string) || MODE_LABEL_DEFAULT.podcast,
+    advanced_effects: (useContent("dashboard.modeLabel.advanced_effects") as string) || MODE_LABEL_DEFAULT.advanced_effects,
+    multi_video:      (useContent("dashboard.modeLabel.multi_video") as string) || MODE_LABEL_DEFAULT.multi_video,
+  };
 
   useEffect(() => {
     setHydrated(true);
@@ -70,11 +126,11 @@ export default function DashboardPage() {
   }, [tick]);
 
   async function removeSnapshot(id: number) {
-    const ok = await confirm({ title: "למחוק את הגרסה השמורה?", body: "הפעולה לא ניתנת לשחזור.", confirmLabel: "מחק", destructive: true });
+    const ok = await confirm({ title: cDelSnapTitle, body: cDelSnapBody, confirmLabel: cDelSnapBtn, destructive: true });
     if (!ok) return;
     await deleteSnapshot(id);
     setSnapshots(await listSnapshots());
-    toast.success("הגרסה נמחקה");
+    toast.success(cSnapDeletedToast);
   }
 
   if (!hydrated) return <div className="min-h-screen" />;
@@ -117,10 +173,10 @@ export default function DashboardPage() {
               {notifOpen && (
                 <div className="absolute left-0 top-11 w-80 bg-bg-card border border-white/10 rounded-xl shadow-2xl shadow-black/60 p-3 z-50">
                   <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="text-xs font-bold">התראות</div>
+                    <div className="text-xs font-bold">{cNotifTitle}</div>
                     {unread > 0 && (
                       <button onClick={() => { clearAllNotifications(); setTick(tick + 1); }}
-                        className="text-[10px] text-white/40 hover:text-white">סמן הכל כנקרא</button>
+                        className="text-[10px] text-white/40 hover:text-white">{cNotifMark}</button>
                     )}
                   </div>
                   <div className="space-y-1 max-h-80 overflow-y-auto">
@@ -129,7 +185,7 @@ export default function DashboardPage() {
                         onClick={() => { markNotificationRead(n.id); setTick(tick + 1); }} />
                     ))}
                     {notifications.length === 0 && (
-                      <div className="text-center text-xs text-white/30 py-4">אין התראות חדשות</div>
+                      <div className="text-center text-xs text-white/30 py-4">{cNotifEmpty}</div>
                     )}
                   </div>
                 </div>
@@ -154,17 +210,25 @@ export default function DashboardPage() {
               <button onClick={() => setProfileEditing(!profileEditing)}
                 className="bg-white/10 hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
                 <Pencil className="w-3 h-3" />
-                {profileEditing ? "סגור" : "עריכה"}
+                {profileEditing ? cCloseBtn : cEditBtn}
               </button>
             </div>
 
             {/* Personalized stats sentence */}
             {!profileEditing && (
-              <p className="text-sm text-white/75 leading-relaxed mb-4">
-                עד עכשיו יצרתם <span className="text-violet-300 font-bold">{stats.videosCount} סרטונים</span>,
-                חסכתם <span className="text-emerald-300 font-bold">~{stats.savedMin} דקות</span> של עריכה,
-                וניצלתם <span className="text-amber-300 font-bold">{stats.creditsUsed} {currency}</span>.
-              </p>
+              <p
+                className="text-sm text-white/75 leading-relaxed mb-4"
+                // Renders the CMS template with bold colored stat values
+                // (videos / saved minutes / used credits). HTML is built from
+                // CMS placeholders only — no user input.
+                dangerouslySetInnerHTML={{
+                  __html: cStatsLine
+                    .replace("{{videos}}", `<span class="text-violet-300 font-bold">${stats.videosCount}</span>`)
+                    .replace("{{savedMin}}", `<span class="text-emerald-300 font-bold">${stats.savedMin}</span>`)
+                    .replace("{{used}}", `<span class="text-amber-300 font-bold">${stats.creditsUsed}</span>`)
+                    .replace("{{currency}}", `<span class="text-amber-300 font-bold">${currency}</span>`),
+                }}
+              />
             )}
 
             {/* Inline stats strip */}
@@ -172,15 +236,15 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-white/5 rounded-lg py-2.5">
                   <div className="text-base font-bold">{stats.videosCount}</div>
-                  <div className="text-[10px] text-white/40 mt-0.5">סרטונים</div>
+                  <div className="text-[10px] text-white/40 mt-0.5">{cStatVideos}</div>
                 </div>
                 <div className="bg-white/5 rounded-lg py-2.5">
                   <div className="text-base font-bold">{stats.monthsActive}</div>
-                  <div className="text-[10px] text-white/40 mt-0.5">חודשים פעילים</div>
+                  <div className="text-[10px] text-white/40 mt-0.5">{cStatMonths}</div>
                 </div>
                 <div className="bg-white/5 rounded-lg py-2.5">
                   <div className="text-base font-bold">{new Date(profile.joinedAt).toLocaleDateString("he-IL", { month: "short", year: "2-digit" })}</div>
-                  <div className="text-[10px] text-white/40 mt-0.5">חבר/ה מ-</div>
+                  <div className="text-[10px] text-white/40 mt-0.5">{cStatMember}</div>
                 </div>
               </div>
             )}
@@ -199,8 +263,8 @@ export default function DashboardPage() {
               <Plus className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm">סרטון חדש</div>
-              <div className="text-xs text-white/40 mt-0.5">או נסה את <span className="text-brand-light">מולטי-וידאו AI</span></div>
+              <div className="font-bold text-sm">{cQATitle}</div>
+              <div className="text-xs text-white/40 mt-0.5">{cQASubtitle} <span className="text-brand-light">{cQAMultiLink}</span></div>
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-white/30 group-hover:text-white transition-colors" />
@@ -209,28 +273,29 @@ export default function DashboardPage() {
         {/* ── My videos — clean list, less per-row noise ── */}
         <section className="mb-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-white/50">הסרטונים שלי</h2>
-            <span className="text-xs text-white/30">{videos.length} סך הכל</span>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-white/50">{cMyVidsHeading}</h2>
+            <span className="text-xs text-white/30">{videos.length} {cMyVidsTotal}</span>
           </div>
           {videos.length === 0 ? (
             <div className="text-center py-10 border border-dashed border-white/10 rounded-xl">
               <Film className="w-8 h-8 text-white/20 mx-auto mb-3" />
-              <p className="text-sm text-white/40 mb-3">עדיין אין סרטונים</p>
-              <Link href="/" className="text-xs text-brand-light hover:text-white">צור את הראשון →</Link>
+              <p className="text-sm text-white/40 mb-3">{cMyVidsEmpty}</p>
+              <Link href="/" className="text-xs text-brand-light hover:text-white">{cMyVidsEmptyCta}</Link>
             </div>
           ) : (
             <div className="divide-y divide-white/5">
               {videos.map((v) => (
                 <VideoRow key={v.id} video={v}
+                  modeLabels={modeLabels}
                   onDelete={async () => {
                     const ok = await confirm({
-                      title: "למחוק את הסרטון?",
-                      body: `"${v.title}" יימחק לצמיתות.`,
-                      confirmLabel: "מחק", destructive: true,
+                      title: cDelVidTitle,
+                      body: cDelVidBodyTpl.replace("{{title}}", v.title),
+                      confirmLabel: cDelVidBtn, destructive: true,
                     });
                     if (!ok) return;
                     deleteVideo(v.id); setTick(tick + 1);
-                    toast.success("הסרטון נמחק");
+                    toast.success(cVidDeletedToast);
                   }}
                 />
               ))}
@@ -251,22 +316,20 @@ export default function DashboardPage() {
                 <div className="text-[11px] text-white/40">
                   {snapshots.length === 0
                     ? hasSavedVideo ? dashEmptySaved : dashEmptyNone
-                    : `${snapshots.length} גרסאות זמינות לשחזור`}
+                    : cSnapCountHint.replace("{{n}}", String(snapshots.length))}
                 </div>
               </div>
             </div>
             {hasSavedVideo && (
               <Link href="/" className="hidden sm:inline-flex items-center gap-1 text-[11px] bg-brand/20 hover:bg-brand/30 text-brand-light px-3 py-1.5 rounded-lg font-bold transition">
-                <Play className="w-3 h-3" /> המשך עריכה
+                <Play className="w-3 h-3" /> {cSnapResumeBtn}
               </Link>
             )}
           </summary>
           <div className="px-4 pb-4 border-t border-white/5 pt-3">
             {snapshots.length === 0 ? (
               <p className="text-xs text-white/40 text-center py-4">
-                {hasSavedVideo
-                  ? "יש סרטון שמור. תתחילי לערוך — גרסאות יישמרו אוטומטית כל 5 דקות."
-                  : "לאחר עריכת סרטון, גרסאות אוטומטיות יישמרו כאן."}
+                {hasSavedVideo ? cSnapEmptyHas : cSnapEmptyNo}
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -278,13 +341,13 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-white truncate">{s.label}</div>
                       <div className="text-[10px] text-white/40">
-                        {new Date(s.at).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {s.payload.subtitles.length} כתוביות
+                        {new Date(s.at).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {s.payload.subtitles.length} {cSnapCountSuffix}
                       </div>
                     </div>
                     <Link href="/" className="px-2.5 py-1 rounded-md bg-brand/20 hover:bg-brand/40 text-brand-light text-[10px] font-bold transition">
-                      שחזר
+                      {cSnapRestoreBtn}
                     </Link>
-                    <button onClick={() => s.id && removeSnapshot(s.id)} className="p-1.5 rounded-md text-white/30 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover/row:opacity-100 transition" title="מחק גרסה">
+                    <button onClick={() => s.id && removeSnapshot(s.id)} className="p-1.5 rounded-md text-white/30 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover/row:opacity-100 transition" title={cSnapDelTooltip}>
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -302,7 +365,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-sm font-bold">{dashInvoices}</div>
-                <div className="text-[11px] text-white/40">{invoices.length} עסקאות</div>
+                <div className="text-[11px] text-white/40">{cInvCountHint.replace("{{n}}", String(invoices.length))}</div>
               </div>
             </div>
           </summary>
@@ -312,7 +375,7 @@ export default function DashboardPage() {
                 <span className="flex-1 text-white/70">{inv.package} — {inv.credits} {currency}</span>
                 <span className="text-white/40 text-[10px]">{new Date(inv.date).toLocaleDateString("he-IL")}</span>
                 <span className="text-emerald-300 font-bold">₪{inv.amountIls}</span>
-                <a href={inv.url} className="p-1 text-white/40 hover:text-white" title="הורד PDF">
+                <a href={inv.url} className="p-1 text-white/40 hover:text-white" title={cInvDlTooltip}>
                   <Download className="w-3 h-3" />
                 </a>
               </div>
@@ -326,19 +389,15 @@ export default function DashboardPage() {
           <div className="flex items-start gap-3">
             <div className="text-2xl">🗑️</div>
             <div className="flex-1">
-              <div className="text-sm font-bold text-red-200">מחיקת זיכרון סרטונים</div>
-              <div className="text-[11px] text-white/50 mt-0.5 leading-relaxed">
-                מוחק את הסרטון השמור, כל הגרסאות (snapshots), מטמון התמלולים והעריכה האוטומטית.
-                ה-CMS של האדמין ויתרת המאסטרים <span className="font-bold">לא</span> מושפעים.
-                <br />שימושי לבדיקת המערכת מאפס.
-              </div>
+              <div className="text-sm font-bold text-red-200">{cDangerTitle}</div>
+              <div className="text-[11px] text-white/50 mt-0.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: cDangerBody }} />
             </div>
             <button
               onClick={async () => {
                 const ok = await confirm({
-                  title: "למחוק את כל הסרטונים והגיבויים?",
-                  body: "הסרטון השמור, snapshots, מטמון התמלול וכל מצב העריכה — ימחקו לצמיתות. ה-CMS ויתרת המאסטרים נשארים.",
-                  confirmLabel: "מחק הכל",
+                  title: cDangerCfTitle,
+                  body: cDangerCfBody,
+                  confirmLabel: cDangerCfBtn,
                   destructive: true,
                 });
                 if (!ok) return;
@@ -347,23 +406,23 @@ export default function DashboardPage() {
                 setTick(tick + 1);
                 setSnapshots([]);
                 setHasSavedVideo(false);
-                toast.success("נתוני הסרטונים נמחקו — אפשר להתחיל מחדש 🎬");
+                toast.success(cWipeAllToast);
               }}
               className="text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 px-3 py-2 rounded-md whitespace-nowrap font-bold transition-colors"
             >
-              מחק הכל
+              {cDangerBtn}
             </button>
           </div>
         </div>
 
         <button onClick={async () => {
-            const ok = await confirm({ title: "לאפס את כל נתוני הדמו?", body: "הסרטונים והפרופיל יחזרו לברירת המחדל.", confirmLabel: "אפס", destructive: true });
+            const ok = await confirm({ title: cDemoCfTitle, body: cDemoCfBody, confirmLabel: cDemoCfBtn, destructive: true });
             if (!ok) return;
             resetUserStore(); setTick(tick + 1);
-            toast.success("נתוני הדמו אופסו");
+            toast.success(cDemoResetToast);
           }}
           className="w-full text-[10px] text-white/20 hover:text-white/50 py-2 transition-colors">
-          איפוס נתוני דמו
+          {cDemoBtn}
         </button>
       </div>
     </div>
@@ -381,9 +440,15 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function VideoRow({ video, onDelete }: { video: UserVideo; onDelete: () => void }) {
+function VideoRow({ video, onDelete, modeLabels }: {
+  video: UserVideo;
+  onDelete: () => void;
+  modeLabels: Record<UserVideo["mode"], string>;
+}) {
   const isProcessing = video.status === "processing";
   const isFailed = video.status === "failed";
+  const dlTooltip = useContent("dashboard.video.downloadTooltip") as string;
+  const delTooltip = useContent("dashboard.video.deleteTooltip") as string;
   return (
     <div className="flex items-center gap-3 py-3 group">
       <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-xl shrink-0">
@@ -398,7 +463,7 @@ function VideoRow({ video, onDelete }: { video: UserVideo; onDelete: () => void 
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">{video.title}</div>
         <div className="text-[11px] text-white/40 flex items-center gap-1.5">
-          <span>{MODE_LABEL[video.mode]}</span>
+          <span>{modeLabels[video.mode]}</span>
           <span>·</span>
           <span>{Math.round(video.durationSec)}s</span>
           <span>·</span>
@@ -406,12 +471,12 @@ function VideoRow({ video, onDelete }: { video: UserVideo; onDelete: () => void 
         </div>
       </div>
       {video.status === "done" && (
-        <button className="p-1.5 text-white/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" title="הורדה">
+        <button className="p-1.5 text-white/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" title={dlTooltip}>
           <Download className="w-3.5 h-3.5" />
         </button>
       )}
       <button onClick={onDelete}
-        className="p-1.5 text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="מחיקה">
+        className="p-1.5 text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title={delTooltip}>
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -438,34 +503,43 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
 }) {
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email);
+  const namePh    = useContent("dashboard.profile.namePlaceholder") as string;
+  const emailPh   = useContent("dashboard.profile.emailPlaceholder") as string;
+  const saveBtn   = useContent("dashboard.profile.saveBtn") as string;
+  const cancelBtn = useContent("dashboard.profile.cancelBtn") as string;
+  const labelName = useContent("dashboard.profile.labelName") as string;
+  const labelEmail= useContent("dashboard.profile.labelEmail") as string;
+  const labelMs   = useContent("dashboard.profile.labelMemberSince") as string;
+  const editBtn   = useContent("dashboard.profile.editBtn") as string;
+  const updToast  = useContent("dashboard.toast.profileUpdated") as string;
   function save() {
     updateProfile({ name, email });
     setEditing(false);
     onChange();
-    toast.success("הפרופיל עודכן");
+    toast.success(updToast);
   }
   if (editing) {
     return (
       <div className="space-y-2 pt-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="שם"
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh}
           className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="אימייל"
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={emailPh}
           className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
         <div className="flex gap-2">
-          <button onClick={save} className="flex-1 py-1.5 bg-brand text-white text-xs font-bold rounded">שמירה</button>
-          <button onClick={() => setEditing(false)} className="py-1.5 px-3 bg-white/5 text-xs rounded">ביטול</button>
+          <button onClick={save} className="flex-1 py-1.5 bg-brand text-white text-xs font-bold rounded">{saveBtn}</button>
+          <button onClick={() => setEditing(false)} className="py-1.5 px-3 bg-white/5 text-xs rounded">{cancelBtn}</button>
         </div>
       </div>
     );
   }
   return (
     <div className="space-y-1.5 text-xs pt-3">
-      <div className="flex justify-between"><span className="text-white/40">שם</span><span>{profile.name}</span></div>
-      <div className="flex justify-between"><span className="text-white/40">אימייל</span><span className="text-white/70 truncate max-w-[200px]">{profile.email}</span></div>
-      <div className="flex justify-between"><span className="text-white/40">חבר/ה מ-</span><span>{new Date(profile.joinedAt).toLocaleDateString("he-IL")}</span></div>
+      <div className="flex justify-between"><span className="text-white/40">{labelName}</span><span>{profile.name}</span></div>
+      <div className="flex justify-between"><span className="text-white/40">{labelEmail}</span><span className="text-white/70 truncate max-w-[200px]">{profile.email}</span></div>
+      <div className="flex justify-between"><span className="text-white/40">{labelMs}</span><span>{new Date(profile.joinedAt).toLocaleDateString("he-IL")}</span></div>
       <button onClick={() => setEditing(true)}
         className="mt-2 text-[11px] text-brand-light hover:text-white flex items-center gap-1">
-        <Pencil className="w-3 h-3" /> ערוך פרטים
+        <Pencil className="w-3 h-3" /> {editBtn}
       </button>
     </div>
   );

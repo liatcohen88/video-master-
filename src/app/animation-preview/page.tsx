@@ -245,44 +245,24 @@ function BrowserMockup() {
             </div>
           </div>
 
-          {/* ══ RIGHT: video top + subtitle list bottom ══ */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {/* ══ RIGHT: portrait video (Reels 9:16) + subtitle list ══ */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: "#0d0d1f" }}>
 
-            {/* video preview */}
-            <div style={{ flex: "0 0 310px", position: "relative", background: "#000", overflow: "hidden" }}>
-              <video
-                src="/showcase-woman.mp4"
-                autoPlay muted loop playsInline
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-              {/* active subtitle overlay */}
-              <div style={{ position: "absolute", bottom: "14%", width: "100%", textAlign: "center", pointerEvents: "none" }}>
-                {subtitleAnim && (
-                  <span style={{
-                    display: "inline-block",
-                    fontSize: 26, fontWeight: 900,
-                    fontFamily: "var(--font-heebo),system-ui,sans-serif",
-                    animation: "sub-pop 320ms cubic-bezier(0.34,1.56,0.64,1) both",
-                    textShadow: "0 0 20px rgba(0,200,255,0.6), 2px 2px 0 #ff3fc8",
-                    WebkitTextStroke: "1px rgba(0,0,0,0.3)",
-                  }}>
-                    <span style={{ color: "#00eaff" }}>{activeSub.text.split(" ")[0]}</span>
-                    {activeSub.text.split(" ").length > 1 && (
-                      <> <span style={{ color: "#ff3fc8" }}>{activeSub.text.split(" ").slice(1).join(" ")}</span></>
-                    )}
-                  </span>
-                )}
-              </div>
-              {/* video controls bar */}
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.7)", padding: "4px 10px", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "#fff", cursor: "default" }}>▶</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "monospace" }}>0:01 / 0:05</span>
-                <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.15)", borderRadius: 2, position: "relative" }}>
-                  <div style={{ width: "3%", height: "100%", background: "#fff", borderRadius: 2 }} />
+            {/* video preview — portrait Reels */}
+            <div style={{ flex: "0 0 370px", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a18", padding: "12px 0 8px" }}>
+              <div style={{ position: "relative", width: 185, height: 330, borderRadius: 10, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.7)" }}>
+                <video
+                  src="/showcase-woman.mp4"
+                  autoPlay muted loop playsInline
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+                {/* progress bar */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "rgba(255,255,255,0.1)" }}>
+                  <div style={{ width: "20%", height: "100%", background: "linear-gradient(90deg,#7C3AED,#e040fb)", animation: "prog 5s linear infinite" }} />
                 </div>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>🔊</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>⛶</span>
               </div>
+              {/* playback time below video */}
+              <div style={{ position: "absolute", fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "monospace", marginTop: 338 }}>0:01 / 0:05</div>
             </div>
 
             {/* subtitle editor */}
