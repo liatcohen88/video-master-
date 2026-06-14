@@ -108,11 +108,15 @@ export async function buildExportOverlays(opts: {
     for (const sub of subtitles) {
       if (!sub.manualEmojis) continue;
       for (const me of sub.manualEmojis) {
-        const png = await getEmojiPng(me.emoji, emojiSize).catch(() => null);
+        // Was referencing `emojiSize` which is scoped to the auto-element
+        // loop above — undefined / leaked here, so manual emojis got the
+        // last loop's size or failed. Use the base size like the live
+        // preview does.
+        const png = await getEmojiPng(me.emoji, baseEmojiSize).catch(() => null);
         if (!png) continue;
         const r = POS_RATIO[me.position] ?? POS_RATIO["top-right"];
         trackEmoji.push({
-          pngPath: png, size: emojiSize,
+          pngPath: png, size: baseEmojiSize,
           cx: Math.round(r.x * outputWidth), cy: Math.round(r.y * outputHeight),
           start: sub.start, end: Math.max(sub.end, sub.start + 0.6),
         });
@@ -159,9 +163,17 @@ export async function buildExportOverlays(opts: {
           case "bottom-left":   bx = margin;                       by = outputHeight - h - margin; break;
           case "bottom-right":  bx = outputWidth - w - margin;     by = outputHeight - h - margin; break;
           case "bottom-center": bx = Math.round((outputWidth - w) / 2); by = outputHeight - h - margin; break;
-          default:
-            bx = Math.round((outputWidth - w) / 2);
-            by = Math.round(outputHeight * 0.10);
+          default: {
+            // Match the live preview's stacked top-right default
+            // (BrandOverlay corner branch when positionOverride is unset):
+            //   top: 10% + slot * 12%, right: 8% + slot * 4%
+            const slot = bi;
+            const topPct = 10 + slot * 12;
+            const rightPct = 8 + slot * 4;
+            bx = outputWidth - w - Math.round(outputWidth * rightPct / 100);
+            by = Math.round(outputHeight * topPct / 100);
+            break;
+          }
         }
         trackBrand.push({
           pngPath: fitted, w, h, x: bx, y: by,

@@ -17,8 +17,14 @@
 import { join } from "node:path";
 import type { Subtitle, VideoEffects } from "./types";
 import { detectElements } from "./keywordElements";
+import { detectBrands } from "./brandLogos";
 import { DEFAULT_SFX_FOR_KIND, getSfxAsset } from "./sfxLibrary";
 import { retimeTimestamp, type SilentRange } from "./silenceCut";
+
+/** Subtract this from every trigger time so the perceived hit lands on-beat.
+ *  Mirrors VideoPreview's SFX_LEAD_MS — accounts for FFmpeg encode/decode
+ *  latency and the natural Δ between the spoken word and the SFX attack. */
+const SFX_LEAD_MS = 120;
 
 export type SfxTrigger = {
   /** Output-timeline seconds (already silence-cut adjusted) */
@@ -69,13 +75,32 @@ export function collectSfxTriggers(
     }
   }
 
-  // 2. Manual emojis attached to subtitles
+  // 2. Manual emojis attached to subtitles + per-subtitle SFX
   for (const sub of finalSubtitles) {
-    if (!sub.manualEmojis) continue;
-    for (const em of sub.manualEmojis) {
-      if (!em.sfxId || em.sfxId === "none") continue;
-      const path = idToPath(em.sfxId);
+    // 2a. Per-subtitle SFX (the 🔊 button on each subtitle line).
+    // Was silent in export because this loop only walked manualEmojis.
+    if (sub.sfxId && sub.sfxId !== "none") {
+      const path = idToPath(sub.sfxId);
       if (path) triggers.push({ time: sub.start, filePath: path });
+    }
+    if (sub.manualEmojis) {
+      for (const em of sub.manualEmojis) {
+        if (!em.sfxId || em.sfxId === "none") continue;
+        const path = idToPath(em.sfxId);
+        if (path) triggers.push({ time: sub.start, filePath: path });
+      }
+    }
+  }
+
+  // 2b. Brand-logo SFX — fires alongside each detected brand overlay.
+  // Mirrors VideoPreview's brand-SFX wiring; default whoosh unless muted.
+  if ((effects.brandLogosDetect ?? true) && effects.brandSfxId !== "none") {
+    const sfxId = effects.brandSfxId ?? DEFAULT_SFX_FOR_KIND.whoosh;
+    const path = idToPath(sfxId);
+    if (path) {
+      for (const ev of detectBrands(finalSubtitles)) {
+        triggers.push({ time: ev.time, filePath: path });
+      }
     }
   }
 
@@ -105,6 +130,9 @@ export function collectSfxTriggers(
     if (path) triggers.push({ time: lot.time, filePath: path });
   }
 
+  // Shift every trigger earlier by SFX_LEAD_MS so the hit lands on-beat,
+  // matching the live preview's lead. Clamp to 0 so we never go negative.
+  for (const t of triggers) t.time = Math.max(0, t.time - SFX_LEAD_MS / 1000);
   return triggers.sort((a, b) => a.time - b.time);
 }
 
