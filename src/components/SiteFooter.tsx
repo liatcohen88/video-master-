@@ -40,7 +40,7 @@ export default function SiteFooter() {
 
           {/* Middle — contact methods */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">צור קשר</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{useContent("footer.col.contact")}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <a href={`mailto:${email}`} className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group">
@@ -59,7 +59,7 @@ export default function SiteFooter() {
 
           {/* Left — sitemap links */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">מפת אתר</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{useContent("footer.col.sitemap")}</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/"          className="text-white/70 hover:text-white transition-colors">{useContent("footer.link.home")}</Link></li>
               {(useContent("feature.multi.enabled") as boolean) && (

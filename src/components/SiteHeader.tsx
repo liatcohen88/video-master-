@@ -26,13 +26,35 @@ export default function SiteHeader() {
   const tagline  = useContent("brand.tagline") as string;
   const logoSize = Number(useContent("brand.headerLogoSize") ?? 44);
 
+  const currencyName = useContent("brand.currencyName") as string;
+  const defaultUserName = useContent("header.defaultUserName") as string;
+  const defaultInitial = useContent("header.defaultInitial") as string;
+  const tipHome = useContent("header.tooltip.home") as string;
+  const tipBalance = useContent("header.tooltip.balance") as string;
+  const tipMenu = useContent("header.tooltip.menu") as string;
+  const notifTitle = useContent("header.notifications.title") as string;
+  const notifMarkAll = useContent("header.notifications.markAllRead") as string;
+  const notifEmpty = useContent("header.notifications.empty") as string;
+  const mobileMenuLabel = useContent("header.mobileMenuLabel") as string;
+  const navHome = useContent("nav.home") as string;
+  const navCredits = useContent("nav.credits") as string;
+  const navHelp = useContent("nav.help") as string;
+  const navContact = useContent("nav.contact") as string;
+  const navProfile = useContent("nav.profile") as string;
+  const navMyVideos = useContent("nav.myVideos") as string;
+  const navBuyCredits = useContent("nav.buyCredits") as string;
+  const navLogin = useContent("nav.login") as string;
+  const navSignup = useContent("nav.signup") as string;
+  const navLogout = useContent("nav.logout") as string;
+  const navMobileBuy = useContent("nav.mobile.buy") as string;
+
   const auth = useAuth();
   const isGuest = auth.status === "guest";
   // For credits: prefer the Supabase profile balance when we have one,
   // otherwise fall back to the localStorage credit (legacy + offline mode).
   const [localCredits, setLocalCredits] = useState(0);
   const credits = auth.profile?.credits ?? localCredits;
-  const userName = auth.profile?.display_name || auth.profile?.email?.split("@")[0] || "משתמש";
+  const userName = auth.profile?.display_name || auth.profile?.email?.split("@")[0] || defaultUserName;
 
   const [unread, setUnread] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -51,13 +73,13 @@ export default function SiteHeader() {
     return () => window.removeEventListener("credits-change", refresh);
   }, [tick]);
 
-  const initial = userName.charAt(0) || "מ";
+  const initial = userName.charAt(0) || defaultInitial;
   const notifications = listNotifications();
 
   return (
     <header className="flex items-center justify-between gap-3 relative">
       {/* RIGHT (RTL first) — brand lockup */}
-      <a href="/" className="flex items-center gap-2.5 min-w-0 group" title="לדף הבית">
+      <a href="/" className="flex items-center gap-2.5 min-w-0 group" title={tipHome}>
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-brand blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
           <LogoMark size={logoSize} mode="static" className="relative" />
@@ -70,16 +92,16 @@ export default function SiteHeader() {
 
       {/* CENTER — main nav (desktop only) */}
       <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-        <a href="/" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">בית</a>
-        <a href="/credits" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">חבילות</a>
-        <a href="/help" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">עזרה</a>
+        <a href="/" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHome}</a>
+        <a href="/credits" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navCredits}</a>
+        <a href="/help" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHelp}</a>
       </nav>
 
       {/* LEFT — credits + notifications + profile */}
       <div className="flex items-center gap-2 shrink-0">
         <a href="/credits"
            className="bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-white/10 hover:border-brand/40 px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors"
-           title="היתרה שלך — לחצי לקניית חבילה">
+           title={tipBalance}>
           <MasterCoin size={16} />
           <span className="font-bold text-white">{credits.toLocaleString()}</span>
         </a>
@@ -98,10 +120,10 @@ export default function SiteHeader() {
               <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
               <div className="absolute left-0 top-12 w-80 bg-bg-card border border-white/10 rounded-xl shadow-2xl shadow-black/60 p-3 z-50">
                 <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="text-xs font-bold">התראות</div>
+                  <div className="text-xs font-bold">{notifTitle}</div>
                   {unread > 0 && (
                     <button onClick={() => { clearAllNotifications(); setTick(tick + 1); }}
-                      className="text-[10px] text-white/40 hover:text-white">סמן הכל כנקרא</button>
+                      className="text-[10px] text-white/40 hover:text-white">{notifMarkAll}</button>
                   )}
                 </div>
                 <div className="space-y-1 max-h-80 overflow-y-auto">
@@ -118,7 +140,7 @@ export default function SiteHeader() {
                     </button>
                   ))}
                   {notifications.length === 0 && (
-                    <div className="text-center text-xs text-white/30 py-4">אין התראות חדשות</div>
+                    <div className="text-center text-xs text-white/30 py-4">{notifEmpty}</div>
                   )}
                 </div>
               </div>
@@ -129,15 +151,15 @@ export default function SiteHeader() {
         {/* Auth area (desktop) — login/signup buttons when guest, profile menu when logged in */}
         {isGuest ? (
           <div className="hidden md:flex items-center gap-2">
-            <a href="/login" className="text-sm text-white/80 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 transition-colors whitespace-nowrap">התחברי</a>
-            <a href="/signup" className="text-sm bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap">הרשמי</a>
+            <a href="/login" className="text-sm text-white/80 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 transition-colors whitespace-nowrap">{navLogin}</a>
+            <a href="/signup" className="text-sm bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap">{navSignup}</a>
           </div>
         ) : (
         <div className="relative hidden md:block">
           <button
             onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
             className="bg-bg-panel border border-white/10 hover:border-brand/40 px-2 py-1.5 rounded-full text-xs flex items-center gap-2 text-white/80 hover:text-white transition-colors"
-            title="התפריט שלך"
+            title={tipMenu}
           >
             <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-[11px] font-black text-white shrink-0">{initial}</span>
             <span className="hidden lg:inline whitespace-nowrap font-medium">{userName}</span>
@@ -149,17 +171,17 @@ export default function SiteHeader() {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
               <div className="absolute left-0 top-12 w-52 bg-bg-card border border-white/10 rounded-xl shadow-2xl shadow-black/60 p-1.5 z-50">
-                <ProfileMenuItem href="/dashboard" icon="👤" label="פרופיל ודאשבורד" />
-                <ProfileMenuItem href="/dashboard#videos" icon="📂" label="הסרטונים שלי" />
-                <ProfileMenuItem href="/credits" icon="💎" label="קניית מאסטרים" highlight />
-                <ProfileMenuItem href="/help" icon="❓" label="עזרה" />
+                <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} />
+                <ProfileMenuItem href="/dashboard#videos" icon="📂" label={navMyVideos} />
+                <ProfileMenuItem href="/credits" icon="💎" label={navBuyCredits} highlight />
+                <ProfileMenuItem href="/help" icon="❓" label={navHelp} />
                 <div className="my-1 border-t border-white/10" />
-                <ProfileMenuItem href="/contact" icon="✉️" label="צור קשר" />
+                <ProfileMenuItem href="/contact" icon="✉️" label={navContact} />
                 <button
                   onClick={() => { setProfileOpen(false); auth.signOut(); }}
                   className="w-full text-right flex items-center gap-2 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
                 >
-                  <span>🚪</span><span>התנתקי</span>
+                  <span>🚪</span><span>{navLogout}</span>
                 </button>
               </div>
             </>
@@ -171,7 +193,7 @@ export default function SiteHeader() {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="md:hidden p-2 rounded-full bg-bg-panel border border-white/10 text-white/80"
-          aria-label="תפריט"
+          aria-label={mobileMenuLabel}
         >
           {mobileMenuOpen ? (
             <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -190,21 +212,21 @@ export default function SiteHeader() {
               <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-sm font-black text-white">{initial}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold truncate">{userName}</div>
-                <div className="text-[10px] text-white/40">{credits.toLocaleString()} מאסטרים</div>
+                <div className="text-[10px] text-white/40">{credits.toLocaleString()} {currencyName}</div>
               </div>
             </div>
-            <ProfileMenuItem href="/" icon="🏠" label="בית" />
-            <ProfileMenuItem href="/credits" icon="💎" label="חבילות וקניה" highlight />
-            <ProfileMenuItem href="/help" icon="❓" label="עזרה" />
+            <ProfileMenuItem href="/" icon="🏠" label={navHome} />
+            <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} highlight />
+            <ProfileMenuItem href="/help" icon="❓" label={navHelp} />
             <div className="my-1 border-t border-white/10" />
-            {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label="פרופיל ודאשבורד" />}
-            {!isGuest && <ProfileMenuItem href="/dashboard#videos" icon="📂" label="הסרטונים שלי" />}
-            <ProfileMenuItem href="/contact" icon="✉️" label="צור קשר" />
+            {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} />}
+            {!isGuest && <ProfileMenuItem href="/dashboard#videos" icon="📂" label={navMyVideos} />}
+            <ProfileMenuItem href="/contact" icon="✉️" label={navContact} />
             {isGuest ? (
               <>
                 <div className="my-1 border-t border-white/10" />
-                <ProfileMenuItem href="/login" icon="🔓" label="התחברי" />
-                <ProfileMenuItem href="/signup" icon="✨" label="הרשמי" highlight />
+                <ProfileMenuItem href="/login" icon="🔓" label={navLogin} />
+                <ProfileMenuItem href="/signup" icon="✨" label={navSignup} highlight />
               </>
             ) : (
               <>
@@ -213,7 +235,7 @@ export default function SiteHeader() {
                   onClick={() => { setMobileMenuOpen(false); auth.signOut(); }}
                   className="w-full text-right flex items-center gap-2 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
                 >
-                  <span>🚪</span><span>התנתקי</span>
+                  <span>🚪</span><span>{navLogout}</span>
                 </button>
               </>
             )}

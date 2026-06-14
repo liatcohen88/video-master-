@@ -44,6 +44,7 @@ import SaveSnapshotButton from "@/components/SaveSnapshotButton";
 import AILoadingOverlay from "@/components/AILoadingOverlay";
 import SignupGate from "@/components/SignupGate";
 import { useAuth } from "@/lib/useAuth";
+import SiteHeader from "@/components/SiteHeader";
 import {
   hashVideoFile,
   saveCurrentVideo,
@@ -528,7 +529,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen px-6 py-8 max-w-[1400px] mx-auto">
-      <Header />
+      <SiteHeader />
 
       {/* Full-screen AI loader — covers BOTH heavy operations:
           transcription (setup phase) and MP4 export (editing phase). */}
@@ -940,7 +941,10 @@ export default function HomePage() {
   );
 }
 
-function Header() {
+// (Page-local Header() removed — replaced by the shared SiteHeader so nav,
+// auth, and CMS keys live in one place. Stub kept to preserve line numbers
+// while we audit references; will be deleted in a follow-up sweep.)
+function _Header_DEPRECATED() {
   const appName  = useContent("brand.appName");
   const tagline  = useContent("brand.tagline");
   const logoSize = useContent("brand.headerLogoSize");
