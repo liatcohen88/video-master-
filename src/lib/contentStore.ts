@@ -585,6 +585,30 @@ export const CONTENT_DEFAULTS = {
   "style.summary.subtleZoom":  "זום עדין",
   "style.summary.kenBurns":    "Ken Burns",
   "style.summary.none":        "ללא אפקטים",
+
+  // ── SubtitleEditor (the per-line subtitle editor) ─────
+  "editor.subtitle.defaultText": "כתובית חדשה",
+  "editor.heading":              "עריכת כתוביות",
+  "editor.help.advanced":        "פותחים כדי לערוך טקסט, ולהוסיף אמוג'ים, אלמנטים, סאונדים ומיקום צדדים לכל שורה",
+  "editor.help.subtitles":       "פותחים כדי לערוך את הטקסט והתזמון של כל שורה",
+  "editor.countSuffix":          "כתוביות",
+  "editor.empty":                "עוד אין כתוביות. העלי וידאו ותמללי כדי להתחיל.",
+  "editor.sfx.disabled":         "צליל מבוטל",
+  "editor.sfx.currentTpl":       "צליל: {{label}}",
+  "editor.sfx.add":              "הוסף סאונד אפקט",
+  "editor.emoji.add":            "הוסף אמוג'י לכתובית",
+  "editor.tooltip.autoDetectedTpl":"זוהה אוטומטית: {{m}}",
+  "editor.tooltip.changePos":    "שינוי מיקום",
+  "editor.tooltip.changeEmoji":  "לחיצה לשינוי emoji",
+  "editor.tooltip.sfxLabel":     "צליל SFX",
+  "editor.tooltip.removeEmoji":  "ביטול האמוג'י הזה",
+  "editor.tooltip.durationSec":  "משך בשניות",
+  "editor.tooltip.colorTpl":     "צבע: {{c}}",
+  "editor.tooltip.removeBtn":    "הסר",
+  "editor.duration.secondsAbbr": "ש'",
+  "editor.sfx.none":             "ללא צליל",
+  "editor.defaultLabel":         "ברירת מחדל",
+  "editor.btn.addSubtitle":      "הוסף כתובית",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

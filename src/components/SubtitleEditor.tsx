@@ -10,6 +10,7 @@ import { getSfxAsset } from "@/lib/sfxLibrary";
 import EmojiPicker from "./EmojiPicker";
 import ElementPicker, { type PickedElement } from "./ElementPicker";
 import SfxPicker from "./SfxPicker";
+import { useContent } from "@/lib/useContent";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -79,6 +80,32 @@ export default function SubtitleEditor({
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const addBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
+  // CMS-editable copy for the editor surface (every label/tooltip the user sees)
+  const c = {
+    defaultText:    useContent("editor.subtitle.defaultText") as string,
+    heading:        useContent("editor.heading") as string,
+    helpAdvanced:   useContent("editor.help.advanced") as string,
+    helpSubtitles:  useContent("editor.help.subtitles") as string,
+    countSuffix:    useContent("editor.countSuffix") as string,
+    empty:          useContent("editor.empty") as string,
+    sfxDisabled:    useContent("editor.sfx.disabled") as string,
+    sfxCurrentTpl:  useContent("editor.sfx.currentTpl") as string,
+    sfxAdd:         useContent("editor.sfx.add") as string,
+    emojiAdd:       useContent("editor.emoji.add") as string,
+    autoDetectedTpl:useContent("editor.tooltip.autoDetectedTpl") as string,
+    changePos:      useContent("editor.tooltip.changePos") as string,
+    changeEmoji:    useContent("editor.tooltip.changeEmoji") as string,
+    sfxLabel:       useContent("editor.tooltip.sfxLabel") as string,
+    removeEmoji:    useContent("editor.tooltip.removeEmoji") as string,
+    durationSec:    useContent("editor.tooltip.durationSec") as string,
+    colorTpl:       useContent("editor.tooltip.colorTpl") as string,
+    removeBtn:      useContent("editor.tooltip.removeBtn") as string,
+    secondsAbbr:    useContent("editor.duration.secondsAbbr") as string,
+    sfxNone:        useContent("editor.sfx.none") as string,
+    defaultLabel:   useContent("editor.defaultLabel") as string,
+    addSubtitle:    useContent("editor.btn.addSubtitle") as string,
+  };
+
   const [lottieJsons, setLottieJsons] = useState<Record<string, unknown>>({});
   // Preload tiny lotties for thumbnails inside the editor when needed
   function ensureLottieLoaded(id: string) {
@@ -138,7 +165,7 @@ export default function SubtitleEditor({
     const end = next?.start ?? start + 2;
     const newSub: Subtitle = {
       id: `sub-${Date.now()}`,
-      start, end, text: "כתובית חדשה",
+      start, end, text: c.defaultText,
     };
     const copy = [...subtitles];
     copy.splice(afterIndex + 1, 0, newSub);
@@ -194,21 +221,19 @@ export default function SubtitleEditor({
         <div className="min-w-0">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <span className="text-white/40 group-open:rotate-90 transition-transform inline-block">›</span>
-            עריכת כתוביות
+            {c.heading}
           </h3>
           <p className="text-[11px] text-white/40 mt-0.5 mr-6">
-            {allowElements
-              ? "פותחים כדי לערוך טקסט, ולהוסיף אמוג'ים, אלמנטים, סאונדים ומיקום צדדים לכל שורה"
-              : "פותחים כדי לערוך את הטקסט והתזמון של כל שורה"}
+            {allowElements ? c.helpAdvanced : c.helpSubtitles}
           </p>
         </div>
-        <span className="text-xs text-white/40 shrink-0">{subtitles.length} כתוביות</span>
+        <span className="text-xs text-white/40 shrink-0">{subtitles.length} {c.countSuffix}</span>
       </summary>
 
       <div className="max-h-[500px] overflow-y-auto divide-y divide-white/5">
         {subtitles.length === 0 && (
           <div className="p-8 text-center text-white/40 text-sm">
-            עוד אין כתוביות. העלי וידאו ותמללי כדי להתחיל.
+            {c.empty}
           </div>
         )}
 
@@ -241,9 +266,9 @@ export default function SubtitleEditor({
                       ? "bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25"
                       : "hover:bg-white/10 text-white/60 hover:text-white"
                   }`}
-                  title={sub.sfxId === "none" ? "צליל מבוטל"
-                    : sub.sfxId ? `צליל: ${getSfxAsset(sub.sfxId)?.label ?? sub.sfxId}`
-                    : "הוסף סאונד אפקט"}
+                  title={sub.sfxId === "none" ? c.sfxDisabled
+                    : sub.sfxId ? c.sfxCurrentTpl.replace("{{label}}", getSfxAsset(sub.sfxId)?.label ?? sub.sfxId)
+                    : c.sfxAdd}
                 >
                   {sub.sfxId && sub.sfxId !== "none"
                     ? <Volume2 className="w-3.5 h-3.5" />
@@ -257,7 +282,7 @@ export default function SubtitleEditor({
                       setPickerAnchor(e.currentTarget.getBoundingClientRect());
                     }}
                     className="p-1.5 hover:bg-fuchsia-500/20 rounded-md text-white/60 hover:text-fuchsia-300"
-                    title="הוסף אמוג'י לכתובית"
+                    title={c.emojiAdd}
                   >
                     <Smile className="w-3.5 h-3.5" />
                   </button>
@@ -306,12 +331,12 @@ export default function SubtitleEditor({
                       <div
                         key={key}
                         className="flex items-center bg-cyan-500/10 border border-dashed border-cyan-400/40 rounded-md text-[11px]"
-                        title={`זוהה אוטומטית: ${el.matched}`}
+                        title={c.autoDetectedTpl.replace("{{m}}", el.matched)}
                       >
                         <button
                           onClick={() => cycleAutoPos(key, pos)}
                           className="px-1.5 py-1 text-cyan-200/70 hover:text-cyan-100 text-sm"
-                          title="שינוי מיקום"
+                          title={c.changePos}
                         >
                           {POSITION_LABEL[pos]}
                         </button>
@@ -321,7 +346,7 @@ export default function SubtitleEditor({
                             setPickerAnchor(e.currentTarget.getBoundingClientRect());
                           }}
                           className="text-base px-1 hover:scale-110 transition-transform"
-                          title="לחיצה לשינוי emoji"
+                          title={c.changeEmoji}
                         >
                           {displayEmoji}
                         </button>
@@ -334,7 +359,7 @@ export default function SubtitleEditor({
                             setPickerAnchor(ev.currentTarget.getBoundingClientRect());
                           }}
                           className="px-1 py-1 border-r border-cyan-400/20 text-cyan-200/70 hover:text-white hover:bg-white/10"
-                          title="צליל SFX"
+                          title={c.sfxLabel}
                         >
                           {elementSfxOverrides[key] === "none"
                             ? <VolumeX className="w-2.5 h-2.5" />
@@ -343,7 +368,7 @@ export default function SubtitleEditor({
                         <button
                           onClick={() => disableAuto(key)}
                           className="px-1 py-1 text-cyan-300/60 hover:text-red-300"
-                          title="ביטול האמוג'י הזה"
+                          title={c.removeEmoji}
                         >
                           <X className="w-2.5 h-2.5" />
                         </button>
@@ -359,9 +384,9 @@ export default function SubtitleEditor({
                   {sub.manualEmojis.map((me, mIdx) => {
                     const isLottie = !!me.lottieIconId;
                     if (isLottie) ensureLottieLoaded(me.lottieIconId!);
-                    const sfxLabel = me.sfxId === "none" ? "ללא צליל"
+                    const sfxLabel = me.sfxId === "none" ? c.sfxNone
                       : me.sfxId ? (getSfxAsset(me.sfxId)?.label ?? me.sfxId)
-                      : "ללא צליל";
+                      : c.sfxNone;
                     return (
                       <div key={mIdx}
                         className={`flex items-center rounded-md text-[11px] border
@@ -369,7 +394,7 @@ export default function SubtitleEditor({
                         <button
                           onClick={() => cycleManualPos(sub.id, mIdx)}
                           className="px-1.5 py-1 text-white/70 hover:text-white text-sm"
-                          title="שינוי מיקום"
+                          title={c.changePos}
                         >
                           {POSITION_LABEL[me.position]}
                         </button>
@@ -393,15 +418,15 @@ export default function SubtitleEditor({
                             value={me.durationSec ?? (isLottie ? 2 : 0.9)}
                             onChange={(e) => updateManualElement(sub.id, mIdx, { durationSec: parseFloat(e.target.value) || 1 })}
                             className="w-9 bg-transparent text-[10px] text-center text-white/80 focus:outline-none"
-                            title="משך בשניות"
+                            title={c.durationSec}
                           />
-                          <span className="text-[9px] text-white/30">ש'</span>
+                          <span className="text-[9px] text-white/30">{c.secondsAbbr}</span>
                         </div>
                         {/* Color picker — Lottie only (emoji is full-color, can't tint) */}
                         {isLottie && (
                           <label
                             className="px-1 py-1 border-r border-white/10 hover:bg-white/10 cursor-pointer relative"
-                            title={`צבע: ${me.color ?? "ברירת מחדל"}`}
+                            title={c.colorTpl.replace("{{c}}", me.color ?? c.defaultLabel)}
                           >
                             <span
                               className="block w-3.5 h-3.5 rounded-full border border-white/30"
@@ -422,7 +447,7 @@ export default function SubtitleEditor({
                             setPickerAnchor(ev.currentTarget.getBoundingClientRect());
                           }}
                           className="px-1.5 py-1 border-r border-white/10 hover:bg-white/10"
-                          title={`צליל: ${sfxLabel}`}
+                          title={c.sfxCurrentTpl.replace("{{label}}", sfxLabel)}
                         >
                           {me.sfxId && me.sfxId !== "none"
                             ? <Volume2 className="w-3 h-3 text-brand-light" />
@@ -431,7 +456,7 @@ export default function SubtitleEditor({
                         <button
                           onClick={() => removeManualElement(sub.id, mIdx)}
                           className="px-1 py-1 text-white/50 hover:text-red-300"
-                          title="הסר"
+                          title={c.removeBtn}
                         >
                           <X className="w-2.5 h-2.5" />
                         </button>
@@ -446,7 +471,7 @@ export default function SubtitleEditor({
                 className="mt-2 w-full flex items-center justify-center gap-1 text-xs text-white/30 hover:text-brand-light border border-dashed border-white/10 hover:border-brand/50 rounded-md py-1 transition-colors"
               >
                 <Plus className="w-3 h-3" />
-                הוסף כתובית
+                {c.addSubtitle}
               </button>
             </div>
           );
@@ -479,7 +504,7 @@ export default function SubtitleEditor({
           <SfxPicker
             open={true}
             currentSfxId={current}
-            defaultLabel="ללא צליל"
+            defaultLabel={c.sfxNone}
             onSelect={(id) => updateManualElement(sfxPickerFor.subId, sfxPickerFor.idx, { sfxId: id })}
             onClose={() => setSfxPickerFor(null)}
             anchorRect={pickerAnchor}
@@ -491,7 +516,7 @@ export default function SubtitleEditor({
         <SfxPicker
           open={true}
           currentSfxId={elementSfxOverrides[sfxPickerForAuto]}
-          defaultLabel="ברירת מחדל"
+          defaultLabel={c.defaultLabel}
           onSelect={(id) => onAutoElementChange?.(sfxPickerForAuto, { sfxId: id })}
           onClose={() => setSfxPickerForAuto(null)}
           anchorRect={pickerAnchor}
@@ -504,7 +529,7 @@ export default function SubtitleEditor({
           <SfxPicker
             open={true}
             currentSfxId={sub?.sfxId}
-            defaultLabel="ללא צליל"
+            defaultLabel={c.sfxNone}
             onSelect={(id) => update(sfxPickerForSub, { sfxId: id })}
             onClose={() => setSfxPickerForSub(null)}
             anchorRect={sfxPickerAnchor}

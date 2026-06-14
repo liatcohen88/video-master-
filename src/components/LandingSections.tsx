@@ -104,8 +104,8 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
         </div>
       </section>
 
-      {/* ── 2.5. Feature showcase — phone mockups with floating UI bits ── */}
-      <FeatureShowcase />
+      {/* ── 2.5. Feature showcase — hidden ── */}
+      {/* <FeatureShowcase /> */}
 
       {/* ── 3. Browser mockup hero ── */}
       <HeroBrowserMockup />
