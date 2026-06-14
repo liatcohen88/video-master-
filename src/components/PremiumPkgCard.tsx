@@ -27,6 +27,9 @@ type Props = {
  */
 export default function PremiumPkgCard({ pkg, onBuy, busy }: Props) {
   const currency = (useContent("brand.currencyName") as string) || "קרדיטים";
+  const btnLabel = useContent("pkgCard.btn") as string;
+  const btnBusy = useContent("pkgCard.btnBusy") as string;
+  const taxNote = useContent("pkgCard.taxNote") as string;
   const fakeRegularPrice = Math.round(pkg.priceIls * 1.6);
   const videos = Math.max(1, Math.round(pkg.credits / 10)); // entry (subtitles) rate
   const isPopular   = pkg.highlight === "הכי נמכר";
@@ -78,15 +81,15 @@ export default function PremiumPkgCard({ pkg, onBuy, busy }: Props) {
           <span className="text-[13px] text-red-400/60 line-through font-bold">₪{fakeRegularPrice}</span>
           <span className="text-3xl font-black text-white leading-none">₪{pkg.priceIls}</span>
         </div>
-        <div className="text-[10px] text-white/35 mb-4">כולל מע&quot;מ · תשלום חד-פעמי</div>
+        <div className="text-[10px] text-white/35 mb-4">{taxNote}</div>
 
         {onBuy ? (
           <button onClick={() => onBuy(pkg.id)} disabled={busy} className={ctaClass}>
-            {busy ? "מעבד..." : "👈 לקנייה"}
+            {busy ? btnBusy : btnLabel}
           </button>
         ) : (
           <Link href="/credits" className={ctaClass}>
-            👈 לקנייה
+            {btnLabel}
           </Link>
         )}
       </div>

@@ -430,6 +430,11 @@ export const CONTENT_DEFAULTS = {
   "help.cat.export.label":   "ייצוא והורדה",
   "help.cat.problems.label": "בעיות נפוצות",
   "help.cat.advanced.label": "פיצ'רים מתקדמים",
+
+  // ── Premium package card (carousel + premium card) ────────
+  "pkgCard.btn":      "לקנייה",
+  "pkgCard.btnBusy":  "מעבד...",
+  "pkgCard.taxNote":  "כולל מע\"מ · תשלום חד-פעמי",
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

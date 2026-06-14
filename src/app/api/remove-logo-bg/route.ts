@@ -16,14 +16,41 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const src = typeof body?.src === "string" ? body.src : null;
-  if (!src || !src.startsWith("/custom-logos/")) {
-    return NextResponse.json(
-      { error: "פרמטר src חסר או לא חוקי" },
-      { status: 400 },
-    );
+
+  if (!src) {
+    return NextResponse.json({ error: "פרמטר src חסר" }, { status: 400 });
   }
 
-  // SVG → no-op (already supports transparency)
+  // 1) Data-URL path (new: logos are stored as data URLs in project state
+  //    because Coolify's container filesystem wipes /public on every
+  //    redeploy). Decode, run BG removal, return a new data URL.
+  if (src.startsWith("data:")) {
+    const mimeMatch = src.match(/^data:([^;]+);base64,(.*)$/);
+    if (!mimeMatch) {
+      return NextResponse.json({ error: "data URL לא תקין" }, { status: 400 });
+    }
+    const [, mime, b64] = mimeMatch;
+    if (mime.includes("svg")) {
+      return NextResponse.json({ url: src }); // SVG already has alpha
+    }
+    try {
+      const inBuf = Buffer.from(b64, "base64");
+      const outBuf = await removeBackground(inBuf);
+      const outB64 = outBuf.toString("base64");
+      return NextResponse.json({ url: `data:image/png;base64,${outB64}` });
+    } catch (err: unknown) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : String(err) },
+        { status: 500 },
+      );
+    }
+  }
+
+  // 2) Legacy /custom-logos/* file path (kept for back-compat with any
+  //    project snapshots saved before the data-URL migration).
+  if (!src.startsWith("/custom-logos/")) {
+    return NextResponse.json({ error: "פרמטר src לא חוקי" }, { status: 400 });
+  }
   if (src.toLowerCase().endsWith(".svg")) {
     return NextResponse.json({ url: src });
   }
