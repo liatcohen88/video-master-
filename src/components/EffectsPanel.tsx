@@ -9,7 +9,7 @@ import { ANIMATIONS } from "@/lib/subtitleAnimations";
 import { DYNAMIC_BACKGROUNDS } from "@/lib/dynamicBackgrounds";
 import { modeCapabilities } from "@/lib/modeCapabilities";
 import { COLOR_FILTERS } from "@/lib/colorFilters";
-import { INTRO_ANIMATIONS } from "@/lib/introAnimations";
+import { resolveIntroAnimations } from "@/lib/introAnimations";
 import { useContent } from "@/lib/useContent";
 import { getSfxAsset } from "@/lib/sfxLibrary";
 import SfxPicker from "./SfxPicker";
@@ -41,7 +41,8 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
 
   const caps = modeCapabilities(mode);
   const hiddenIntros = useContent("intro.hidden") as Record<string, true>;
-  const visibleIntros = INTRO_ANIMATIONS.filter((i) => !hiddenIntros?.[i.id]);
+  // Intro presets with admin label/desc overrides applied
+  const visibleIntros = resolveIntroAnimations().filter((i) => !hiddenIntros?.[i.id]);
 
   // Which tabs to show. A tab disappears when EVERY block inside it is
   // disabled for the current edit mode — so "subtitles_only" gets the

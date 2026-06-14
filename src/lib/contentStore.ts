@@ -435,6 +435,12 @@ export const CONTENT_DEFAULTS = {
   "pkgCard.btn":      "לקנייה",
   "pkgCard.btnBusy":  "מעבד...",
   "pkgCard.taxNote":  "כולל מע\"מ · תשלום חד-פעמי",
+
+  // ── Intro-animation labels + descriptions (admin override) ────
+  // Keyed by intro animation id (matches INTRO_ANIMATIONS in introAnimations.ts).
+  // Admin enters { punchZoom: "המכה שלי", ... } to rename without code.
+  "intro.labels": {} as Record<string, string>,
+  "intro.descs":  {} as Record<string, string>,
   // ── Brand-logo overrides (used by glossary + auto-detect overlay) ─
   // nameOverrides: change the Hebrew name shown next to a brand
   //   { "amazon": "אמזון", "google": "גוגל" }

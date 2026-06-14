@@ -13,6 +13,7 @@
  */
 
 import type { VideoEffects } from "./types";
+import { getContent } from "./contentStore";
 
 export type IntroAnimationId = NonNullable<VideoEffects["introAnimation"]>;
 
@@ -38,6 +39,21 @@ export const INTRO_ANIMATIONS: IntroPreset[] = [
   { id: "slideUp",     label: "סליידאפ",      emoji: "⬆️", desc: "מחליק מלמטה כלפי מעלה",                    duration: 0.5  },
   { id: "fadeIn",      label: "פייד שחור",    emoji: "🎬", desc: "עולה משחור — קלאסי",                       duration: 0.5  },
 ];
+
+/**
+ * Return INTRO_ANIMATIONS with admin label / description overrides applied.
+ * Admin writes intro.labels = { punchZoom: "המכה שלי" } and intro.descs =
+ * { punchZoom: "הסבר חדש" } in the CMS — the rest fall back to defaults.
+ */
+export function resolveIntroAnimations(): IntroPreset[] {
+  const labels = (getContent("intro.labels") as Record<string, string>) ?? {};
+  const descs  = (getContent("intro.descs")  as Record<string, string>) ?? {};
+  return INTRO_ANIMATIONS.map((p) => ({
+    ...p,
+    label: labels[p.id] ?? p.label,
+    desc:  descs[p.id]  ?? p.desc,
+  }));
+}
 
 /** State of the intro animation at time `t` (seconds since clip start). */
 export type IntroFrame = {

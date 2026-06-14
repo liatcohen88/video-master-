@@ -316,16 +316,17 @@ export function buildFilterChain(
 
   // Drama mode — desaturate + contrast bump inside each detected drama
   // window. Mirrors VideoPreview's `grayscale(1) contrast(1.25)` flash on
-  // dramaActiveAt(). Applied BEFORE intro/color so the look is preserved
-  // through the rest of the chain.
+  // dramaActiveAt(). Uses each filter's `enable=` clause so the work only
+  // runs during the window (cheap outside).
   if ((effects.dramaMode ?? false) && dramaWindows.length > 0) {
-    const windows = dramaWindows
+    const enableExpr = dramaWindows
       .filter((w) => w.end > w.start)
       .map((w) => `between(t,${w.start.toFixed(3)},${w.end.toFixed(3)})`)
       .join("+");
-    if (windows) {
-      videoFilters.push(`hue=s='if(${windows},0,1)'`);
-      videoFilters.push(`eq=contrast='if(${windows},1.25,1)':brightness='if(${windows},-0.02,0)'`);
+    if (enableExpr) {
+      // hue=s=0 → grayscale; eq bumps contrast slightly. Both gated by enable.
+      videoFilters.push(`hue=s=0:enable='${enableExpr}'`);
+      videoFilters.push(`eq=contrast=1.25:brightness=-0.02:enable='${enableExpr}'`);
     }
   }
 
