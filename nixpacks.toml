@@ -25,8 +25,11 @@ cmd = "npm run start"
 
 # Tell the transcribe route which Python to spawn (the venv interpreter has
 # faster-whisper installed; system python3 does not).
+#
+# DO NOT set LD_LIBRARY_PATH here — apt's glibc conflicts with Nix's glibc and
+# Node itself dies with "__vdso_gettimeofday: invalid mode for dlopen()" during
+# npm ci. The transcribe route discovers the correct Nix-store lib paths at
+# runtime (see nixLibPath() in src/app/api/transcribe/route.ts) and injects
+# them only into the Python child process, not the global Node environment.
 [variables]
 PYTHON_PATH = "/opt/whisper-venv/bin/python3"
-# PyAV bundles libz/libavcodec/etc but their RPATHs point into the Nix store.
-# Make sure the resolver can find the runtime-stage zlib + libstdc++.
-LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
