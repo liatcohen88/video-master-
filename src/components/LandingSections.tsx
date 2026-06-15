@@ -104,7 +104,12 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
       {/* ── 2.5. Feature showcase — hidden ── */}
       {/* <FeatureShowcase /> */}
 
-      {/* ── 3. Browser mockup hero — moved to page.tsx hero area ── */}
+      {/* ── 3. Browser mockup — sits between "3 steps" and "features grid"
+              so the user sees the abstract steps, then the concrete UI,
+              then the feature list. Moved here from the page hero per Liat. */}
+      <section className="px-2 overflow-visible">
+        <HeroBrowserMockup />
+      </section>
 
       {/* ── 4. Features grid (6) ── */}
       <section>

@@ -37,7 +37,6 @@ import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
 import LandingSections from "@/components/LandingSections";
-import HeroBrowserMockup from "@/components/HeroBrowserMockup";
 import { useAutoSavedState } from "@/lib/useAutoSave";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
@@ -585,10 +584,9 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* ── Browser mockup — shows the app UI with video demo ── */}
-              <div className="mt-6 px-2 overflow-visible">
-                <HeroBrowserMockup />
-              </div>
+              {/* Browser mockup moved down to LandingSections — between "How it
+                  works" and "Features" — per Liat's request. Less visual noise
+                  at the top, more reward after the user reads the 3 steps. */}
 
               {multiEnabled && <a
                 href="/multi"
