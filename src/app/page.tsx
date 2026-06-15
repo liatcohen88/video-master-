@@ -840,13 +840,21 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
             <div className="space-y-6 min-w-0">
-              <VideoPreview
-                videoUrl={videoUrl}
-                subtitles={subtitles}
-                style={style}
-                effects={effects}
-                onTimeUpdate={setCurrentTime}
-              />
+              {/* On mobile, pin the live preview to the top of the viewport
+                  while the user scrolls subtitles / settings below — so every
+                  edit they make is visible in real time without scrolling
+                  back up. Desktop layout is unchanged (lg breakpoint+). The
+                  blurred bg + shadow visually separate the pinned card from
+                  the scrolling content underneath. */}
+              <div className="lg:contents max-lg:sticky max-lg:top-0 max-lg:z-30 max-lg:-mx-2 max-lg:px-2 max-lg:pt-2 max-lg:pb-3 max-lg:bg-bg/95 max-lg:backdrop-blur max-lg:rounded-b-2xl max-lg:shadow-lg max-lg:shadow-black/50">
+                <VideoPreview
+                  videoUrl={videoUrl}
+                  subtitles={subtitles}
+                  style={style}
+                  effects={effects}
+                  onTimeUpdate={setCurrentTime}
+                />
+              </div>
 
               <SubtitleEditor
                 subtitles={subtitles}
