@@ -145,6 +145,19 @@ export default function HomePage() {
       })();
       return;
     }
+    // Refresh mid-edit: if the user was actively editing in THIS tab (not a
+    // long-ago abandoned session), silently re-attach the cached video and
+    // skip the "Continue from edit?" banner. Scoped to sessionStorage so it
+    // only triggers on refresh/navigation inside the same tab — closing the
+    // tab clears the flag and a fresh visit lands on the home page as normal.
+    if (typeof window !== "undefined" && sessionStorage.getItem("vm_active_edit") === "1") {
+      (async () => {
+        const v = await loadCurrentVideo();
+        if (v) await handleVideo(storedToFile(v));
+        else sessionStorage.removeItem("vm_active_edit"); // stale flag
+      })();
+      return;
+    }
     if (modeMeta.wasRestored) {
       toast.info(toastResume);
     }
@@ -174,6 +187,9 @@ export default function HomePage() {
         setVideoHash(hash);
         saveCurrentVideo(file, hash).catch(() => {/* best-effort */});
       } catch { /* IDB unavailable — fall back to in-memory only */ }
+      // Mark this tab as "actively editing" so a refresh re-enters the editor
+      // instead of dropping back to the home page.
+      try { sessionStorage.setItem("vm_active_edit", "1"); } catch {}
     } finally {
       setIsProcessing(false);
       setProgressMessage("");
@@ -190,6 +206,7 @@ export default function HomePage() {
     setVideoUrl(URL.createObjectURL(file));
     setErrorMessage(null);
     setDownloadSuccess(null);
+    try { sessionStorage.setItem("vm_active_edit", "1"); } catch {}
     try {
       const hash = await hashVideoFile(file);
       setVideoHash(hash);
@@ -636,6 +653,7 @@ export default function HomePage() {
                   setVideoUrl(null);
                   setVideoHash(null);
                   clearCurrentVideo().catch(() => {});
+                  try { sessionStorage.removeItem("vm_active_edit"); } catch {}
                 }}
                 className="text-sm text-white/50 hover:text-white px-3 py-1"
               >
