@@ -26,13 +26,16 @@ export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[140] flex items-center justify-center bg-bg/90 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-bg/85 backdrop-blur-md animate-fade-in px-4"
     >
-      <div className="flex flex-col items-center gap-7 px-6 text-center max-w-md">
+      {/* Floating popup card instead of bare overlay text — gives a clear
+          "something is happening, hold on" surface (Liat: "חיווי ויראלי
+          במקום loader חיוור"). Pulses gently to feel alive. */}
+      <div className="relative max-w-md w-full bg-bg-panel border border-brand/40 rounded-3xl px-6 py-8 shadow-2xl shadow-brand/40 animate-popup-in flex flex-col items-center gap-6 text-center">
         {/* Brand logo — full reveal animation (particles + scan + glow) */}
         <div className="relative">
           <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-brand/30 to-pink-500/20 blur-2xl animate-pulse-glow" />
-          <LogoMark size={140} mode="reveal" />
+          <LogoMark size={110} mode="reveal" />
         </div>
 
         {/* Title — dots inline-after as a single non-breaking unit so RTL
@@ -63,6 +66,11 @@ export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
 
       <style jsx global>{`
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popup-in {
+          from { opacity: 0; transform: scale(0.92) translateY(8px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-popup-in { animation: popup-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes pulse-glow {
           0%, 100% { opacity: 0.6; transform: scale(1); }
           50%      { opacity: 1;   transform: scale(1.1); }
