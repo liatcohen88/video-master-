@@ -167,6 +167,29 @@ export default function HomePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // OAuth welcome detection. /signup and /login set sessionStorage flags
+  // before navigating, but Supabase OAuth (Google) redirects back to "/"
+  // outside our control — we can't set a flag from there. Instead, when
+  // auth resolves to "user" and we haven't greeted this session yet,
+  // check how old the profile is: <60s = fresh OAuth signup (welcome
+  // popup), older = OAuth login (returning popup). Then dispatch the
+  // custom event AuthSuccessModal listens for, and mark the session
+  // greeted so refresh/navigation doesn't re-fire.
+  useEffect(() => {
+    if (auth.status !== "user" || !auth.profile) return;
+    if (typeof window === "undefined") return;
+    try {
+      if (sessionStorage.getItem("vm_session_greeted")) return;
+      if (sessionStorage.getItem("vm_auth_event")) return; // password flow handles itself
+      const createdAt = new Date(auth.profile.created_at).getTime();
+      const ageSec = (Date.now() - createdAt) / 1000;
+      const kind = ageSec >= 0 && ageSec < 60 ? "signup" : "login";
+      sessionStorage.setItem("vm_session_greeted", "1");
+      window.dispatchEvent(new CustomEvent("vm-auth-popup", { detail: { kind } }));
+    } catch {/* sessionStorage unavailable */}
+  }, [auth.status, auth.profile]);
+
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [activeReferenceId, setActiveReferenceId] = useState<string | undefined>(undefined);
 

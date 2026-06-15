@@ -34,7 +34,13 @@ export default function AuthSuccessModal() {
   const rCta    = useContent("auth.returning.cta") as string;
   const rHref   = useContent("auth.returning.ctaHref") as string;
 
-  // Read the flag once on mount and clear it so a refresh doesn't re-fire.
+  // Read the flag once on mount AND listen for runtime fires. The mount
+  // path catches password signup/login (where /signup or /login set the
+  // sessionStorage flag right before navigating to "/"). The runtime
+  // listener catches OAuth (Google) where Supabase redirects back to "/"
+  // and we can'\''t set sessionStorage from inside the auth-provider'\''s
+  // navigation — page.tsx detects the OAuth case asynchronously and
+  // dispatches `vm-auth-popup` after.
   useEffect(() => {
     try {
       const v = sessionStorage.getItem("vm_auth_event");
@@ -43,6 +49,15 @@ export default function AuthSuccessModal() {
         sessionStorage.removeItem("vm_auth_event");
       }
     } catch {/* sessionStorage unavailable — just don't show */}
+
+    function onAuthPopup(e: Event) {
+      const detail = (e as CustomEvent<{ kind?: EventKind }>).detail;
+      if (detail?.kind === "signup" || detail?.kind === "login") {
+        setEvent(detail.kind);
+      }
+    }
+    window.addEventListener("vm-auth-popup", onAuthPopup as EventListener);
+    return () => window.removeEventListener("vm-auth-popup", onAuthPopup as EventListener);
   }, []);
 
   if (!event) return null;
