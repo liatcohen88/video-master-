@@ -389,6 +389,23 @@ export default function VideoPreview({
     return () => { stopped = true; cancelAnimationFrame(raf); };
   }, [effects?.introAnimation, effects?.introSfxId, videoUrl]);
 
+  // Force iOS Safari to decode + display the first frame as soon as the
+  // videoUrl arrives. preload="auto" alone isn'\''t reliable on mobile —
+  // calling .load() kicks the pipeline, and a tiny seek to 0 makes Safari
+  // commit a real frame instead of showing a black square until the user
+  // taps play. (Liat'\''s "מסך שחור בעורך אחרי העלאת סרטון".)
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !videoUrl) return;
+    try {
+      v.load();
+      // Seek to 0 to force a frame; if we'\''re already loaded this is a no-op.
+      const onMeta = () => { try { v.currentTime = 0; } catch {} };
+      v.addEventListener("loadedmetadata", onMeta, { once: true });
+      return () => v.removeEventListener("loadedmetadata", onMeta);
+    } catch {/* ignore */}
+  }, [videoUrl]);
+
   // Drama Mode is now VISUAL ONLY (B&W flash). The auto-sting was removed
   // 2026-06-11 — every sting we tried was either too long ("אותו סאונד 5
   // שניות") or repeated unpredictably. Better UX: let the user attach their
@@ -621,7 +638,11 @@ export default function VideoPreview({
           // controlsList="nodownload nofullscreen" keep playback inline so
           // the user sees the caption preview, exactly like desktop.
           playsInline
-          // @ts-expect-error — webkit-only attr not in React types
+          // preload=auto forces iOS Safari to actually decode the first frame
+          // immediately. Without it (default "metadata"), mobile Safari shows
+          // a black square until the user taps play — Liat'\''s "מסך שחור".
+          preload="auto"
+          // webkit-only attr — React types accept it as a string here.
           webkit-playsinline="true"
           x5-playsinline="true"
           controlsList="nodownload nofullscreen noplaybackrate"

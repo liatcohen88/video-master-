@@ -201,6 +201,10 @@ export default function HomePage() {
       if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
       setIsProcessing(false);
       setProgressMessage("");
+      // Scroll to the top of the editor on mobile — otherwise the page stays
+      // at whatever scroll position the upload-zone was at, which leaves the
+      // brand-new video preview off-screen. (Liat: "ישר קופץ למטה ולא לראש".)
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
     }
   }
 
