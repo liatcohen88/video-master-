@@ -67,11 +67,14 @@ export default function SfxPicker({
     };
   }, [open, onClose]);
 
-  // Stop any audio when the picker closes
+  // Stop any audio when the picker closes. (Was buggy: referenced
+  // `audioRef` which was never declared — every close threw a
+  // ReferenceError in production, taking the editor down with an
+  // "Application error". Now uses the real handleRef from playSfxCapped.)
   useEffect(() => {
-    if (!open && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+    if (!open && handleRef.current) {
+      try { handleRef.current.stop(); } catch {}
+      handleRef.current = null;
       setPlayingId(null);
     }
   }, [open]);
