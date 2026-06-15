@@ -412,6 +412,11 @@ export default function HomePage() {
     } finally {
       setIsProcessing(false);
       setProgressMessage("");
+      // Liat 2026-06-16: after the AI pipeline finishes, the page often
+      // sat at the bottom (where the "Start" button was), leaving the new
+      // editor + preview off-screen — confusing especially on mobile.
+      // Scroll to top so the preview is the first thing the user sees.
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
     }
   }
 

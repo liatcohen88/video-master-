@@ -162,10 +162,12 @@ export default function StylePanel({
           open={openSection === "effects"}
           onToggle={() => toggle("effects")}
         >
-          <div
-            className="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11px] text-amber-200/90 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: sanitizeCmsHtml(c.extrasHelp) }}
-          />
+          {/* Liat 2026-06-16: removed the "תוספת אופציונלית" tip entirely
+              on mobile + desktop. Users already understand the model from
+              the section subtitle ("כל אפקט מוסיף 2-3 מאסטרים"); the extra
+              banner was visual noise that pushed the actual toggles down.
+              The CMS key style.extras.help stays so an admin can re-enable
+              by editing it in the future. */}
           <EffectsPanel effects={effects} onChange={onEffectsChange} mode={mode} subtitles={subtitles} />
         </Accordion>
       )}

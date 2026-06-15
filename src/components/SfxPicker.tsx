@@ -129,7 +129,9 @@ export default function SfxPicker({
           placeholder="חיפוש צליל (למשל: ציוץ, פיצוץ, מעבר)..."
           className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
           dir="rtl"
-          autoFocus
+          // Liat 2026-06-16: removed autoFocus — on mobile this popped the
+          // keyboard the moment the picker opened, hiding the SFX list. Now
+          // the list shows first; tapping the search field opens the keyboard.
         />
       </div>
 
