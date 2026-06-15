@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="he" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <title>Master Video — Hero Mockup (Lovable-ready)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: transparent;
+      font-family: 'Heebo', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #fff;
+      min-height: 100%;
+    }
+    .hbm-wrap {
+      position: relative;
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      animation: hbm-hero 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes hbm-hero { from { opacity: 0; transform: translateY(24px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    /* Floating chips */
+    .hbm-chips { position: absolute; top: 12%; z-index: 20; display: flex; flex-direction: column; gap: 9px; }
+    .hbm-chips.right { right: 10px; }
+    .hbm-chips.left  { left: 10px; top: 18%; }
+    .hbm-chip {
+      background: rgba(12, 10, 28, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 100px;
+      padding: 7px 15px;
+      font-size: 12px;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 7px;
+      opacity: 0;
+      transform: translateX(80px);
+      animation:
+        hbm-chip-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+        hbm-chip-float 3.4s ease-in-out infinite 0.7s;
+    }
+    .hbm-chips.left .hbm-chip { transform: translateX(-80px); }
+    .hbm-chip span:last-child { opacity: 0.85; }
+    .hbm-chip:nth-child(1) { animation-delay: 0.4s, 1.05s; }
+    .hbm-chip:nth-child(2) { animation-delay: 0.8s, 1.45s; }
+    .hbm-chip:nth-child(3) { animation-delay: 1.2s, 1.85s; }
+    .hbm-chips.left  .hbm-chip:nth-child(1) { animation-delay: 0.6s, 1.25s; }
+    .hbm-chips.left  .hbm-chip:nth-child(2) { animation-delay: 1.0s, 1.65s; }
+    @keyframes hbm-chip-in    { to { opacity: 1; transform: translateX(0); } }
+    @keyframes hbm-chip-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+    /* Browser frame */
+    .hbm-frame {
+      border-radius: 14px 14px 10px 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 50px 120px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      background: #0d0d1f;
+    }
+    .hbm-chrome {
+      background: #13132a;
+      padding: 9px 14px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .hbm-dots { display: flex; gap: 5px; }
+    .hbm-dots span { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+    .hbm-dots .red    { background: #FF5F57; }
+    .hbm-dots .yellow { background: #FEBC2E; }
+    .hbm-dots .green  { background: #28C840; }
+    .hbm-tab {
+      padding: 3px 14px; border-radius: 6px 6px 0 0;
+      background: #0d0d20; font-size: 11px; color: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08); border-bottom-color: #0d0d20;
+      margin-right: 6px; display: flex; align-items: center; gap: 5px;
+    }
+    .hbm-tab-logo {
+      width: 13px; height: 13px; border-radius: 3px;
+      background: linear-gradient(135deg, #7C3AED, #e040fb);
+      display: inline-block;
+    }
+    .hbm-url {
+      flex: 1; background: rgba(255, 255, 255, 0.05); border-radius: 5px;
+      padding: 4px 12px; font-size: 11px; color: rgba(255, 255, 255, 0.3);
+      text-align: center; font-family: monospace;
+    }
+
+    /* Editor body */
+    .hbm-body { display: flex; height: 520px; direction: ltr; background: #0d0d1f; }
+    .hbm-left {
+      width: 300px; background: #111128;
+      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex; flex-direction: column; overflow-y: auto;
+    }
+    .hbm-right { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #0d0d1f; }
+    @media (max-width: 768px) {
+      .hbm-body { flex-direction: column-reverse; height: auto; }
+      .hbm-left { width: 100%; border-right: none; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+      .hbm-chips { display: none; }
+    }
+
+    /* Template gallery */
+    .hbm-templates { padding: 10px 10px 8px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+    .hbm-tpl {
+      height: 44px; border-radius: 8px; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 10px; gap: 1px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .hbm-tpl .icon { font-size: 13px; }
+    .hbm-tpl .name { font-size: 9px; max-width: 90%; text-align: center;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.9; }
+    .hbm-tpl.active { border: 2px solid #a78bfa; box-shadow: 0 0 12px rgba(124, 58, 237, 0.5); }
+    .hbm-tpl.active::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 6px; height: 6px;
+      border-radius: 50%; background: #a78bfa;
+    }
+
+    .hbm-style-row {
+      padding: 0 10px 8px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px;
+    }
+    .hbm-style-row .label { color: rgba(255, 255, 255, 0.5); }
+    .hbm-style-row .neon  { color: #a78bfa; }
+
+    .hbm-tip {
+      margin: 0 10px 10px; padding: 7px 10px;
+      background: rgba(255, 200, 0, 0.08); border: 1px solid rgba(255, 200, 0, 0.2);
+      border-radius: 8px; font-size: 9.5px; color: rgba(255, 220, 100, 0.85);
+      line-height: 1.5; direction: rtl;
+    }
+
+    .hbm-tabs {
+      display: flex; direction: rtl;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .hbm-tabs .tab {
+      flex: 1; padding: 7px 7px; font-size: 9px; text-align: center;
+      color: rgba(255, 255, 255, 0.4); white-space: nowrap;
+      border-bottom: 2px solid transparent;
+    }
+    .hbm-tabs .tab.active {
+      flex: none; color: #fff; background: rgba(124, 58, 237, 0.25);
+      border-bottom-color: #7C3AED;
+    }
+
+    .hbm-effects { padding: 10px; flex: 1; direction: rtl; display: flex; flex-direction: column; gap: 11px; }
+    .hbm-effects .group-label { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-bottom: 6px; }
+    .hbm-pills { display: flex; gap: 4px; }
+    .hbm-pill {
+      flex: 1; padding: 5px 2px; border-radius: 6px; text-align: center; font-size: 9px;
+      background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hbm-pill.active { background: #7C3AED; color: #fff; border-color: transparent; }
+    .hbm-pill.soft   { background: rgba(124, 58, 237, 0.2); color: #a78bfa; border-color: rgba(124, 58, 237, 0.5); }
+    .hbm-anims { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+    .hbm-anim {
+      padding: 6px 4px; border-radius: 7px; text-align: center;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .hbm-anim.active { background: rgba(124, 58, 237, 0.2); border-color: rgba(124, 58, 237, 0.5); }
+    .hbm-anim .icon { font-size: 13px; }
+    .hbm-anim .name { font-size: 8px; line-height: 1.2; color: rgba(255, 255, 255, 0.55); }
+    .hbm-anim.active .name { color: #c4b5fd; }
+
+    /* Right side — FAKE video (CSS only, no external file) */
+    .hbm-video-wrap {
+      flex: 0 0 370px;
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a18; padding: 12px 0 8px; position: relative;
+    }
+    @media (max-width: 768px) { .hbm-video-wrap { flex: 0 0 auto; padding: 14px 0 10px; } }
+    .hbm-video {
+      position: relative; width: 185px; height: 330px;
+      border-radius: 10px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+      /* Animated sunset-gradient that pans like a Ken Burns shot — gives
+         the impression of a real portrait video without loading any file.
+         Lovable can swap this for a real <video> src later. */
+      background:
+        radial-gradient(circle at 50% 30%, rgba(255,180,90,0.35), transparent 55%),
+        radial-gradient(circle at 60% 75%, rgba(255,100,150,0.30), transparent 55%),
+        linear-gradient(160deg, #f9a05b 0%, #e85a8f 50%, #4c2860 100%);
+      background-size: 200% 200%, 200% 200%, 100% 100%;
+      animation: hbm-vid-pan 14s ease-in-out infinite alternate;
+    }
+    @keyframes hbm-vid-pan {
+      0%   { background-position: 35% 35%, 60% 70%, 0 0; }
+      100% { background-position: 60% 50%, 40% 60%, 0 0; }
+    }
+    /* Soft silhouette to suggest a person, no real face needed. */
+    .hbm-video::before {
+      content: '';
+      position: absolute; left: 50%; bottom: -10%;
+      width: 75%; aspect-ratio: 1; transform: translateX(-50%);
+      background: radial-gradient(ellipse at 50% 35%,
+        rgba(80, 50, 70, 0.55) 0%, rgba(50, 30, 50, 0.55) 30%, transparent 65%);
+      filter: blur(6px);
+    }
+    .hbm-video-sub {
+      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: rgba(124, 58, 237, 0.92);
+      color: #fff; font-weight: 700; font-size: 15px;
+      padding: 6px 12px; border-radius: 6px;
+      white-space: nowrap; text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      transition: opacity 0.25s ease;
+    }
+    .hbm-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: rgba(255, 255, 255, 0.1); }
+    .hbm-progress > span {
+      display: block; width: 20%; height: 100%;
+      background: linear-gradient(90deg, #7C3AED, #e040fb);
+      animation: hbm-prog 5s linear infinite;
+    }
+    @keyframes hbm-prog { from { width: 0%; } to { width: 100%; } }
+
+    .hbm-subs { flex: 1; border-top: 1px solid rgba(255, 255, 255, 0.07); overflow-y: auto; direction: rtl; }
+    .hbm-subs-head {
+      position: sticky; top: 0; background: #111128; z-index: 2;
+      padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .hbm-subs-head h4 { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .hbm-subs-head .count { font-size: 10px; color: rgba(255, 255, 255, 0.35); }
+    .hbm-sub-row {
+      display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+      border-right: 2px solid transparent; transition: all 0.3s ease;
+    }
+    .hbm-sub-row.active { background: rgba(124, 58, 237, 0.12); border-right-color: #7C3AED; }
+    .hbm-sub-icons { display: flex; gap: 4px; flex-shrink: 0; }
+    .hbm-sub-icons span { font-size: 10px; opacity: 0.4; }
+    .hbm-sub-time { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
+    .hbm-sub-time .start { font-size: 8.5px; color: rgba(255, 255, 255, 0.3); font-family: monospace; }
+    .hbm-sub-time .dur   { font-size: 8px;   color: rgba(255, 255, 255, 0.18); font-family: monospace; }
+    .hbm-sub-text {
+      flex: 1; font-size: 12px; text-align: right;
+      color: rgba(255, 255, 255, 0.55); font-weight: 400;
+    }
+    .hbm-sub-row.active .hbm-sub-text { color: #fff; font-weight: 700; }
+    .hbm-sub-add { padding: 2px 12px; }
+    .hbm-sub-add div {
+      padding: 3px 10px; border-radius: 5px; text-align: center;
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      font-size: 9px; color: rgba(255, 255, 255, 0.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="hbm-wrap">
+    <!-- chips right -->
+    <div class="hbm-chips right">
+      <div class="hbm-chip"><span>✍️</span><span>תמלול אוטומטי מותאם לעברית</span></div>
+      <div class="hbm-chip"><span>🎬</span><span>אפקטי אנימציה</span></div>
+      <div class="hbm-chip"><span>🎵</span><span>סאונד אפקט ויראלי</span></div>
+    </div>
+    <!-- chips left -->
+    <div class="hbm-chips left">
+      <div class="hbm-chip"><span>🎨</span><span>תבניות צבעים</span></div>
+      <div class="hbm-chip"><span>✨</span><span>עריכה אוטומטית</span></div>
+    </div>
+
+    <div class="hbm-frame">
+      <!-- chrome -->
+      <div class="hbm-chrome">
+        <div class="hbm-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+        <div class="hbm-tab">
+          <span class="hbm-tab-logo"></span>
+          מאסטר וידאו
+        </div>
+        <div class="hbm-url">master-video.co.il/</div>
+      </div>
+
+      <!-- body -->
+      <div class="hbm-body">
+        <!-- LEFT panel -->
+        <div class="hbm-left">
+          <div class="hbm-templates">
+            <div class="hbm-tpl" style="background:#1a1a2e;color:rgba(255,255,255,0.7)"><span class="name">Default</span></div>
+            <div class="hbm-tpl" style="background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff"><span class="icon">🎙</span><span class="name">פודקאסט ישראלי</span></div>
+            <div class="hbm-tpl" style="background:linear-gradient(135deg,#e55c00,#ff8c00);color:#fff"><span class="icon">🔥</span><span class="name">Hormozi</span></div>
+            <div class="hbm-tpl" style="background:linear-gradient(135deg,#6c3483,#a855f7);color:#fff"><span class="icon">💎</span><span class="name">Instagram מודרני</span></div>
+            <div class="hbm-tpl" style="background:linear-gradient(135deg,#0d4f4f,#1a7a7a);color:#cff"><span class="icon">🎙</span><span class="name">פודקאסט שקט</span></div>
+            <div class="hbm-tpl active" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff"><span class="icon">⚡</span><span class="name">TikTok Energy</span></div>
+          </div>
+
+          <div class="hbm-style-row">
+            <span class="label">סגנון כתוביות</span>
+            <span class="neon">✨ Neon</span>
+          </div>
+
+          <div class="hbm-tip">💡 <strong>תוספת אופציונלית</strong> — ה-AI לא מפעיל אותם אוטומטית. בחרי מה שרוצה ושלמי רק עבורו.</div>
+
+          <div class="hbm-tabs">
+            <div class="tab">כתוביות</div>
+            <div class="tab">סאונדים</div>
+            <div class="tab">לוגואים</div>
+            <div class="tab">צבע</div>
+            <div class="tab active">אפקטים מיוחדים</div>
+          </div>
+
+          <div class="hbm-effects">
+            <div>
+              <div class="group-label">יחס תצוגה</div>
+              <div class="hbm-pills">
+                <div class="hbm-pill">4:5</div>
+                <div class="hbm-pill">16:9</div>
+                <div class="hbm-pill">1:1</div>
+                <div class="hbm-pill active">9:16</div>
+                <div class="hbm-pill">מקורי</div>
+              </div>
+            </div>
+            <div>
+              <div class="group-label">מיקוד החיתוך</div>
+              <div class="hbm-pills">
+                <div class="hbm-pill">למטה</div>
+                <div class="hbm-pill soft">מרכז</div>
+                <div class="hbm-pill">למעלה</div>
+              </div>
+            </div>
+            <div>
+              <div class="group-label">✨ אנימציית כניסה לסרטון</div>
+              <div class="hbm-anims">
+                <div class="hbm-anim"><div class="icon">🎸</div><div class="name">רעד דרמטי</div></div>
+                <div class="hbm-anim active"><div class="icon">🥊</div><div class="name">פאנץ׳ זום</div></div>
+                <div class="hbm-anim"><div class="icon">—</div><div class="name">ללא</div></div>
+                <div class="hbm-anim"><div class="icon">🎸</div><div class="name">באוטם</div></div>
+                <div class="hbm-anim"><div class="icon">🌪</div><div class="name">וייפ פאן</div></div>
+                <div class="hbm-anim"><div class="icon">🌊</div><div class="name">זום סוחף</div></div>
+                <div class="hbm-anim"><div class="icon">🚀</div><div class="name">סליידאפ</div></div>
+                <div class="hbm-anim"><div class="icon">🎬</div><div class="name">פתיחת אירועים</div></div>
+                <div class="hbm-anim"><div class="icon">⚡</div><div class="name">פלאש לבן</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT panel -->
+        <div class="hbm-right">
+          <div class="hbm-video-wrap">
+            <div class="hbm-video">
+              <div class="hbm-video-sub" id="hbm-vid-sub">היי חברים</div>
+              <div class="hbm-progress"><span></span></div>
+            </div>
+          </div>
+
+          <div class="hbm-subs">
+            <div class="hbm-subs-head">
+              <h4>עריכת כתוביות</h4>
+              <div class="count">4 כתוביות</div>
+            </div>
+            <div id="hbm-subs-list">
+              <!-- rows injected by JS so the "active" highlight can cycle -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Subtitle data — single source of truth for both the list panel and the
+    // burned-in overlay on the fake-video. Same texts as the live site.
+    const SUBS = [
+      { start: "0:00.00", dur: "0:00.80", text: "היי חברים" },
+      { start: "0:00.80", dur: "0:01.10", text: "מי שעורך לי את" },
+      { start: "0:01.90", dur: "0:00.90", text: "הסרטון הזה" },
+      { start: "0:02.80", dur: "0:01.20", text: "זה מאסטר וידאו" },
+    ];
+
+    // Build the list rows once.
+    const host = document.getElementById("hbm-subs-list");
+    SUBS.forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "hbm-sub-row" + (i === 0 ? " active" : "");
+      row.innerHTML =
+        '<div class="hbm-sub-icons"><span>🗑</span><span>✏️</span><span>😊</span><span>🔊</span></div>' +
+        '<div class="hbm-sub-time"><span class="start">' + s.start + '</span><span class="dur">+' + s.dur + '</span></div>' +
+        '<span class="hbm-sub-text">' + s.text + '</span>';
+      host.appendChild(row);
+      const add = document.createElement("div");
+      add.className = "hbm-sub-add";
+      add.innerHTML = '<div>+ הוסף כתובית</div>';
+      host.appendChild(add);
+    });
+
+    // Cycle the "active" highlight + the burned-in subtitle every 2.8s.
+    let active = 0;
+    const vidSub = document.getElementById("hbm-vid-sub");
+    setInterval(() => {
+      const rows = host.querySelectorAll(".hbm-sub-row");
+      rows.forEach((r) => r.classList.remove("active"));
+      active = (active + 1) % SUBS.length;
+      rows[active].classList.add("active");
+      vidSub.style.opacity = "0";
+      setTimeout(() => {
+        vidSub.textContent = SUBS[active].text;
+        vidSub.style.opacity = "1";
+      }, 200);
+    }, 2800);
+  </script>
+</body>
+</html>
