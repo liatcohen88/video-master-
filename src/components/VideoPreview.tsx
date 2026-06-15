@@ -23,10 +23,14 @@ type Props = {
   style: SubtitleStyle;
   effects?: VideoEffects;
   onTimeUpdate?: (t: number) => void;
+  // Optional: lets the badge row offer a one-click "השאר את כל השתיקות"
+  // shortcut that flips effects.cutSilence off. Without this prop the
+  // badge is just informational (e.g. on the showcase mockup).
+  onEffectsChange?: (next: VideoEffects) => void;
 };
 
 export default function VideoPreview({
-  videoUrl, subtitles, style, effects, onTimeUpdate,
+  videoUrl, subtitles, style, effects, onTimeUpdate, onEffectsChange,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -600,8 +604,22 @@ export default function VideoPreview({
             </span>
           )}
           {effects.cutSilence && silentGaps.length > 0 && (
-            <span className="px-2 py-1 bg-white/10 text-white/70 rounded-full">
+            <span className="px-2 py-1 bg-white/10 text-white/70 rounded-full inline-flex items-center gap-1.5">
               ✂️ דילוג {silentGaps.length} שתיקות
+              {onEffectsChange && (
+                // One-click "keep all silences" — flips cutSilence off so the
+                // user doesn't have to dig into the Effects panel after the
+                // AI auto-applied it. Liat: "אפשרות באפקטים גם לעשות לאחר
+                // עריכה שלא ידלג על שתיקות".
+                <button
+                  type="button"
+                  onClick={() => onEffectsChange({ ...effects, cutSilence: false })}
+                  className="text-[10px] text-white/40 hover:text-white underline-offset-2 hover:underline"
+                  title="כיבוי החיתוך — להשאיר את כל השתיקות בסרטון"
+                >
+                  השאר הכל
+                </button>
+              )}
             </span>
           )}
         </div>

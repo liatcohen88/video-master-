@@ -903,6 +903,7 @@ export default function HomePage() {
                   style={style}
                   effects={effects}
                   onTimeUpdate={setCurrentTime}
+                  onEffectsChange={setEffects}
                 />
               </MobilePip>
 
