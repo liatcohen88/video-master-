@@ -17,6 +17,7 @@ import { EMOJI_CATEGORIES } from "@/components/EmojiPicker";
 import { POWER_WORDS_BASE } from "@/lib/wowEffects";
 import { DRAMA_WORDS_BASE } from "@/lib/dramaEffects";
 import { INTRO_ANIMATIONS } from "@/lib/introAnimations";
+import { BRAND_LOGOS, brandLogoCdnUrl, type BrandLogo } from "@/lib/brandLogos";
 import { playSfxCapped } from "@/lib/playSfxCapped";
 import { stripLottieBg } from "@/lib/lottieBgStrip";
 
@@ -31,7 +32,7 @@ import {
   listContentHistory, restoreContentHistory, exportContentJson, importContentJson,
 } from "@/lib/contentStore";
 
-type Tab = "overview" | "users" | "videos" | "revenue" | "content" | "branding" | "pricing" | "sfx" | "lottie" | "emoji" | "wow" | "drama" | "intro";
+type Tab = "overview" | "users" | "videos" | "revenue" | "content" | "branding" | "pricing" | "sfx" | "lottie" | "emoji" | "wow" | "drama" | "intro" | "brands";
 
 const MODE_LABELS: Record<VideoJob["mode"], string> = {
   subtitles_only: "כתוביות בלבד",
@@ -158,6 +159,7 @@ export default function AdminPage() {
             { id: "wow",      icon: AlertTriangle, label: "WOW" },
             { id: "drama",    icon: AlertTriangle, label: "דרמה" },
             { id: "intro",    icon: Sparkles,  label: "כניסות" },
+            { id: "brands",   icon: ImageIcon, label: "לוגואי מותגים" },
           ] as const).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 border-b-2 -mb-px whitespace-nowrap
@@ -180,6 +182,7 @@ export default function AdminPage() {
         {tab === "wow"      && <WowTab key={tick} onChange={() => setTick(tick + 1)} />}
         {tab === "drama"    && <DramaTab key={tick} onChange={() => setTick(tick + 1)} />}
         {tab === "intro"    && <IntroTab key={tick} onChange={() => setTick(tick + 1)} />}
+        {tab === "brands"   && <BrandsTab key={tick} onChange={() => setTick(tick + 1)} />}
       </div>
     </div>
   );
@@ -2092,6 +2095,317 @@ function IntroTab({ onChange }: { onChange: () => void }) {
         <div className="text-[10px] text-white/40 mt-3">
           💡 הערה: "ללא" תמיד פעיל — זה ברירת המחדל למשתמשים שלא בוחרים אפקט.
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── BRANDS TAB ───────────────────────────────────────────────────────────
+   Admin UI for the auto-brand-logo overlay (AliExpress, Amazon, …). Writes
+   to the same 3 CMS keys that resolveBrandLogos() reads, so any change is
+   live across the editor + export the moment the admin saves it:
+     - brands.hidden:        string[]                 — hide built-ins
+     - brands.nameOverrides: Record<id, string>       — rename built-ins
+     - brands.custom:        BrandLogo-like[]         — add new brands
+*/
+type CustomBrand = {
+  id: string; name: string; slug: string; color: string; patterns: string[];
+};
+
+function BrandsTab({ onChange }: { onChange: () => void }) {
+  const [hidden, setHidden] = useState<string[]>(
+    () => [...((getContent("brands.hidden") as string[]) ?? [])],
+  );
+  const [nameOv, setNameOv] = useState<Record<string, string>>(
+    () => ({ ...((getContent("brands.nameOverrides") as Record<string, string>) ?? {}) }),
+  );
+  const [custom, setCustom] = useState<CustomBrand[]>(
+    () => [...((getContent("brands.custom") as CustomBrand[]) ?? [])],
+  );
+
+  // New-brand form state — kept locally so typing doesn't churn the saved list.
+  const [draft, setDraft] = useState<CustomBrand>({
+    id: "", name: "", slug: "", color: "111111", patterns: [],
+  });
+  const [patternInput, setPatternInput] = useState("");
+
+  function persistHidden(next: string[]) {
+    setHidden(next);
+    setContent("brands.hidden", next as never);
+    onChange();
+  }
+  function persistNameOv(next: Record<string, string>) {
+    setNameOv(next);
+    setContent("brands.nameOverrides", next as never);
+    onChange();
+  }
+  function persistCustom(next: CustomBrand[]) {
+    setCustom(next);
+    setContent("brands.custom", next as never);
+    onChange();
+  }
+
+  function toggleHidden(id: string) {
+    const set = new Set(hidden);
+    if (set.has(id)) set.delete(id); else set.add(id);
+    persistHidden(Array.from(set));
+  }
+  function setName(id: string, value: string) {
+    const next = { ...nameOv };
+    if (value.trim()) next[id] = value;
+    else delete next[id];
+    persistNameOv(next);
+  }
+  function resetName(id: string) {
+    const next = { ...nameOv };
+    delete next[id];
+    persistNameOv(next);
+  }
+
+  function addPatternToDraft() {
+    const w = patternInput.trim();
+    if (!w) return;
+    setDraft((d) => ({ ...d, patterns: Array.from(new Set([...d.patterns, w])) }));
+    setPatternInput("");
+  }
+  function removePatternFromDraft(p: string) {
+    setDraft((d) => ({ ...d, patterns: d.patterns.filter((x) => x !== p) }));
+  }
+  function addCustomBrand() {
+    const id = draft.id.trim().toLowerCase().replace(/\s+/g, "-");
+    const slug = draft.slug.trim().toLowerCase();
+    const name = draft.name.trim() || id;
+    const color = draft.color.trim().replace(/^#/, "") || "111111";
+    if (!id || !slug || draft.patterns.length === 0) {
+      alert("חסר: מזהה (ID), slug של simpleicons.org, ולפחות מילת זיהוי אחת.");
+      return;
+    }
+    if (BRAND_LOGOS.some((b) => b.id === id) || custom.some((c) => c.id === id)) {
+      alert(`מזהה "${id}" כבר קיים. בחרי מזהה אחר.`);
+      return;
+    }
+    persistCustom([...custom, { id, name, slug, color, patterns: draft.patterns }]);
+    setDraft({ id: "", name: "", slug: "", color: "111111", patterns: [] });
+    setPatternInput("");
+  }
+  function removeCustomBrand(id: string) {
+    if (!confirm(`למחוק את "${id}"?`)) return;
+    persistCustom(custom.filter((c) => c.id !== id));
+  }
+
+  const hiddenSet = new Set(hidden);
+
+  return (
+    <div className="space-y-4">
+      <div className="text-xs text-white/50 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 leading-relaxed">
+        כל מותג שתסמני עם 👁️‍🗨️ יוסתר מזיהוי אוטומטי בעורך + ייצוא.
+        כל שינוי שם נשמר אוטומטית. אפשר להוסיף מותגים חדשים בלי דיפלוי —
+        הם נכנסים מיד למאגר הזיהוי. ה-slug צריך להיות זה שיש ב-
+        <a href="https://simpleicons.org" target="_blank" rel="noreferrer" className="underline">simpleicons.org</a>
+        {" "}(לדוגמה <code className="bg-black/30 px-1 rounded">aliexpress</code>, <code className="bg-black/30 px-1 rounded">shein</code>).
+      </div>
+
+      {/* ── Add custom brand ── */}
+      <div className="bg-bg-card border border-white/10 rounded-xl p-4 space-y-3">
+        <div className="text-sm font-bold flex items-center gap-2">
+          <Plus className="w-4 h-4" /> הוספת מותג חדש
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input
+            value={draft.id}
+            onChange={(e) => setDraft({ ...draft, id: e.target.value })}
+            placeholder="ID (לדוגמה: shein)"
+            className="bg-bg border border-white/10 rounded px-2 py-1.5 text-sm"
+          />
+          <input
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            placeholder="שם להצגה (אופציונלי)"
+            className="bg-bg border border-white/10 rounded px-2 py-1.5 text-sm"
+          />
+          <input
+            value={draft.slug}
+            onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
+            placeholder="slug של simpleicons"
+            className="bg-bg border border-white/10 rounded px-2 py-1.5 text-sm"
+          />
+          <div className="flex gap-1.5">
+            <input
+              value={draft.color}
+              onChange={(e) => setDraft({ ...draft, color: e.target.value })}
+              placeholder="צבע HEX (ללא #)"
+              className="bg-bg border border-white/10 rounded px-2 py-1.5 text-sm flex-1"
+            />
+            <div
+              className="w-9 h-9 rounded border border-white/15"
+              style={{ background: `#${(draft.color || "111111").replace(/^#/, "")}` }}
+              title="תצוגת צבע"
+            />
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] text-white/40 mb-1">
+            מילות זיהוי (עברית או אנגלית — לחצי + להוסיף):
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={patternInput}
+              onChange={(e) => setPatternInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPatternToDraft(); } }}
+              placeholder="לדוגמה: שיין"
+              className="flex-1 bg-bg border border-white/10 rounded px-2 py-1.5 text-sm"
+            />
+            <button onClick={addPatternToDraft}
+              className="px-3 py-1.5 bg-brand/20 hover:bg-brand/30 text-brand-light rounded text-sm">
+              + מילה
+            </button>
+          </div>
+          {draft.patterns.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {draft.patterns.map((p) => (
+                <span key={p} className="bg-white/10 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                  {p}
+                  <button onClick={() => removePatternFromDraft(p)} className="text-white/50 hover:text-red-300">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button onClick={addCustomBrand}
+          className="w-full md:w-auto bg-gradient-to-r from-brand to-pink-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-lg text-sm">
+          הוסף למאגר
+        </button>
+      </div>
+
+      {/* ── Custom brands list ── */}
+      {custom.length > 0 && (
+        <div className="bg-bg-card border border-white/10 rounded-xl p-4">
+          <div className="text-sm font-bold mb-3">מותגים שהוספת ({custom.length})</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {custom.map((c) => (
+              <BrandRow
+                key={c.id}
+                brand={{ id: c.id, name: c.name, slug: c.slug, color: c.color, patterns: [] }}
+                customPatternList={c.patterns}
+                hidden={hiddenSet.has(c.id)}
+                nameOverride={nameOv[c.id]}
+                onToggleHidden={() => toggleHidden(c.id)}
+                onRename={(v) => setName(c.id, v)}
+                onResetName={() => resetName(c.id)}
+                onRemove={() => removeCustomBrand(c.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Built-in brands list ── */}
+      <div className="bg-bg-card border border-white/10 rounded-xl p-4">
+        <div className="text-sm font-bold mb-3">מותגים מובנים ({BRAND_LOGOS.length})</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          {BRAND_LOGOS.map((b) => (
+            <BrandRow
+              key={b.id}
+              brand={b}
+              hidden={hiddenSet.has(b.id)}
+              nameOverride={nameOv[b.id]}
+              onToggleHidden={() => toggleHidden(b.id)}
+              onRename={(v) => setName(b.id, v)}
+              onResetName={() => resetName(b.id)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrandRow({
+  brand, customPatternList, hidden, nameOverride,
+  onToggleHidden, onRename, onResetName, onRemove,
+}: {
+  brand: BrandLogo;
+  customPatternList?: string[];
+  hidden: boolean;
+  nameOverride?: string;
+  onToggleHidden: () => void;
+  onRename: (v: string) => void;
+  onResetName: () => void;
+  onRemove?: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(nameOverride ?? brand.name);
+  const effectiveName = nameOverride ?? brand.name;
+  const isCustom = onRemove !== undefined;
+
+  function save() {
+    onRename(draft.trim());
+    setEditing(false);
+  }
+
+  return (
+    <div className={`flex items-center gap-2 p-2 rounded-lg border ${hidden ? "bg-red-500/5 border-red-500/20 opacity-60" : "bg-white/5 border-white/10"}`}>
+      {/* Logo preview */}
+      <div className="w-9 h-9 rounded bg-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={brandLogoCdnUrl({ ...brand, color: brand.color })}
+          alt={brand.name}
+          className="w-6 h-6 object-contain"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+      </div>
+
+      {/* Name + edit */}
+      <div className="flex-1 min-w-0">
+        {editing ? (
+          <div className="flex gap-1">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+              autoFocus
+              className="flex-1 bg-bg border border-white/15 rounded px-1.5 py-0.5 text-xs"
+            />
+            <button onClick={save} className="text-[10px] text-brand-light px-1">שמור</button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-sm font-medium truncate" title={effectiveName}>{effectiveName}</span>
+            {nameOverride && (
+              <button onClick={onResetName}
+                className="text-[9px] text-white/30 hover:text-white/70" title="חזרה לשם המקורי">
+                ↺
+              </button>
+            )}
+          </div>
+        )}
+        <div className="text-[10px] text-white/40 truncate" title={brand.slug}>
+          {customPatternList ? `${customPatternList.length} מילות זיהוי · ${brand.slug}` : brand.slug}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {!editing && (
+          <button onClick={() => { setDraft(effectiveName); setEditing(true); }}
+            className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white" title="שינוי שם">
+            ✎
+          </button>
+        )}
+        <button onClick={onToggleHidden}
+          className={`p-1.5 rounded ${hidden ? "bg-red-500/20 text-red-200" : "hover:bg-white/10 text-white/40 hover:text-white"}`}
+          title={hidden ? "החזרה לזיהוי" : "הסתרה מזיהוי"}>
+          {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        </button>
+        {isCustom && (
+          <button onClick={onRemove}
+            className="p-1.5 rounded hover:bg-red-500/20 text-white/40 hover:text-red-300" title="מחיקה">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
