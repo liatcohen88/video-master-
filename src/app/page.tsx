@@ -169,7 +169,11 @@ export default function HomePage() {
   async function handleVideo(file: File) {
     // Full-screen loader so mobile users see clear feedback while the file
     // is hashed + persisted to IndexedDB — on a big video this is several
-    // seconds and was previously a silent freeze.
+    // seconds and was previously a silent freeze. We also enforce a minimum
+    // visible duration (900ms) so the loader doesn't FLASH on small files —
+    // on mobile, after the OS file picker dismisses the user needs a beat
+    // to register what's happening or the page seems to jump unexpectedly.
+    const loaderShownAt = Date.now();
     setIsProcessing(true);
     setProgressMessage(progLoadVideo);
     try {
@@ -191,6 +195,10 @@ export default function HomePage() {
       // instead of dropping back to the home page.
       try { sessionStorage.setItem("vm_active_edit", "1"); } catch {}
     } finally {
+      // Min-duration: keep the overlay up at least 900ms so the user clearly
+      // registers it even when hashing finishes in 200ms.
+      const remaining = 900 - (Date.now() - loaderShownAt);
+      if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
       setIsProcessing(false);
       setProgressMessage("");
     }
