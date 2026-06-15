@@ -37,6 +37,7 @@ import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
 import LandingSections from "@/components/LandingSections";
+import MobilePip from "@/components/MobilePip";
 import { useAutoSavedState } from "@/lib/useAutoSave";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
@@ -547,17 +548,46 @@ export default function HomePage() {
       }
 
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const now = new Date();
       const dateStamp = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
       const filename = `video-master-${dateStamp}.mp4`;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+
+      // Mobile UX: a regular <a download> on iOS Safari opens the file in a
+      // new tab and leaves the user lost ("איפה הסרטון נשמר?"). The Web Share
+      // API hands the file straight to the OS share-sheet, which has a "Save
+      // to Photos" / "Save to Files" / WhatsApp / etc. option built in.
+      // Falls back to the classic <a download> when share isn'\''t available
+      // (desktop browsers, older mobile, or PWA contexts that block sharing).
+      const file = new File([blob], filename, { type: "video/mp4" });
+      const navAny = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      const canShare = typeof navAny.share === "function"
+        && typeof navAny.canShare === "function"
+        && navAny.canShare({ files: [file] });
+      let savedViaShare = false;
+      if (canShare) {
+        try {
+          await navAny.share({ files: [file], title: filename });
+          savedViaShare = true;
+        } catch (shareErr) {
+          // User cancelled share-sheet, or share failed — fall through to
+          // the classic <a download> path below. Don'\''t treat cancel as a
+          // hard error: if savedViaShare stays false we still get the
+          // anchor fallback.
+          if (!(shareErr instanceof Error) || shareErr.name !== "AbortError") {
+            console.warn("[export] share() failed, falling back to <a download>", shareErr);
+          }
+        }
+      }
+      if (!savedViaShare) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
       setDownloadSuccess(filename);
-      toast.success(`✓ ${filename} ירד בהצלחה`);
+      toast.success(savedViaShare ? "✓ נשמר בגלריה שלך!" : `✓ ${filename} ירד בהצלחה`);
       // Auto-clear the success message after 10 seconds
       setTimeout(() => setDownloadSuccess(null), 10000);
     } catch (e: unknown) {
@@ -845,13 +875,12 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
             <div className="space-y-6 min-w-0">
-              {/* On mobile, pin the live preview to the top of the viewport
-                  while the user scrolls subtitles / settings below — so every
-                  edit they make is visible in real time without scrolling
-                  back up. Desktop layout is unchanged (lg breakpoint+). The
-                  blurred bg + shadow visually separate the pinned card from
-                  the scrolling content underneath. */}
-              <div className="lg:contents max-lg:sticky max-lg:top-0 max-lg:z-30 max-lg:-mx-2 max-lg:px-2 max-lg:pt-2 max-lg:pb-3 max-lg:bg-bg/95 max-lg:backdrop-blur max-lg:rounded-b-2xl max-lg:shadow-lg max-lg:shadow-black/50">
+              {/* Mobile: live preview is a draggable floating PiP card
+                  (default top-right, user can move). Stays visible while
+                  editing subtitles/settings + reflects every change in
+                  real-time because it's the same VideoPreview instance.
+                  Desktop: MobilePip becomes lg:contents (no-op). */}
+              <MobilePip>
                 <VideoPreview
                   videoUrl={videoUrl}
                   subtitles={subtitles}
@@ -859,7 +888,7 @@ export default function HomePage() {
                   effects={effects}
                   onTimeUpdate={setCurrentTime}
                 />
-              </div>
+              </MobilePip>
 
               <SubtitleEditor
                 subtitles={subtitles}
@@ -993,8 +1022,18 @@ export default function HomePage() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <h3 className="text-2xl font-extrabold mb-2">הסרטון ירד בהצלחה! 🎉</h3>
-                    <div className="text-xs text-white/50 font-mono break-all bg-bg-card border border-white/10 rounded-lg p-3 mb-5">
+                    <h3 className="text-2xl font-extrabold mb-2">הסרטון מוכן! 🎉</h3>
+                    {/* On mobile (touch + no hover), the file went via the
+                        share-sheet → most likely Photos/Files. The filename
+                        isn'\''t useful info there, but "ניתן למצוא בגלריה"
+                        is. Desktop still sees the filename (downloads folder). */}
+                    <p className="text-sm text-white/70 mb-4 hidden max-md:block">
+                      ניתן למצוא אותו ב-<strong className="text-emerald-300">גלריה שלך</strong> 📱
+                    </p>
+                    <p className="text-sm text-white/70 mb-4 max-md:hidden">
+                      הסרטון נשמר בתיקיית ההורדות:
+                    </p>
+                    <div className="text-xs text-white/50 font-mono break-all bg-bg-card border border-white/10 rounded-lg p-3 mb-5 max-md:hidden">
                       {downloadSuccess}
                     </div>
                     <button
