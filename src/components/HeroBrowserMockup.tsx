@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const SUBS = [
   { start: "0:00.00", dur: "0:00.80", text: "היי חברים" },
@@ -41,8 +41,27 @@ const CHIPS = [
 export default function HeroBrowserMockup() {
   const [chipsIn, setChipsIn]         = useState(false);
   const [activeRow, setActiveRow]     = useState(0);
+  const videoRef                      = useRef<HTMLVideoElement>(null);
 
   useEffect(() => { setTimeout(() => setChipsIn(true), 400); }, []);
+
+  // iOS Safari aggressively pauses muted-autoplay videos that are off-screen
+  // or hidden behind cross-origin policies — the result on Liat's phone was
+  // a frozen first frame. Defensive: call .play() on mount AND every time
+  // the video scrolls back into view (IntersectionObserver), and swallow
+  // the NotAllowedError that browsers throw before the first user gesture.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const tryPlay = () => { v.play().catch(() => {/* will retry on next gesture */}); };
+    tryPlay();
+    const io = new IntersectionObserver(
+      (entries) => { for (const e of entries) if (e.isIntersecting) tryPlay(); },
+      { threshold: 0.1 },
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -231,8 +250,13 @@ export default function HeroBrowserMockup() {
                 <div style={{ position: "relative", width: 185, height: 330, borderRadius: 10, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.7)" }}>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                   <video
+                    ref={videoRef}
                     src="/showcase-woman.mp4"
-                    autoPlay muted loop playsInline
+                    autoPlay muted loop playsInline preload="auto"
+                    // disableRemotePlayback + disablePictureInPicture stop
+                    // mobile browsers from pausing the loop when the user
+                    // backgrounds AirPlay / PiP controls.
+                    disableRemotePlayback
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
                   {/* progress bar */}
