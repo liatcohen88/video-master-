@@ -1,34 +1,66 @@
 /**
  * HTML sanitizer for CMS-sourced strings rendered via dangerouslySetInnerHTML.
  *
- * Audit finding H3: Liat'\''s admin panel lets her paste arbitrary HTML into
- * CMS overrides (so she can bold a word or insert a brand name in markup).
- * That HTML is rendered raw on the public site. If her admin password ever
- * leaks — or one day she enables team members — anyone with admin access
- * could inject <script> or `onerror` payloads that would run for every
- * visitor. Sanitize at the render boundary so a compromised admin can'\''t
- * pivot into XSS against end users.
+ * Audit finding H3: Liat's admin can paste arbitrary HTML into CMS overrides
+ * (so she can bold a word or insert markup). That HTML is rendered raw on
+ * the public site. If her admin password ever leaks — or a future team
+ * member is added — they could inject <script> or `onerror` payloads that
+ * would run for every visitor. Sanitize at the render boundary.
  *
- * Strips: scripts, iframes, on* event handlers, javascript: URLs, embed/
- * object/form tags. Preserves common formatting (b/strong/i/em/u/a/span/
- * br/p/ul/ol/li) and a few inline styles. DOMPurify defaults already cover
- * most of this; we just tighten the allow-list and disable form-action.
+ * Why sanitize-html (not isomorphic-dompurify): the latter pulls in jsdom
+ * which trips Next.js prerender on its ESM/CJS interop (encoding-lite.js).
+ * sanitize-html is plain CommonJS and works in both Node SSR and the
+ * browser — no special bundling needed.
+ *
+ * Allow-list: common inline formatting + links. Forbids: scripts, iframes,
+ * forms, embeds, every on* event handler, and javascript:/data: URIs.
  */
 
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 
-const ALLOWED_TAGS = [
-  "a", "b", "br", "em", "i", "li", "ol", "p", "small", "span", "strong",
-  "sub", "sup", "u", "ul",
-];
+const OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "a", "b", "br", "em", "i", "li", "ol", "p", "small", "span", "strong",
+    "sub", "sup", "u", "ul",
+  ],
+  allowedAttributes: {
+    a: ["href", "target", "rel", "title"],
+    span: ["class", "style"],
+    p: ["style"],
+    strong: ["style"],
+    em: ["style"],
+    "*": ["title"],
+  },
+  // Only allow safe URL schemes — blocks javascript:, data:, vbscript:.
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowedSchemesAppliedToAttributes: ["href"],
+  allowedSchemesByTag: {},
+  allowProtocolRelative: true,
+  // Drop attributes whose names look like event handlers — defense in depth
+  // in case an attribute slips through the tag/attr allow-list.
+  exclusiveFilter: (frame) => {
+    for (const [name] of Object.entries(frame.attribs ?? {})) {
+      if (/^on/i.test(name)) return true;
+    }
+    return false;
+  },
+  // Strip any inline style that contains url()/expression()/javascript:/import.
+  allowedStyles: {
+    "*": {
+      color: [/^#[0-9a-f]{3,8}$/i, /^rgb/i, /^[a-z]+$/i],
+      "background-color": [/^#[0-9a-f]{3,8}$/i, /^rgb/i, /^[a-z]+$/i],
+      "font-weight": [/^(normal|bold|\d{3})$/i],
+      "font-style": [/^(normal|italic|oblique)$/i],
+      "text-decoration": [/^(none|underline|line-through)$/i],
+      "text-align": [/^(left|right|center|justify)$/i],
+    },
+  },
+};
 
-const ALLOWED_ATTR = [
-  // links + text styling
-  "href", "target", "rel", "title", "style", "class",
-];
-
-// Block dangerous URL schemes — http(s)/mailto/tel only.
-const URL_SAFE = /^(https?:|mailto:|tel:|\/|#|$)/i;
+export function sanitizeCmsHtml(dirty: string | null | undefined): string {
+  if (!dirty) return "";
+  return sanitizeHtml(dirty, OPTIONS);
+}
 
 /**
  * Escape an untrusted plain string so it can be safely interpolated INTO an
@@ -45,17 +77,4 @@ export function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-export function sanitizeCmsHtml(dirty: string | null | undefined): string {
-  if (!dirty) return "";
-  return DOMPurify.sanitize(dirty, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-    ALLOWED_URI_REGEXP: URL_SAFE,
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "style", "link", "meta"],
-    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onsubmit", "formaction"],
-    // Strip data: URIs in images entirely — we don'\''t need them in CMS prose.
-    ALLOW_DATA_ATTR: false,
-  });
 }
