@@ -180,9 +180,10 @@
       position: relative; width: 185px; height: 330px;
       border-radius: 10px; overflow: hidden;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-      /* Animated sunset-gradient that pans like a Ken Burns shot — gives
-         the impression of a real portrait video without loading any file.
-         Lovable can swap this for a real <video> src later. */
+      /* Animated sunset-gradient acts as a FALLBACK behind the real video —
+         shows immediately on first paint and stays visible while the mp4
+         buffers (or forever if the video URL is blocked, eg. some Lovable
+         sandboxes block cross-origin video). */
       background:
         radial-gradient(circle at 50% 30%, rgba(255,180,90,0.35), transparent 55%),
         radial-gradient(circle at 60% 75%, rgba(255,100,150,0.30), transparent 55%),
@@ -194,14 +195,13 @@
       0%   { background-position: 35% 35%, 60% 70%, 0 0; }
       100% { background-position: 60% 50%, 40% 60%, 0 0; }
     }
-    /* Soft silhouette to suggest a person, no real face needed. */
-    .hbm-video::before {
-      content: '';
-      position: absolute; left: 50%; bottom: -10%;
-      width: 75%; aspect-ratio: 1; transform: translateX(-50%);
-      background: radial-gradient(ellipse at 50% 35%,
-        rgba(80, 50, 70, 0.55) 0%, rgba(50, 30, 50, 0.55) 30%, transparent 65%);
-      filter: blur(6px);
+    /* The real <video> sits on top of the gradient. object-fit:cover so the
+       portrait video fills the frame, position:absolute so a failed/blocked
+       load leaves the gradient visible underneath. */
+    .hbm-video video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
     }
     .hbm-video-sub {
       position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -342,6 +342,12 @@
         <div class="hbm-right">
           <div class="hbm-video-wrap">
             <div class="hbm-video">
+              <video
+                src="https://master-video.co.il/showcase-woman-clean.mp4"
+                autoplay muted loop playsinline preload="auto"
+                webkit-playsinline="true"
+                aria-hidden="true"
+              ></video>
               <div class="hbm-video-sub" id="hbm-vid-sub">היי חברים</div>
               <div class="hbm-progress"><span></span></div>
             </div>
@@ -386,6 +392,25 @@
       add.innerHTML = '<div>+ הוסף כתובית</div>';
       host.appendChild(add);
     });
+
+    // iOS Safari often holds muted-autoplay videos at the first frame until
+    // the page receives a user gesture or the video scrolls into view. Calling
+    // .play() defensively + on intersection covers both cases.
+    const v = document.querySelector(".hbm-video video");
+    if (v) {
+      const tryPlay = () => v.play().catch(() => {});
+      tryPlay();
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") tryPlay();
+      });
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (es) => { for (const e of es) if (e.isIntersecting) tryPlay(); },
+          { threshold: 0.1 },
+        );
+        io.observe(v);
+      }
+    }
 
     // Cycle the "active" highlight + the burned-in subtitle every 2.8s.
     let active = 0;
