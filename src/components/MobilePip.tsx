@@ -3,19 +3,21 @@
 /**
  * Mobile picture-in-picture wrapper for the live VideoPreview.
  *
- * Liat: "בתצוגה החיה במובייל שיהיה למעלה צד ימין אבל כן ניתן לתזוזה...
- * אבל חשוב שכן יראה בלייב שינויים כמו הסרטון הרגיל!!"
+ * Behavior on mobile (< lg):
+ *   - At top of page: preview renders in NORMAL flow at full width (same
+ *     as before MobilePip existed).
+ *   - When the user scrolls past it, the preview snaps to a fixed PiP
+ *     card in the top-right corner — small, draggable, persisted position.
  *
- * Strategy: ONE VideoPreview instance, wrapped here. On desktop (lg+) the
- * wrapper is `display: contents` so it visually disappears and the preview
- * lays out in the normal grid. On mobile it switches to `position: fixed`
- * with a constrained width (~140px) — the preview shrinks proportionally
- * and the existing reactivity (subtitle overlays, effects, currentTime)
- * keeps working as-is because it's the SAME React tree.
+ * Detection: a 1px sentinel right above the preview. Once IntersectionObserver
+ * reports the sentinel has left the top of the viewport, we'\''re in PiP mode.
+ * That keeps the breadcrumb badges + full controls visible while the user is
+ * actually looking at the preview, and only shrinks to PiP once it'\''s gone.
  *
- * Drag: pointer handlers on the entire card. The user can grab anywhere
- * and slide it; position is clamped to the viewport and persisted to
- * localStorage so it doesn't reset on refresh.
+ * On desktop (lg+) `lg:contents` flattens the wrapper entirely — no PiP,
+ * preview lays out in the original grid.
+ *
+ * Liat: "שהמסך הזה יופיע לאחר המסך הראשי הגדול כשהוא נעלם! לא במקומו!"
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -24,7 +26,7 @@ import { GripVertical } from "lucide-react";
 const STORAGE_KEY = "vm_pip_pos_v1";
 const PIP_WIDTH = 140;
 const MARGIN = 8;
-const DEFAULT_TOP = 64;       // below header
+const DEFAULT_TOP = 64;
 const DEFAULT_RIGHT = 8;
 
 type Pos = { x: number; y: number };
@@ -42,30 +44,45 @@ function writePos(p: Pos) {
 }
 
 export default function MobilePip({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isPip, setIsPip] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
-  // Initialize position from storage or default to top-right. Done in effect
-  // so SSR doesn't try to read window/localStorage.
+  // Sentinel watcher: only enter PiP mode once the user has scrolled past
+  // the natural preview position. rootMargin: "-1px 0 0 0" makes the
+  // sentinel "leave" the viewport as soon as it crosses the top edge.
   useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => { setIsPip(!entry.isIntersecting); },
+      { rootMargin: "0px 0px 0px 0px", threshold: 0 },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, []);
+
+  // Load saved position the first time we enter PiP mode.
+  useEffect(() => {
+    if (!isPip || pos) return;
     const saved = readPos();
-    if (saved) {
-      setPos(saved);
-    } else if (typeof window !== "undefined") {
+    if (saved) setPos(saved);
+    else if (typeof window !== "undefined") {
       setPos({
         x: window.innerWidth - PIP_WIDTH - DEFAULT_RIGHT,
         y: DEFAULT_TOP,
       });
     }
-  }, []);
+  }, [isPip, pos]);
 
   // Keep within viewport on resize.
   useEffect(() => {
     const onResize = () => {
       setPos((p) => {
         if (!p) return p;
-        const el = ref.current;
+        const el = cardRef.current;
         const w = el?.offsetWidth ?? PIP_WIDTH;
         const h = el?.offsetHeight ?? 250;
         return {
@@ -80,8 +97,6 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
 
   function onPointerDown(e: React.PointerEvent) {
     if (!pos) return;
-    // Don't start a drag from the actual video controls — let the user
-    // tap play/pause normally without snagging the card.
     const target = e.target as HTMLElement;
     if (target.closest("video, button, input, a")) return;
     dragRef.current = { startX: e.clientX, startY: e.clientY, originX: pos.x, originY: pos.y };
@@ -91,7 +106,7 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
   function onPointerMove(e: React.PointerEvent) {
     if (!dragRef.current) return;
     const d = dragRef.current;
-    const el = ref.current;
+    const el = cardRef.current;
     const w = el?.offsetWidth ?? PIP_WIDTH;
     const h = el?.offsetHeight ?? 250;
     const nx = Math.max(MARGIN, Math.min(window.innerWidth - w - MARGIN, d.originX + (e.clientX - d.startX)));
@@ -104,40 +119,44 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   }
 
-  // Render approach:
-  // - lg+ (desktop): use Tailwind `lg:contents` so this wrapper visually
-  //   disappears and children lay out in the parent grid as before.
-  // - mobile: fixed-position card with constrained width and drag handlers.
-  // We pass position via inline style only when set; before mount the
-  // style is empty (no CSS jump on first paint).
-  const style: React.CSSProperties = pos
-    ? { top: pos.y, left: pos.x, width: PIP_WIDTH }
-    : { top: DEFAULT_TOP, right: DEFAULT_RIGHT, width: PIP_WIDTH };
+  // The wrapper is ALWAYS in normal flow. When isPip is true on mobile,
+  // we apply data-vm-pip on the wrapper so a CSS rule (in globals.css)
+  // re-positions the inner card as fixed PiP + tightens the inner layout
+  // (hides the breadcrumb badges row). Desktop is `lg:contents` so all of
+  // this is a no-op.
+  const cardStyle: React.CSSProperties = isPip && pos
+    ? { position: "fixed", top: pos.y, left: pos.x, width: PIP_WIDTH, zIndex: 30 }
+    : {};
 
   return (
-    <div
-      ref={ref}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      className={[
-        // Mobile-only styles. lg:contents flattens the wrapper on desktop.
-        "lg:contents",
-        "max-lg:fixed max-lg:z-30 max-lg:touch-none max-lg:select-none",
-        "max-lg:rounded-xl max-lg:overflow-hidden",
-        "max-lg:shadow-xl max-lg:shadow-black/60 max-lg:ring-1 max-lg:ring-white/15",
-        "max-lg:cursor-move",
-      ].join(" ")}
-      style={style}
-    >
-      {/* Small drag handle bar, visible on mobile only. Gives the user a
-          clear "grab here" target without hiding video controls. */}
-      <div className="hidden max-lg:flex items-center justify-center gap-1 h-5 bg-black/85 text-white/50 text-[10px]">
-        <GripVertical className="w-3 h-3" />
-        <span>גרירה</span>
+    <>
+      {/* 1px sentinel — its visibility tells us whether we'\''re scrolled past
+          the natural preview spot. Stays in document flow on mobile only. */}
+      <div ref={sentinelRef} aria-hidden className="lg:hidden h-px w-full -mt-px" />
+      <div
+        ref={cardRef}
+        data-vm-pip={isPip ? "1" : "0"}
+        onPointerDown={isPip ? onPointerDown : undefined}
+        onPointerMove={isPip ? onPointerMove : undefined}
+        onPointerUp={isPip ? onPointerUp : undefined}
+        onPointerCancel={isPip ? onPointerUp : undefined}
+        className={[
+          // Desktop: this wrapper disappears, children render in the parent grid.
+          "lg:contents",
+          // Mobile, when in PiP mode only: card chrome.
+          isPip ? "max-lg:rounded-xl max-lg:overflow-hidden max-lg:shadow-xl max-lg:shadow-black/60 max-lg:ring-1 max-lg:ring-white/15 max-lg:cursor-move max-lg:touch-none max-lg:select-none max-lg:bg-bg" : "",
+        ].join(" ")}
+        style={cardStyle}
+      >
+        {/* Drag handle bar — only when in PiP mode. */}
+        {isPip && (
+          <div className="hidden max-lg:flex items-center justify-center gap-1 h-5 bg-black/85 text-white/50 text-[10px]">
+            <GripVertical className="w-3 h-3" />
+            <span>גרירה</span>
+          </div>
+        )}
+        {children}
       </div>
-      {children}
-    </div>
+    </>
   );
 }

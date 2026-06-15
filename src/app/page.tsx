@@ -39,6 +39,7 @@ import { listNotifications, markNotificationRead, clearAllNotifications } from "
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
+import InsufficientCreditsModal, { type InsufficientInfo } from "@/components/InsufficientCreditsModal";
 import { useAutoSavedState } from "@/lib/useAutoSave";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
@@ -129,6 +130,7 @@ export default function HomePage() {
   const [progressMessage, setProgressMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [insufficientInfo, setInsufficientInfo] = useState<InsufficientInfo | null>(null);
   const [whisperModel, setWhisperModel] = useAutoSavedState<string>("whisperModel", "ivrit-ai/whisper-large-v3-turbo-ct2");
   const [effects, setEffects] = useAutoSavedState<VideoEffects>("effects", MODE_DEFAULT_EFFECTS.subtitles_only);
 
@@ -476,6 +478,19 @@ export default function HomePage() {
     if (auth.status === "guest") {
       setShowSignupGate(true);
       return;
+    }
+    // Pre-flight credit check for MP4 export — fire the "insufficient
+    // masters" popup BEFORE we spin up the renderer. Previously the user
+    // saw a long loader, then a generic error toast. Now: instant popup
+    // with a "buy" / "back" CTA, no wait.
+    // SRT export is free, so this guard only applies to mp4.
+    if (exportFormat === "mp4") {
+      const { total: cost } = calcDynamicCost(mode, effects);
+      const balance = auth.profile?.credits ?? 0;
+      if (balance < cost) {
+        setInsufficientInfo({ need: cost, have: balance });
+        return;
+      }
     }
     if (exportFormat === "srt") {
       const srt = subtitles.map((s, i) => {
@@ -1063,6 +1078,10 @@ export default function HomePage() {
           sessionStorage flag set by /signup or /login right before they
           redirect to "/", then clears it so a refresh doesn'\''t re-fire. */}
       <AuthSuccessModal />
+      {/* Pre-export "insufficient credits" popup. Fires before the loader so
+          the user gets an instant "buy more" / "back to edit" choice instead
+          of waiting through a doomed render. */}
+      <InsufficientCreditsModal info={insufficientInfo} onClose={() => setInsufficientInfo(null)} />
     </main>
   );
 }

@@ -337,6 +337,13 @@ export const CONTENT_DEFAULTS = {
   "auth.returning.cta":         "לדף הבית",
   "auth.returning.ctaHref":     "/",
 
+  // Insufficient-credits popup (pre-export gate).
+  "credits.insufficient.title":      "אין לך מספיק מאסטרים 😅",
+  "credits.insufficient.body":       "לייצוא הסרטון צריך {{need}} מאסטרים, ויש לך {{have}}. אפשר לקנות עוד מאסטרים או לחזור לעריכה ולהסיר אפקטים כדי להוזיל.",
+  "credits.insufficient.ctaBuy":     "קנה מאסטרים",
+  "credits.insufficient.ctaBuyHref": "/credits",
+  "credits.insufficient.ctaBack":    "חזור לעריכה",
+
   // ── Forgot password (/forgot-password) ─────────────────────
   "auth.forgot.heading":        "איפוס סיסמה",
   "auth.forgot.subheading":     "נשלח אלייך קישור איפוס למייל",

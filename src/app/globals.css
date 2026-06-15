@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* When the VideoPreview is shrunk into the mobile PiP corner, hide the
+   "חל על הסרטון: 9:16 / Ken Burns / דילוג שתיקות" breadcrumb row above
+   it — those badges overflow the tiny card and look awful. They reappear
+   the moment the user scrolls back to the top and the preview returns to
+   normal flow. (See MobilePip.tsx for the data-vm-pip toggle.) */
+[data-vm-pip="1"] [data-vm-badges="1"] { display: none !important; }
+/* And tighten the preview wrapper so it fills the PiP card cleanly. */
+[data-vm-pip="1"] .space-y-3 { margin: 0 !important; }
+[data-vm-pip="1"] .space-y-3 > * + * { margin-top: 0 !important; }
+
 /* ── iOS Safari auto-zoom fix ──────────────────────────────────────────
    When an input has font-size < 16px, mobile Safari zooms the whole page
    on focus to make the text "readable". That trapped Liat inside zoomed

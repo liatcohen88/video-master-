@@ -584,7 +584,10 @@ export default function VideoPreview({
   return (
     <div className="space-y-3">
       {(effects && (effects.aspectRatio !== "original" || effects.zoomEffect !== "none" || effects.cutSilence)) && (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        // data-vm-badges marks this row so the mobile-PiP CSS rule (in
+        // globals.css) can hide it when the preview shrinks to the corner.
+        // Liat: "פירורי לחם מעל הסרטון בצד וזה נראה לא טוב בכלל".
+        <div data-vm-badges="1" className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-white/40 font-medium">חל על הסרטון:</span>
           {effects.aspectRatio !== "original" && (
             <span className="px-2 py-1 bg-white/10 text-white/70 rounded-full">
