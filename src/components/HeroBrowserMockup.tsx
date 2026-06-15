@@ -170,10 +170,8 @@ export default function HeroBrowserMockup() {
                 <span style={{ fontSize: 11, color: "#a78bfa", fontFamily: "var(--font-heebo), sans-serif" }}>✨ Neon</span>
               </div>
 
-              {/* AI tip */}
-              <div style={{ margin: "0 10px 10px", padding: "7px 10px", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: 8, fontSize: 9.5, color: "rgba(255,220,100,0.85)", lineHeight: 1.5, fontFamily: "var(--font-heebo), sans-serif", direction: "rtl" }}>
-                💡 <strong>תוספת אופציונלית</strong> — ה-AI לא מפעיל אותם אוטומטית. בחרי מה שרוצה ושלמי רק עבורו.
-              </div>
+              {/* AI tip removed 2026-06-16 per Liat — matches the actual editor
+                  (we removed the same banner there last build). */}
 
               {/* tabs */}
               <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", borderTop: "1px solid rgba(255,255,255,0.07)", direction: "rtl" }}>

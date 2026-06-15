@@ -38,6 +38,7 @@ import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
+import AuthSuccessModal from "@/components/AuthSuccessModal";
 import { useAutoSavedState } from "@/lib/useAutoSave";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
@@ -1058,6 +1059,10 @@ export default function HomePage() {
         onClose={() => setShowSignupGate(false)}
         onSuccess={() => { setShowSignupGate(false); void exportProject(); }}
       />
+      {/* Post-signup / post-login welcome popups. Self-mounting — reads a
+          sessionStorage flag set by /signup or /login right before they
+          redirect to "/", then clears it so a refresh doesn'\''t re-fire. */}
+      <AuthSuccessModal />
     </main>
   );
 }

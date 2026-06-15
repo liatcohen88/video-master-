@@ -32,7 +32,7 @@ export default function SignupPage() {
   const loginLink    = useContent("auth.signup.loginCta") as string;
   const dividerText  = useContent("auth.divider") as string;
   const googleLabel  = useContent("auth.oauth.google") as string;
-  const appleLabel   = useContent("auth.oauth.apple") as string;
+  // appleLabel removed 2026-06-16 — Apple sign-in button is hidden.
   const backHome     = useContent("auth.backHome") as string;
   const confirmTitle = useContent("auth.signup.confirmTitle") as string;
   const confirmBody  = useContent("auth.signup.confirmBody") as string;
@@ -72,8 +72,12 @@ export default function SignupPage() {
       return;
     }
 
-    if (data.session) router.push("/");
-    else setDone(true);
+    if (data.session) {
+      // Set the welcome-popup flag for the home page to pick up on mount.
+      // Cleared by AuthSuccessModal after showing once.
+      try { sessionStorage.setItem("vm_auth_event", "signup"); } catch {}
+      router.push("/");
+    } else setDone(true);
   }
 
   async function oauth(provider: "google" | "apple") {
@@ -149,17 +153,10 @@ export default function SignupPage() {
             </svg>
             <span className="text-black">{googleLabel || "Google"}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => oauth("apple")}
-            disabled={busy}
-            className="w-full flex items-center justify-center gap-2 bg-black text-white hover:bg-black/90 disabled:opacity-50 font-bold py-2.5 rounded-lg transition-opacity border border-white/15"
-          >
-            <svg width="18" height="18" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
-              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-            </svg>
-            {appleLabel || "Apple"}
-          </button>
+          {/* Apple sign-in button removed 2026-06-16 per Liat. Apple OAuth
+              needs a $99/yr Apple Developer account that isn'\''t worth it for
+              launch; Google + email already cover the case. Block of code
+              kept commented in git history if we ever re-add it. */}
 
           <div className="relative flex items-center gap-3 my-2">
             <div className="flex-1 h-px bg-white/10" />

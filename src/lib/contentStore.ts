@@ -323,6 +323,20 @@ export const CONTENT_DEFAULTS = {
   "auth.signup.confirmCta":     "חזרה להתחברות",
   "auth.login.forgot":          "שכחת סיסמה?",
 
+  // Post-signup welcome popup (shows on the home page right after a new
+  // account is created with a live session). Two CTAs: upload + profile.
+  "auth.welcome.title":         "נרשמתם בהצלחה!",
+  "auth.welcome.body":          "ברוכים הבאים — קיבלתם 25 מאסטרים במתנה מאיתנו 😉",
+  "auth.welcome.ctaUpload":     "העלה סרטון",
+  "auth.welcome.ctaUploadHref": "/",
+  "auth.welcome.ctaProfile":    "ראה פרופיל",
+  "auth.welcome.ctaProfileHref":"/dashboard",
+  // Post-login popup (returning user).
+  "auth.returning.title":       "כיף שחזרת אלינו!",
+  "auth.returning.body":        "התחברת בהצלחה 😊",
+  "auth.returning.cta":         "לדף הבית",
+  "auth.returning.ctaHref":     "/",
+
   // ── Forgot password (/forgot-password) ─────────────────────
   "auth.forgot.heading":        "איפוס סיסמה",
   "auth.forgot.subheading":     "נשלח אלייך קישור איפוס למייל",
