@@ -30,18 +30,38 @@ import { creditUserByEmail, creditsForAmount } from "@/lib/fulfillment";
 
 export const runtime = "nodejs";
 
+/**
+ * Constant-time secret comparison. A plain `a !== b` short-circuits on the
+ * first differing byte, leaking the secret's length+prefix to a timing
+ * attacker. timingSafeEqual always reads both buffers fully. (Audit C7.)
+ */
+function secretMatches(provided: string, expected: string): boolean {
+  if (provided.length !== expected.length) return false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { timingSafeEqual } = require("node:crypto") as typeof import("node:crypto");
+    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* allow form too */ }
 
-  const secret = (body.secret as string) ?? req.headers.get("x-make-secret");
-  if (!process.env.MAKE_WEBHOOK_SECRET || secret !== process.env.MAKE_WEBHOOK_SECRET) {
+  const expected = process.env.MAKE_WEBHOOK_SECRET;
+  const provided = (body.secret as string) ?? req.headers.get("x-make-secret") ?? "";
+  if (!expected || !secretMatches(provided, expected)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const email = (body.email as string) || undefined;
   const amount = Number(body.amount ?? body.amountIls ?? body.sum ?? 0);
-  const credits = body.credits != null ? Number(body.credits) : creditsForAmount(amount);
+  // Credits are recomputed SERVER-SIDE from the amount actually paid. We never
+  // trust a `credits` field from the payload — otherwise anyone who learns the
+  // webhook secret could pay ₪10 and claim 1,000,000 מאסטרים. (Audit C3.)
+  const credits = creditsForAmount(amount);
   const txnId = (body.txnId as string) || (body.transactionId as string) || undefined;
 
   try {

@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { removeBackground } from "@/lib/imageBackgroundRemoval";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Largest decoded image we'll process. sharp on a 4GB box can be pushed into
+// swap/OOM by a big or maliciously-crafted image, so we cap the decoded size.
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024; // 12 MB
 
 /**
  * Take a previously-uploaded logo (URL like "/custom-logos/123-name.png")
@@ -14,6 +19,11 @@ export const maxDuration = 60;
  * SVG inputs are returned unchanged because they already support alpha.
  */
 export async function POST(req: NextRequest) {
+  // Background removal is a heavy sharp operation. Cap how often a single IP
+  // can trigger it so it can't be used to exhaust CPU/memory on the server.
+  const limited = rateLimit(req, { key: "remove-logo-bg", max: 30, windowSec: 60 });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const src = typeof body?.src === "string" ? body.src : null;
 
@@ -35,6 +45,12 @@ export async function POST(req: NextRequest) {
     }
     try {
       const inBuf = Buffer.from(b64, "base64");
+      if (inBuf.length > MAX_IMAGE_BYTES) {
+        return NextResponse.json(
+          { error: "התמונה גדולה מדי (מקסימום 12MB)" },
+          { status: 413 },
+        );
+      }
       const outBuf = await removeBackground(inBuf);
       const outB64 = outBuf.toString("base64");
       return NextResponse.json({ url: `data:image/png;base64,${outB64}` });
