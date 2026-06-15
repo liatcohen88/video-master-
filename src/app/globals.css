@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── iOS Safari auto-zoom fix ──────────────────────────────────────────
+   When an input has font-size < 16px, mobile Safari zooms the whole page
+   on focus to make the text "readable". That trapped Liat inside zoomed
+   panels (e.g. "הוסף סאונד" tap → page jumps in). Floor input/select/
+   textarea font-size at 16px ONLY on touch screens so desktop tight
+   layouts stay tight. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Accessibility panel toggles ─────────────────────────────────────── */
 /* Applied as classes on <html> from AccessibilityPanel.tsx. */
 
