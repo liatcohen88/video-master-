@@ -255,7 +255,14 @@ export default function VideoPreview({
     const handler = () => {
       const t = v.currentTime;
       const gap = silentGaps.find((g) => t >= g.start + 0.05 && t < g.end);
-      if (gap) v.currentTime = gap.end;
+      if (gap) {
+        v.currentTime = gap.end;
+        // Fire the white-cut flash at the exact moment of the skip so the
+        // eye registers a real cut transition instead of an invisible jump.
+        // (Previously the flash relied on a 50ms post-jump timeupdate window
+        // that often got missed — Liat: "פשוט חותך נראה לא טוב".)
+        setWhipFlashKey(Math.round(gap.end * 1000) + Math.random());
+      }
     };
     v.addEventListener("timeupdate", handler);
     return () => v.removeEventListener("timeupdate", handler);
@@ -714,15 +721,14 @@ export default function VideoPreview({
           </div>
         )}
 
-        {/* Whip flash on cut boundaries — mirrors FFmpeg whip-zoom transition */}
+        {/* Whip flash on cut boundaries — mirrors FFmpeg whip-zoom transition.
+            No mixBlendMode any more: overlay-mode white isn'\''t bright enough
+            to read as a cut transition; we want a real white flash. */}
         {whipFlashKey !== null && (
           <div
             key={`whip-${whipFlashKey}`}
             className="absolute inset-0 pointer-events-none bg-white"
-            style={{
-              animation: "whip-flash 220ms ease-out forwards",
-              mixBlendMode: "overlay",
-            }}
+            style={{ animation: "whip-flash 220ms ease-out forwards" }}
           />
         )}
 

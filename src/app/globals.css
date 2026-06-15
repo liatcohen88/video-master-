@@ -145,11 +145,13 @@ html.a11y-reduce-motion *::after {
   100% { transform: scale(1); }
 }
 
-/* Whip-zoom transition overlay flash */
+/* Whip-zoom transition overlay flash — true cut-feel: jumps to full white
+   instantly so the eye registers a real cut, then fades quickly. Previous
+   version peaked at 20% which the eye couldn't catch. */
 @keyframes whip-flash {
-  0% { opacity: 0; transform: scale(1); }
-  20% { opacity: 0.9; transform: scale(1.05); }
-  100% { opacity: 0; transform: scale(1); }
+  0%   { opacity: 0;   transform: scale(1); }
+  5%   { opacity: 1;   transform: scale(1.04); }
+  100% { opacity: 0;   transform: scale(1); }
 }
 
 /* Emphasis moment glow — subtle warm pulse */
