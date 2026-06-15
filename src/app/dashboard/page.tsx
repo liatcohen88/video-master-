@@ -10,6 +10,7 @@ import MasterCoin from "@/components/MasterCoin";
 import LogoMark from "@/components/LogoMark";
 import SiteHeader from "@/components/SiteHeader";
 import { useContent } from "@/lib/useContent";
+import { sanitizeCmsHtml } from "@/lib/sanitizeHtml";
 import { ArrowRight } from "lucide-react";
 import { listSnapshots, deleteSnapshot, loadCurrentVideo, wipeAllProjectStorage, type ProjectSnapshot } from "@/lib/projectStorage";
 import { clearAutoSavedProject } from "@/lib/useAutoSave";
@@ -222,11 +223,11 @@ export default function DashboardPage() {
                 // (videos / saved minutes / used credits). HTML is built from
                 // CMS placeholders only — no user input.
                 dangerouslySetInnerHTML={{
-                  __html: cStatsLine
+                  __html: sanitizeCmsHtml(cStatsLine
                     .replace("{{videos}}", `<span class="text-violet-300 font-bold">${stats.videosCount}</span>`)
                     .replace("{{savedMin}}", `<span class="text-emerald-300 font-bold">${stats.savedMin}</span>`)
                     .replace("{{used}}", `<span class="text-amber-300 font-bold">${stats.creditsUsed}</span>`)
-                    .replace("{{currency}}", `<span class="text-amber-300 font-bold">${currency}</span>`),
+                    .replace("{{currency}}", `<span class="text-amber-300 font-bold">${currency}</span>`)),
                 }}
               />
             )}
@@ -390,7 +391,7 @@ export default function DashboardPage() {
             <div className="text-2xl">🗑️</div>
             <div className="flex-1">
               <div className="text-sm font-bold text-red-200">{cDangerTitle}</div>
-              <div className="text-[11px] text-white/50 mt-0.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: cDangerBody }} />
+              <div className="text-[11px] text-white/50 mt-0.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeCmsHtml(cDangerBody) }} />
             </div>
             <button
               onClick={async () => {

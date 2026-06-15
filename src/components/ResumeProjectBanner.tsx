@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Play, X, History } from "lucide-react";
 import { loadCurrentVideo, clearCurrentVideo, storedToFile, listSnapshots, type StoredVideo, type ProjectSnapshot } from "@/lib/projectStorage";
 import { useContent } from "@/lib/useContent";
+import { sanitizeCmsHtml, escapeHtml } from "@/lib/sanitizeHtml";
 
 type Props = {
   onResume: (file: File, snapshot?: ProjectSnapshot) => void;
@@ -91,9 +92,14 @@ export default function ResumeProjectBanner({ onResume }: Props) {
           <p
             className="text-sm text-white/70 mb-1"
             dangerouslySetInnerHTML={{
-              __html: c.descriptionTpl
-                .replace("{{name}}", `<span class="font-bold">${stored.name}</span>`)
-                .replace("{{mb}}", sizeMB),
+              __html: sanitizeCmsHtml(
+                c.descriptionTpl
+                  // Escape user-provided filename before injecting it into HTML —
+                  // a maliciously-named file (e.g. "<img src=x onerror=...>"
+                  // .mp4) could otherwise smuggle markup into the description.
+                  .replace("{{name}}", `<span class="font-bold">${escapeHtml(stored.name)}</span>`)
+                  .replace("{{mb}}", sizeMB),
+              ),
             }}
           />
           <p className="text-xs text-white/50">{c.savedAtTpl.replace("{{age}}", ageLabel)}</p>

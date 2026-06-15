@@ -8,6 +8,7 @@ import { TEMPLATES, type SubtitleTemplate } from "@/lib/templates";
 import { fontClassFor } from "@/lib/fonts";
 import EffectsPanel from "./EffectsPanel";
 import { useContent } from "@/lib/useContent";
+import { sanitizeCmsHtml } from "@/lib/sanitizeHtml";
 import type { EditMode } from "@/lib/types";
 
 type Props = {
@@ -163,7 +164,7 @@ export default function StylePanel({
         >
           <div
             className="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11px] text-amber-200/90 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: c.extrasHelp }}
+            dangerouslySetInnerHTML={{ __html: sanitizeCmsHtml(c.extrasHelp) }}
           />
           <EffectsPanel effects={effects} onChange={onEffectsChange} mode={mode} subtitles={subtitles} />
         </Accordion>
