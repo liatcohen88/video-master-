@@ -72,17 +72,24 @@ export default function HeroBrowserMockup() {
         @keyframes hbm-chip-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes hbm-prog { from{width:0%} to{width:100%} }
         @keyframes hbm-hero { from{opacity:0;transform:translateY(24px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+        /* Mobile: stack the mock editor vertically (video on top, settings below) — the desktop side-by-side layout gets unreadable below ~640px. Also hide the floating chips since they sit outside the frame and collide with the page on narrow viewports. */
+        @media (max-width: 768px) {
+          .hbm-body { flex-direction: column-reverse !important; height: auto !important; }
+          .hbm-left { width: 100% !important; border-right: none !important; border-top: 1px solid rgba(255,255,255,0.06) !important; }
+          .hbm-video-wrap { flex: 0 0 auto !important; padding: 14px 0 10px !important; }
+          .hbm-chips-side { display: none !important; }
+        }
       `}</style>
 
       <div style={{ position: "relative", maxWidth: 1060, margin: "0 auto", animation: "hbm-hero 0.9s cubic-bezier(0.22,1,0.36,1) both" }}>
 
         {/* chips right */}
-        <div style={{ position: "absolute", right: -14, top: "8%", zIndex: 20, display: "flex", flexDirection: "column", gap: 9 }}>
+        <div className="hbm-chips-side" style={{ position: "absolute", right: -14, top: "8%", zIndex: 20, display: "flex", flexDirection: "column", gap: 9 }}>
           {CHIPS.filter(c => c.side === "right").map((c, i) => chip(c, i))}
         </div>
 
         {/* chips left */}
-        <div style={{ position: "absolute", left: -14, top: "14%", zIndex: 20, display: "flex", flexDirection: "column", gap: 9 }}>
+        <div className="hbm-chips-side" style={{ position: "absolute", left: -14, top: "14%", zIndex: 20, display: "flex", flexDirection: "column", gap: 9 }}>
           {CHIPS.filter(c => c.side === "left").map((c, i) => chip(c, i))}
         </div>
 
@@ -112,10 +119,10 @@ export default function HeroBrowserMockup() {
           </div>
 
           {/* editor body */}
-          <div style={{ background: "#0d0d1f", display: "flex", height: 520, direction: "ltr" }}>
+          <div className="hbm-body" style={{ background: "#0d0d1f", display: "flex", height: 520, direction: "ltr" }}>
 
             {/* LEFT: StylePanel */}
-            <div style={{ width: 300, background: "#111128", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", overflowY: "auto" }}>
+            <div className="hbm-left" style={{ width: 300, background: "#111128", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
               {/* template gallery */}
               <div style={{ padding: "10px 10px 8px" }}>
@@ -220,7 +227,7 @@ export default function HeroBrowserMockup() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: "#0d0d1f" }}>
 
               {/* portrait video */}
-              <div style={{ flex: "0 0 370px", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a18", padding: "12px 0 8px", position: "relative" }}>
+              <div className="hbm-video-wrap" style={{ flex: "0 0 370px", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a18", padding: "12px 0 8px", position: "relative" }}>
                 <div style={{ position: "relative", width: 185, height: 330, borderRadius: 10, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.7)" }}>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                   <video
