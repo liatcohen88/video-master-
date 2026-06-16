@@ -190,6 +190,26 @@ export default function HomePage() {
     } catch {/* sessionStorage unavailable */}
   }, [auth.status, auth.profile]);
 
+  // Auto-snapshot during editing — debounced. Liat: guests who upload, edit,
+  // and then sign up via email confirmation lose all their edits because
+  // the confirmation link reloads the page and the only snapshot we'd saved
+  // was the post-transcription one (subtitles only). With this effect, any
+  // change to subtitles/style/effects/settings/template/mode is captured
+  // within ~3s so "המשך עריכה" restores the FULL state including effects,
+  // SFX, music, color filters, logos, etc.
+  useEffect(() => {
+    if (phase !== "editing" || !videoHash) return;
+    const id = window.setTimeout(() => {
+      saveSnapshot({
+        at: Date.now(),
+        label: "שמירה אוטומטית",
+        videoHash,
+        payload: { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel },
+      }).catch(() => {});
+    }, 3000);
+    return () => window.clearTimeout(id);
+  }, [phase, videoHash, mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel]);
+
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [activeReferenceId, setActiveReferenceId] = useState<string | undefined>(undefined);
 
@@ -499,6 +519,18 @@ export default function HomePage() {
     // inline popup with the 25-master gift framing; on success the gate's
     // onSuccess closes the modal and we resume the export automatically.
     if (auth.status === "guest") {
+      // Belt + suspenders: capture the CURRENT edit state right now, even
+      // if the 3s debounce hasn't fired yet. If signup needs email
+      // confirmation, the confirm-link reloads the page → the only way
+      // back to this exact edit is via a snapshot in IndexedDB.
+      if (videoHash) {
+        saveSnapshot({
+          at: Date.now(),
+          label: "לפני הרשמה",
+          videoHash,
+          payload: { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel },
+        }).catch(() => {});
+      }
       setShowSignupGate(true);
       return;
     }

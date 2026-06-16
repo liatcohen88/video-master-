@@ -41,8 +41,32 @@ export default function SignupGate({
   const invalidMsg  = useContent("auth.error.invalidCreds") as string;
   const emailExists = useContent("signupGate.error.emailExists") as string;
   const confirmEmail= useContent("signupGate.notice.confirmEmail") as string;
+  const googleLabel = useContent("auth.oauth.google") as string;
+  const dividerText = useContent("auth.divider") as string;
 
   if (!open) return null;
+
+  async function googleSignIn() {
+    setErr(null);
+    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. פני למפתחת."); return; }
+    const sb = browserClient();
+    if (!sb) return;
+    setBusy(true);
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/` : undefined,
+      },
+    });
+    if (error) {
+      setBusy(false);
+      const msg = error.message.toLowerCase();
+      setErr(msg.includes("provider is not enabled")
+        ? "התחברות עם Google עוד לא הופעלה."
+        : error.message);
+    }
+    // On success Supabase navigates away — no need to clear busy.
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,7 +132,31 @@ export default function SignupGate({
         </div>
 
         <h2 className="text-2xl font-extrabold text-center mb-1">{title}</h2>
-        <p className="text-center text-white/60 text-sm mb-6">{subtitle}</p>
+        <p className="text-center text-white/60 text-sm mb-4">{subtitle}</p>
+
+        {/* Google OAuth — single-click signup/login. Liat: "בפופאפ הזה
+            אפשרות הרשמה דרך גוגל גם". On success Supabase redirects to "/"
+            and the page-level OAuth detector fires the welcome popup. */}
+        <button
+          type="button"
+          onClick={googleSignIn}
+          disabled={busy}
+          className="w-full flex items-center justify-center gap-2 bg-white !text-black hover:bg-white/90 disabled:opacity-50 font-bold py-2.5 rounded-lg transition-opacity mb-3"
+        >
+          <svg viewBox="0 0 18 18" className="w-4 h-4">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 01-1.79 2.71v2.26h2.9c1.7-1.56 2.68-3.86 2.68-6.62z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.83.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.92v2.33A9 9 0 009 18z"/>
+            <path fill="#FBBC05" d="M4.02 10.74A5.41 5.41 0 013.74 9c0-.6.1-1.18.28-1.74V4.93H.92A8.99 8.99 0 000 9c0 1.45.35 2.83.92 4.07l3.1-2.33z"/>
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58A8.97 8.97 0 009 0 9 9 0 00.92 4.93l3.1 2.33C4.72 5.16 6.68 3.58 9 3.58z"/>
+          </svg>
+          <span className="text-black">{googleLabel || "המשך עם Google"}</span>
+        </button>
+
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-[11px] text-white/40">{dividerText || "או"}</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
 
         <form onSubmit={submit} className="space-y-3">
           {mode === "signup" && (

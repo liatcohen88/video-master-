@@ -130,9 +130,6 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* 1px sentinel — its visibility tells us whether we'\''re scrolled past
-          the natural preview spot. Stays in document flow on mobile only. */}
-      <div ref={sentinelRef} aria-hidden className="lg:hidden h-px w-full -mt-px" />
       <div
         ref={cardRef}
         data-vm-pip={isPip ? "1" : "0"}
@@ -157,6 +154,11 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
         )}
         {children}
       </div>
+      {/* 1px sentinel placed AFTER the preview — PiP activates only once the
+          BOTTOM of the preview leaves the viewport (Liat: "רק כשאני גוללת
+          לסוף הסרטון שיופיע לא בהתחלה כי אחר כך יש קפיצות"). Stays in
+          document flow on mobile only. */}
+      <div ref={sentinelRef} aria-hidden className="lg:hidden h-px w-full" />
     </>
   );
 }
