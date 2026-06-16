@@ -189,15 +189,27 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
                 type="button"
                 disabled={submitting || auth.status === "loading"}
                 onClick={onCheckout}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/40"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 disabled:opacity-90 disabled:cursor-wait text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/40 whitespace-nowrap"
               >
-                <Lock className="w-4 h-4" />
-                {submitting
-                  ? "מעבירים אותך לסליקה..."
-                  : auth.status !== "user"
-                    ? `התחברות והמשך לתשלום ₪${priceDisplay}`
-                    : `המשך לתשלום ₪${priceDisplay}`}
-                <ArrowRight className="w-4 h-4" />
+                {submitting ? (
+                  // Loading state — single line, just spinner + text. Liat
+                  // 2026-06-16: keeping the lock+arrow icons during loading
+                  // squeezed the RTL text into two lines on mobile.
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span>מעבירים אותך לסליקה...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span>
+                      {auth.status !== "user"
+                        ? `התחברות והמשך לתשלום ₪${priceDisplay}`
+                        : `המשך לתשלום ₪${priceDisplay}`}
+                    </span>
+                    <ArrowRight className="w-4 h-4 shrink-0" />
+                  </>
+                )}
               </button>
             );
           })()}
