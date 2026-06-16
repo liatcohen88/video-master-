@@ -692,17 +692,12 @@ export default function VideoPreview({
           // controlsList="nodownload nofullscreen" keep playback inline so
           // the user sees the caption preview, exactly like desktop.
           playsInline
-          // Autoplay + loop + muted. Liat 2026-06-16: "מסך שחור ולא עובד!!
-          // שיעבוד - בלופ". Mobile browsers REQUIRE muted for autoplay; the
-          // previous unmuted attempt left mobile users with a black square
-          // because autoplay was silently refused and the first-frame
-          // preload path isn't reliable on every device. Muted autoplay
-          // works everywhere; the user taps the speaker icon in the native
-          // controls to unmute when they want sound. Loop keeps the preview
-          // alive as a continuous tease.
-          autoPlay
-          muted
-          loop
+          // Paused-with-sound default. Liat 2026-06-16: "עדיף שלאחר תמלול
+          // ועריכה הסרטון יהיה על עצור אבל עם שמע ולא דף שחור". The
+          // muted-autoplay loop confused users — they didn't realize sound
+          // was off. We rely instead on preload=auto + .load() + seek-to-0
+          // (the effect below) to paint the first frame so the preview
+          // isn't a black square. User taps play and gets sound right away.
           // preload=auto forces iOS Safari to actually decode the first frame
           // immediately. Without it (default "metadata"), mobile Safari shows
           // a black square until the user taps play — Liat'\''s "מסך שחור".
