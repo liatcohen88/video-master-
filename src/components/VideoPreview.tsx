@@ -160,9 +160,21 @@ export default function VideoPreview({
     const v = videoRef.current;
     const c = containerRef.current;
     if (!v || !c) return;
+    // Throttle currentTime → React to 10Hz. Liat 2026-06-16: "באנימציה
+    // הווידאו נתקע לא רץ חלק". The native `timeupdate` event fires up to
+    // ~10×/s, and each tick cascaded through every useMemo (visibleElements,
+    // currentSubtitle, punch zoom, particle bursts, brand overlays…) and
+    // re-rendered the whole overlay tree on top of the video. On mid-tier
+    // mobile that contention starves the compositor and the video stutters.
+    // 100ms granularity is still well below subtitle word duration and
+    // emphasis-window resolution, so triggering accuracy is unaffected.
+    let lastState = 0;
     const onTime = () => {
+      onTimeUpdate?.(v.currentTime); // parent never loses the event
+      const now = performance.now();
+      if (now - lastState < 100) return;
+      lastState = now;
       setCurrentTime(v.currentTime);
-      onTimeUpdate?.(v.currentTime);
     };
     const onMeta = () => {
       setDuration(v.duration || 0);
