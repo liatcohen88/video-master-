@@ -176,6 +176,16 @@ export default function HomePage() {
   // popup), older = OAuth login (returning popup). Then dispatch the
   // custom event AuthSuccessModal listens for, and mark the session
   // greeted so refresh/navigation doesn't re-fire.
+  // OAuth ONLY fires the SIGNUP welcome popup, never the returning-login one.
+  // Liat 2026-06-16: "פופאפ התחברות שלא יהיה כל פעם שמשתמש קיים נכנס לאתר
+  // אלא רק שמתחבר ידני". Returning users in a new tab were getting the
+  // login popup on every visit because sessionStorage is per-tab.
+  //
+  // New rule: the login popup only fires when /login explicitly sets
+  // sessionStorage["vm_auth_event"]="login" right before navigating to "/".
+  // For OAuth returning users we say nothing. For OAuth fresh signups
+  // (profile age < 60s) we still fire the welcome popup since /signup
+  // can't set the flag for an OAuth-redirect flow.
   useEffect(() => {
     if (auth.status !== "user" || !auth.profile) return;
     if (typeof window === "undefined") return;
@@ -184,9 +194,13 @@ export default function HomePage() {
       if (sessionStorage.getItem("vm_auth_event")) return; // password flow handles itself
       const createdAt = new Date(auth.profile.created_at).getTime();
       const ageSec = (Date.now() - createdAt) / 1000;
-      const kind = ageSec >= 0 && ageSec < 60 ? "signup" : "login";
+      // Only fire for fresh signups (<60s old). Returning users → silent.
+      if (ageSec < 0 || ageSec >= 60) {
+        sessionStorage.setItem("vm_session_greeted", "1");
+        return;
+      }
       sessionStorage.setItem("vm_session_greeted", "1");
-      window.dispatchEvent(new CustomEvent("vm-auth-popup", { detail: { kind } }));
+      window.dispatchEvent(new CustomEvent("vm-auth-popup", { detail: { kind: "signup" } }));
     } catch {/* sessionStorage unavailable */}
   }, [auth.status, auth.profile]);
 
@@ -461,9 +475,17 @@ export default function HomePage() {
       setProgressMessage("");
       // Liat 2026-06-16: after the AI pipeline finishes, the page often
       // sat at the bottom (where the "Start" button was), leaving the new
-      // editor + preview off-screen — confusing especially on mobile.
-      // Scroll to top so the preview is the first thing the user sees.
-      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+      // editor + preview off-screen — confusing especially on mobile. The
+      // scrollTo MUST run after the editor phase has rendered, otherwise
+      // the new DOM mounting underneath us shifts the scroll position back
+      // to where the (taller) editor pushed it. Two rAFs + a 150ms fallback
+      // guarantees the swap finished before we scroll.
+      try {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }));
+        setTimeout(() => { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {} }, 150);
+      } catch {}
     }
   }
 

@@ -313,6 +313,18 @@ export default function VideoPreview({
   );
   const activeDrama = effects?.dramaMode ? dramaActiveAt(currentTime, dramaMoments) : null;
 
+  // Drama claims the moment exclusively. Liat 2026-06-16: typing "מטורף"
+  // was triggering BOTH the B&W flash AND the emphasis zoom/glow on top
+  // of each other — visual mess. Effective emphasis moments = the analyzed
+  // emphasis list MINUS any time that falls inside a drama beat window.
+  const effectiveEmphasisMoments = useMemo<number[]>(() => {
+    const raw = effects?.emphasisMoments ?? [];
+    if (raw.length === 0 || dramaMoments.length === 0) return raw;
+    return raw.filter((t) =>
+      !dramaMoments.some((d) => t >= d.t - 0.2 && t <= d.t + d.duration + 0.2),
+    );
+  }, [effects?.emphasisMoments, dramaMoments]);
+
   // --- Intro animation — first ~0.5-0.9s of the video ------------------
   // Architecture decision: the intro animation lives on a SEPARATE wrapper
   // div around the video. React keeps writing zoom/pan transform on the
@@ -436,8 +448,10 @@ export default function VideoPreview({
 
     if (effects.zoomEffect === "punch") {
       // Match the FFmpeg punch zoom curve: ramp-in (150ms) → hold (400ms)
-      // → ramp-out (300ms) around each emphasis moment.
-      const moments = effects.emphasisMoments ?? [];
+      // → ramp-out (300ms) around each emphasis moment. Use the
+      // drama-suppressed list so we don't punch on the same beat where
+      // drama already owns the screen.
+      const moments = effectiveEmphasisMoments;
       const rampIn = 0.15, hold = 0.4, rampOut = 0.3;
       const t = currentTime;
       const peak = effects.zoomIntensity;
@@ -451,7 +465,7 @@ export default function VideoPreview({
     }
 
     return 1 + effects.zoomIntensity * progress + beat;
-  }, [effects, progress, currentTime, beatDrops]);
+  }, [effects, progress, currentTime, beatDrops, effectiveEmphasisMoments]);
 
   const panX = useMemo(() => {
     if (effects?.zoomEffect !== "kenburns") return 0;
@@ -487,13 +501,13 @@ export default function VideoPreview({
   // Mirrors FFmpeg eq color flash in cinematicColorFilter.
   const [emphasisGlowKey, setEmphasisGlowKey] = useState<number | null>(null);
   useEffect(() => {
-    const moments = effects?.emphasisMoments;
+    const moments = effectiveEmphasisMoments;
     if (!moments || moments.length === 0) return;
     const m = moments.find(
       (t) => currentTime >= t && currentTime < t + 0.05,
     );
     if (m !== undefined) setEmphasisGlowKey(Math.round(m * 100));
-  }, [currentTime, effects?.emphasisMoments]);
+  }, [currentTime, effectiveEmphasisMoments]);
 
   // Contextual elements: detect from subtitles, show as floating emoji.
   // Apply user emoji/position overrides + drop disabled ones.

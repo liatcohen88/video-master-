@@ -34,7 +34,10 @@ type SectionId = "templates" | "effects" | "typography" | "colors" | "background
 export default function StylePanel({
   style, onChange, templateId, onTemplateChange, effects, onEffectsChange, topSlot, hideEffects, mode, subtitles,
 }: Props) {
-  const [openSection, setOpenSection] = useState<SectionId | null>("templates");
+  // Liat 2026-06-16: "ברירת מחדל שלא יפתח את התבניות של התמלול שישאר
+  // הכל סגור". Editor opens with all accordions collapsed; user opens
+  // what they need.
+  const [openSection, setOpenSection] = useState<SectionId | null>(null);
 
   // CMS-editable copy for every section heading + field label + summary word
   const c = {

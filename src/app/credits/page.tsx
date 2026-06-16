@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getCredits, addCredits } from "@/lib/credits";
 import { getProfile } from "@/lib/userStore";
+import { useAuth } from "@/lib/useAuth";
 import { useContent } from "@/lib/useContent";
 import PremiumPkgCard, { SharedFeatures } from "@/components/PremiumPkgCard";
 import PackagesCarousel from "@/components/PackagesCarousel";
@@ -63,6 +64,12 @@ export default function CreditsPage() {
   const backToApp     = useContent("credits.backToApp") as string;
   const multiEnabled  = useContent("feature.multi.enabled") as boolean;
 
+  // Liat 2026-06-16: "היתרה בחבילות לא תואמת לבאמת כמה מאסטרים יש".
+  // Root cause: this page was reading from localStorage only, which can
+  // drift from the Supabase truth (e.g., dashboard reads from profile,
+  // /credits read from localStorage). The auth profile is the source of
+  // truth when authenticated; fall back to localStorage only for guests.
+  const auth = useAuth();
   useEffect(() => {
     setCreditsLocal(getCredits());
     setHydrated(true);
@@ -126,7 +133,12 @@ export default function CreditsPage() {
             <div className="md:text-right">
               <div className="text-[11px] text-white/50 uppercase tracking-wider">{balanceLabel}</div>
               <div className="text-4xl font-black leading-none mt-0.5">
-                {credits.toLocaleString()} <span className="text-sm text-white/40 font-normal">{currency}</span>
+                {/* Prefer the live Supabase profile credits when authenticated;
+                    fall back to the localStorage-backed credits for guests. */}
+                {(auth.status === "user" && auth.profile
+                  ? auth.profile.credits
+                  : credits
+                ).toLocaleString()} <span className="text-sm text-white/40 font-normal">{currency}</span>
               </div>
             </div>
           </div>

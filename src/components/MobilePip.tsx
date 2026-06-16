@@ -4,23 +4,33 @@
  * Mobile picture-in-picture wrapper for the live VideoPreview.
  *
  * Behavior on mobile (< lg):
- *   - At top of page: preview renders in NORMAL flow at full width (same
- *     as before MobilePip existed).
- *   - When the user scrolls past it, the preview snaps to a fixed PiP
- *     card in the top-right corner — small, draggable, persisted position.
+ *   - At top of page: preview renders in NORMAL flow at full width.
+ *   - When the user scrolls past the BOTTOM of the preview, the card snaps
+ *     to a fixed corner card (PiP) — small, draggable, persisted position.
  *
- * Detection: a 1px sentinel right above the preview. Once IntersectionObserver
- * reports the sentinel has left the top of the viewport, we'\''re in PiP mode.
- * That keeps the breadcrumb badges + full controls visible while the user is
- * actually looking at the preview, and only shrinks to PiP once it'\''s gone.
+ * On desktop (lg+) `lg:contents` flattens the wrapper entirely.
  *
- * On desktop (lg+) `lg:contents` flattens the wrapper entirely — no PiP,
- * preview lays out in the original grid.
+ * Two subtle bugs this rewrite kills (Liat 2026-06-16: "באג במיני סרטון
+ * הוא משגעעע"):
  *
- * Liat: "שהמסך הזה יופיע לאחר המסך הראשי הגדול כשהוא נעלם! לא במקומו!"
+ *   1. Flicker loop. The OLD impl made the wrapper itself `position:fixed`
+ *      when PiP activated. That removed its height from the document flow,
+ *      so the page shrank by ~H pixels. With the sentinel sitting near the
+ *      bottom of the viewport, that shrink moved the sentinel back INTO
+ *      view → isPip flipped back to false → wrapper restored its height →
+ *      page grew → sentinel went back out → infinite toggle. Fix: keep the
+ *      outer wrapper in flow ALWAYS; only the INNER card switches between
+ *      static (in-flow) and fixed (PiP). The outer wrapper reserves the
+ *      original height via `min-height` while in PiP so the page geometry
+ *      stays put.
+ *
+ *   2. Premature trigger. We want PiP only AFTER the preview is fully
+ *      gone, not partway. Sentinel is rendered AFTER children, and a small
+ *      negative rootMargin gives a hysteresis buffer so micro-scroll
+ *      jitters around the boundary don't cause toggles.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 
 const STORAGE_KEY = "vm_pip_pos_v1";
@@ -45,20 +55,43 @@ function writePos(p: Pos) {
 
 export default function MobilePip({ children }: { children: React.ReactNode }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [isPip, setIsPip] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
+  // Preserves the wrapper's natural height once PiP yanks the inner card
+  // out of flow. Measured from the OUTER wrapper while not in PiP.
+  const [reservedH, setReservedH] = useState(0);
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
-  // Sentinel watcher: only enter PiP mode once the user has scrolled past
-  // the natural preview position. rootMargin: "-1px 0 0 0" makes the
-  // sentinel "leave" the viewport as soon as it crosses the top edge.
+  // Capture the wrapper's natural height every time it changes while NOT
+  // in PiP mode. As soon as PiP activates we freeze the last value and use
+  // it as min-height so the page doesn't collapse.
+  useLayoutEffect(() => {
+    if (isPip) return;
+    const el = outerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const h = el.offsetHeight;
+      if (h > 0) setReservedH(h);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isPip]);
+
+  // Sentinel watcher. Sentinel sits AFTER the children. When the user
+  // scrolls past the bottom of the preview, sentinel leaves the top of
+  // the viewport → isPip=true. rootMargin gives a small hysteresis buffer.
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       ([entry]) => { setIsPip(!entry.isIntersecting); },
-      { rootMargin: "0px 0px 0px 0px", threshold: 0 },
+      // Negative top margin: sentinel is "still intersecting" until it's
+      // 40px above the viewport top. Tiny scroll oscillations don't toggle.
+      { rootMargin: "-40px 0px 0px 0px", threshold: 0 },
     );
     io.observe(sentinel);
     return () => io.disconnect();
@@ -119,45 +152,50 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   }
 
-  // The wrapper is ALWAYS in normal flow. When isPip is true on mobile,
-  // we apply data-vm-pip on the wrapper so a CSS rule (in globals.css)
-  // re-positions the inner card as fixed PiP + tightens the inner layout
-  // (hides the breadcrumb badges row). Desktop is `lg:contents` so all of
-  // this is a no-op.
+  // Only the INNER card switches to fixed. The OUTER wrapper stays in flow
+  // and reserves the original height — that's what kills the flicker loop.
   const cardStyle: React.CSSProperties = isPip && pos
     ? { position: "fixed", top: pos.y, left: pos.x, width: PIP_WIDTH, zIndex: 30 }
+    : {};
+
+  const outerStyle: React.CSSProperties = isPip && reservedH > 0
+    ? { minHeight: reservedH }
     : {};
 
   return (
     <>
       <div
-        ref={cardRef}
-        data-vm-pip={isPip ? "1" : "0"}
-        onPointerDown={isPip ? onPointerDown : undefined}
-        onPointerMove={isPip ? onPointerMove : undefined}
-        onPointerUp={isPip ? onPointerUp : undefined}
-        onPointerCancel={isPip ? onPointerUp : undefined}
-        className={[
-          // Desktop: this wrapper disappears, children render in the parent grid.
-          "lg:contents",
-          // Mobile, when in PiP mode only: card chrome.
-          isPip ? "max-lg:rounded-xl max-lg:overflow-hidden max-lg:shadow-xl max-lg:shadow-black/60 max-lg:ring-1 max-lg:ring-white/15 max-lg:cursor-move max-lg:touch-none max-lg:select-none max-lg:bg-bg" : "",
-        ].join(" ")}
-        style={cardStyle}
+        ref={outerRef}
+        // Desktop: lg:contents flattens this entirely.
+        className="lg:contents"
+        style={outerStyle}
       >
-        {/* Drag handle bar — only when in PiP mode. */}
-        {isPip && (
-          <div className="hidden max-lg:flex items-center justify-center gap-1 h-5 bg-black/85 text-white/50 text-[10px]">
-            <GripVertical className="w-3 h-3" />
-            <span>גרירה</span>
-          </div>
-        )}
-        {children}
+        <div
+          ref={cardRef}
+          data-vm-pip={isPip ? "1" : "0"}
+          onPointerDown={isPip ? onPointerDown : undefined}
+          onPointerMove={isPip ? onPointerMove : undefined}
+          onPointerUp={isPip ? onPointerUp : undefined}
+          onPointerCancel={isPip ? onPointerUp : undefined}
+          className={[
+            "lg:contents",
+            isPip ? "max-lg:rounded-xl max-lg:overflow-hidden max-lg:shadow-xl max-lg:shadow-black/60 max-lg:ring-1 max-lg:ring-white/15 max-lg:cursor-move max-lg:touch-none max-lg:select-none max-lg:bg-bg" : "",
+          ].join(" ")}
+          style={cardStyle}
+        >
+          {isPip && (
+            <div className="hidden max-lg:flex items-center justify-center gap-1 h-5 bg-black/85 text-white/50 text-[10px]">
+              <GripVertical className="w-3 h-3" />
+              <span>גרירה</span>
+            </div>
+          )}
+          {children}
+        </div>
       </div>
-      {/* 1px sentinel placed AFTER the preview — PiP activates only once the
-          BOTTOM of the preview leaves the viewport (Liat: "רק כשאני גוללת
-          לסוף הסרטון שיופיע לא בהתחלה כי אחר כך יש קפיצות"). Stays in
-          document flow on mobile only. */}
+      {/* Sentinel — placed AFTER the outer wrapper so it stays at a stable
+          document position even while PiP is active (the outer wrapper
+          reserves height via min-height, so the sentinel doesn't move when
+          the inner card pops out of flow). */}
       <div ref={sentinelRef} aria-hidden className="lg:hidden h-px w-full" />
     </>
   );

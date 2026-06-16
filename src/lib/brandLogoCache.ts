@@ -56,8 +56,10 @@ export async function getBrandCardPng(
     return { path: cachePath, width: cardWidth, height: sizeKey };
   }
 
-  // Fetch brand logo SVG from simpleicons CDN
-  const logoUrl = `https://cdn.simpleicons.org/${brand.slug}/${brand.color}`;
+  // Fetch brand logo SVG from Iconify (mirrors the simple-icons collection
+  // and serves brands cdn.simpleicons.org now 404s on — Amazon, OpenAI,
+  // LinkedIn). Color is passed via ?color=#hex (URL-encoded).
+  const logoUrl = `https://api.iconify.design/simple-icons:${brand.slug}.svg?color=%23${brand.color}`;
   const res = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) {
     throw new Error(`Failed to fetch logo for ${brand.id}: HTTP ${res.status}`);

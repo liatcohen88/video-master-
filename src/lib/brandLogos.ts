@@ -333,8 +333,15 @@ export function detectBrands(subtitles: Subtitle[]): BrandEvent[] {
 }
 
 /**
- * Returns the simpleicons.org CDN URL for a brand's logo SVG.
+ * Returns a colored SVG URL for a brand's logo.
+ *
+ * Source: Iconify API serving the simple-icons collection. We switched
+ * AWAY from cdn.simpleicons.org because it started returning 404 for
+ * trademark-sensitive brands (Amazon, OpenAI, LinkedIn) — Liat noticed
+ * empty squares in the admin brand-logos panel. Iconify mirrors the
+ * full simple-icons catalogue and serves all of them with a
+ * `?color=#hex` query so the brand color still applies.
  */
 export function brandLogoCdnUrl(brand: BrandLogo): string {
-  return `https://cdn.simpleicons.org/${brand.slug}/${brand.color}`;
+  return `https://api.iconify.design/simple-icons:${brand.slug}.svg?color=%23${brand.color}`;
 }
