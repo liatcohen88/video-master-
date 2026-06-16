@@ -694,13 +694,20 @@ export default function HomePage() {
   }
 
   // Headline shown in the AI loader overlay — varies by what's running:
-  //  - setup phase   → transcription (wording differs per mode)
   //  - editing phase → MP4 export (FFmpeg burn-in)
+  //  - setup + loadVideo progress → just the upload step (hash+IDB persist).
+  //    Liat 2026-06-16: "כשעולה סרטון במובייל זה מראה מסך טעינה של מתמלל
+  //    לך — מה קשור?" — the old logic showed the transcription title
+  //    during the brief file-load window because it only branched on
+  //    phase. Now we look at progressMessage to tell the two apart.
+  //  - setup + anything else → transcription (wording differs per mode)
   const loaderTitle = phase === "editing"
     ? "מייצא לך את הסרטון ל-MP4"
-    : mode === "subtitles_only"
-      ? "AI מתמלל לך את הסרטון"
-      : "AI מתמלל ועורך לך את הסרטון";
+    : progressMessage === progLoadVideo
+      ? "מעלים את הסרטון שלך"
+      : mode === "subtitles_only"
+        ? "AI מתמלל לך את הסרטון"
+        : "AI מתמלל ועורך לך את הסרטון";
 
   return (
     <main className="min-h-screen px-6 py-8 max-w-[1400px] mx-auto">
