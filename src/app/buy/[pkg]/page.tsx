@@ -106,10 +106,10 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
 
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-bg-dark via-bg-panel to-bg-dark text-white relative overflow-hidden">
-      {/* Ambient gold glow */}
+      {/* Ambient brand glow — violet + pink to match the rest of the site */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 right-1/4 w-[420px] h-[420px] rounded-full bg-amber-400/15 blur-[120px]" />
-        <div className="absolute bottom-1/4 left-1/4 w-[340px] h-[340px] rounded-full bg-violet-500/15 blur-[120px]" />
+        <div className="absolute top-1/4 right-1/4 w-[420px] h-[420px] rounded-full bg-brand/25 blur-[120px]" />
+        <div className="absolute bottom-1/4 left-1/4 w-[340px] h-[340px] rounded-full bg-accent-pink/20 blur-[120px]" />
       </div>
 
       <div className="relative max-w-md mx-auto px-4 py-8">
@@ -124,20 +124,31 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
 
         {/* Hero card: coin + price */}
         <div className="bg-gradient-to-br from-bg-panel/90 to-bg-card/90 backdrop-blur border border-amber-400/25 rounded-3xl px-6 py-7 shadow-2xl shadow-amber-500/10">
+          {/* Inviting headline, brand-voiced — frames the screen as a clear
+              question rather than a generic checkout. */}
+          <h1 className="text-center text-xl md:text-2xl font-extrabold mb-1 leading-snug">
+            האם ברצונך לרכוש{" "}
+            <span className="bg-gradient-to-r from-brand-light to-accent-pink bg-clip-text text-transparent">
+              {pkg.credits} מאסטרים
+            </span>
+            ?
+          </h1>
+          <p className="text-center text-xs text-white/50 mb-5">המאסטרים יתווספו לחשבונך מיד לאחר התשלום</p>
+
           <div className="flex items-center gap-5 mb-6">
-            {/* Coin with glow */}
+            {/* Coin with brand-tinted glow */}
             <div className="relative shrink-0">
-              <div className="absolute inset-0 -m-4 rounded-full bg-amber-400/30 blur-2xl animate-pulse" />
-              <MasterCoin size={120} className="relative drop-shadow-[0_6px_20px_rgba(251,191,36,0.5)] animate-coin-tilt" />
+              <div className="absolute inset-0 -m-4 rounded-full bg-brand/35 blur-2xl animate-pulse" />
+              <MasterCoin size={120} className="relative drop-shadow-[0_6px_20px_rgba(168,85,247,0.45)] animate-coin-tilt" />
             </div>
-            {/* Price strip */}
+            {/* Side info */}
             <div className="flex-1 text-right">
-              <div className="text-[11px] text-white/40 uppercase tracking-wider mb-1">את/ה רוכש/ת</div>
+              <div className="text-[11px] text-white/40 uppercase tracking-wider mb-1">חבילה נבחרת</div>
               <div className="text-3xl font-black leading-none mb-2">
                 {pkg.credits} <span className="text-base text-white/60 font-normal">{currency}</span>
               </div>
               <div className="text-[11px] text-white/50 mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-amber-300" /> הוספת מאסטרים לחשבון שלך
+                <Sparkles className="w-3 h-3 text-brand-light" /> {pkg.label}
               </div>
               <div className="inline-flex items-center gap-2 bg-bg-card border border-white/10 rounded-full px-3 py-1">
                 <MasterCoin size={18} />
@@ -146,13 +157,13 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
             </div>
           </div>
 
-          {/* Big price block */}
+          {/* Big price block — drop the .00 when whole; keep cents only when present */}
           <div className="bg-bg-card/70 border border-white/10 rounded-2xl px-5 py-4 mb-5">
             <div className="flex items-baseline justify-between">
               <div className="text-[11px] text-white/40">סה״כ לתשלום</div>
               <div>
                 <span className="text-4xl font-black bg-gradient-to-b from-brand-light to-accent-pink bg-clip-text text-transparent">
-                  ₪{pkg.priceIls.toFixed(2)}
+                  ₪{pkg.priceIls % 1 === 0 ? pkg.priceIls : pkg.priceIls.toFixed(2)}
                 </span>
                 <div className="text-[10px] text-white/40 text-left">כולל מע״מ</div>
               </div>
@@ -167,20 +178,25 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
           )}
 
           {/* Checkout button */}
-          <button
-            type="button"
-            disabled={submitting || auth.status === "loading"}
-            onClick={onCheckout}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-amber-500 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/30"
-          >
-            <Lock className="w-4 h-4" />
-            {submitting
-              ? "מעבירים אותך לסליקה..."
-              : auth.status !== "user"
-                ? `התחברות והמשך לתשלום ₪${pkg.priceIls}`
-                : `המשך לתשלום ₪${pkg.priceIls}`}
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {(() => {
+            const priceDisplay = pkg.priceIls % 1 === 0 ? pkg.priceIls : pkg.priceIls.toFixed(2);
+            return (
+              <button
+                type="button"
+                disabled={submitting || auth.status === "loading"}
+                onClick={onCheckout}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/40"
+              >
+                <Lock className="w-4 h-4" />
+                {submitting
+                  ? "מעבירים אותך לסליקה..."
+                  : auth.status !== "user"
+                    ? `התחברות והמשך לתשלום ₪${priceDisplay}`
+                    : `המשך לתשלום ₪${priceDisplay}`}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            );
+          })()}
 
           {/* Trust strip */}
           <div className="flex items-center justify-center gap-4 mt-5 text-[10px] text-white/40">

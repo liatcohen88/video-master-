@@ -90,10 +90,11 @@ function SuccessInner() {
 
   return (
     <div dir="rtl" className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-bg-dark via-bg-panel to-bg-dark text-white overflow-hidden relative">
-      {/* Ambient golden glow background — keeps the gold coin feeling lifted */}
+      {/* Ambient brand glow — violet/pink halo around the coin, matching the
+          Master Video site palette instead of the amber/gold tones. */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full bg-amber-400/15 blur-[120px]" />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] rounded-full bg-amber-300/20 blur-[80px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full bg-brand/25 blur-[120px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] rounded-full bg-accent-pink/20 blur-[80px]" />
       </div>
 
       <div className="relative max-w-md w-full">
@@ -109,13 +110,13 @@ function SuccessInner() {
 
           {/* Center coin */}
           <div className="relative">
-            <div className="absolute inset-0 -m-8 rounded-full bg-amber-400/30 blur-2xl animate-pulse" />
-            <MasterCoin size={170} className="relative drop-shadow-[0_8px_24px_rgba(251,191,36,0.55)] animate-coin-bob" />
+            <div className="absolute inset-0 -m-8 rounded-full bg-brand/35 blur-2xl animate-pulse" />
+            <MasterCoin size={170} className="relative drop-shadow-[0_8px_24px_rgba(168,85,247,0.5)] animate-coin-bob" />
           </div>
         </div>
 
-        {/* Success card */}
-        <div className="bg-bg-panel/80 backdrop-blur border border-amber-400/30 rounded-3xl px-6 py-6 text-center shadow-2xl shadow-amber-500/10">
+        {/* Success card — brand violet border to match the site palette. */}
+        <div className="bg-bg-panel/80 backdrop-blur border border-brand/40 rounded-3xl px-6 py-6 text-center shadow-2xl shadow-brand/15">
           {/* Check badge */}
           <div className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold px-3 py-1 rounded-full mb-3">
             <Check className="w-3 h-3" /> תשלום אושר
@@ -132,7 +133,7 @@ function SuccessInner() {
 
           {/* Big credits badge */}
           {Number.isFinite(credits) && credits > 0 && (
-            <div className="inline-flex items-center gap-1.5 bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/40 text-amber-100 text-base font-extrabold px-4 py-1.5 rounded-full mb-4">
+            <div className="inline-flex items-center gap-1.5 bg-gradient-to-br from-brand/25 to-accent-pink/15 border border-brand/40 text-white text-base font-extrabold px-4 py-1.5 rounded-full mb-4">
               <MasterCoin size={18} /> +{credits}
             </div>
           )}
@@ -144,7 +145,7 @@ function SuccessInner() {
                 <MasterCoin size={20} />
                 <span>{balanceLabel}</span>
               </div>
-              <div className="text-2xl font-black text-amber-200" key={liveBalance}>
+              <div className="text-2xl font-black bg-gradient-to-r from-brand-light to-accent-pink bg-clip-text text-transparent" key={liveBalance}>
                 {liveBalance.toLocaleString()}{" "}
                 <span className="text-[11px] text-white/40 font-normal">{currency}</span>
               </div>
@@ -154,7 +155,7 @@ function SuccessInner() {
           {/* Primary CTA */}
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-amber-500 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity shadow-lg shadow-brand/30"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity shadow-lg shadow-brand/40"
           >
             <Wand2 className="w-4 h-4" /> {ctaStart}
           </Link>
@@ -196,7 +197,7 @@ function FloatingCoin({ size, x, y, delay }: { size: number; x: number; y: numbe
         animationDelay: `${delay}s`,
       } as React.CSSProperties}
     >
-      <MasterCoin size={size} className="drop-shadow-[0_4px_8px_rgba(251,191,36,0.4)]" />
+      <MasterCoin size={size} className="drop-shadow-[0_4px_8px_rgba(168,85,247,0.45)]" />
     </div>
   );
 }
