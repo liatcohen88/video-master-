@@ -792,8 +792,14 @@ export default function VideoPreview({
           />
         )}
 
-        {/* All emoji/logo overlays sit in a high-z-index layer above the video */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+        {/* All emoji/logo overlays sit in a high-z-index layer above the video.
+            translateZ(0) is CRITICAL on iOS Safari: the native <video> element
+            renders on its own GPU compositing layer, and ordinary DOM
+            siblings get painted BEHIND it regardless of z-index — that's why
+            AI emojis appeared in the subtitle editor but not on the playing
+            video (Liat 2026-06-16). Promoting this overlay layer to its own
+            transform stacking context puts it back above the video. */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, transform: "translateZ(0)" }}>
         {/* Contextual emoji elements at keyword timestamps */}
         {visibleElements.map((el) => (
           <ElementOverlay

@@ -34,7 +34,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 
 const STORAGE_KEY = "vm_pip_pos_v1";
-const PIP_WIDTH = 140;
+// Bumped 140 → 180 (Liat 2026-06-16: "אין לי אפשרות להעביר קדימה אחורה
+// סגר תחתון. הוא נעלם.") — iOS Safari shrinks/hides the native video
+// controls below ~160px wide, leaving the user unable to scrub. 180px is
+// the smallest size where the play / seek-bar / fullscreen icons all fit.
+const PIP_WIDTH = 180;
 const MARGIN = 8;
 const DEFAULT_TOP = 64;
 const DEFAULT_RIGHT = 8;
