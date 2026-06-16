@@ -38,11 +38,34 @@ async function creditViaSupabase(opts: {
   const supa = adminClient();
   if (!supa) return "no-db";
 
-  // Resolve the profile: prefer explicit userId, else look up by email.
+  // Resolve the profile: prefer explicit userId, else look up by email,
+  // else fall back to pending_payments matching by amount.
   let userId = opts.userId;
+  let resolvedPackageId = opts.packageId;
+  let pendingPaymentId: string | undefined;
   if (!userId && opts.email) {
     const { data } = await supa.from("profiles").select("id").eq("email", opts.email).maybeSingle();
     userId = data?.id;
+  }
+  if (!userId && opts.amountIls) {
+    // Grow's minimal flow doesn't capture email — we wrote a pending_payments
+    // row from /buy/[pkg] before sending the user to Grow. Match by exact
+    // amount, most recent unfulfilled, within 30 minutes.
+    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: pending } = await supa
+      .from("pending_payments")
+      .select("id, user_id, package_id, credits")
+      .eq("amount_ils", opts.amountIls)
+      .is("fulfilled_at", null)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pending) {
+      userId = pending.user_id;
+      resolvedPackageId = pending.package_id;
+      pendingPaymentId = pending.id;
+    }
   }
   if (!userId) return "no-user";
 
@@ -55,7 +78,7 @@ async function creditViaSupabase(opts: {
     provider_txn_id: opts.txnId ?? null,
     amount_ils: opts.amountIls ?? 0,
     credits_bought: opts.credits,
-    package_id: opts.packageId ?? null,
+    package_id: resolvedPackageId ?? null,
   });
   if (revErr) {
     if (revErr.code === "23505") return "duplicate"; // unique violation
@@ -64,6 +87,13 @@ async function creditViaSupabase(opts: {
 
   const { error: addErr } = await supa.rpc("add_credits", { p_user_id: userId, p_credits: opts.credits });
   if (addErr) throw new Error(`add_credits failed: ${addErr.message}`);
+
+  // Mark the pending row fulfilled so it can't match a future webhook.
+  if (pendingPaymentId) {
+    await supa.from("pending_payments")
+      .update({ fulfilled_at: new Date().toISOString(), fulfilled_txn: opts.txnId ?? null })
+      .eq("id", pendingPaymentId);
+  }
   return "credited";
 }
 

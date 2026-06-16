@@ -18,11 +18,15 @@ export const CREDIT_PACKAGES: ReadonlyArray<{
   label: string;
   /** Optional badge displayed above the card */
   highlight?: string;
+  /** Grow.link permanent payment page URL for this package. Buyer reaches
+   *  /buy/[pkg] (our page, collects email + writes pending_payments) and
+   *  then we redirect them here. Add more as Liat creates pages in Grow. */
+  payUrl?: string;
 }> = [
-  { id: "mini",     credits: 25,  priceIls: 10,                                  label: "התחלה" },
-  { id: "starter",  credits: 50,  priceIls: 25,                                  label: "פופולרי", highlight: "הכי נמכר" },
-  { id: "pro",      credits: 100, priceIls: 50,                                  label: "פרו" },
-  { id: "business", credits: 200, priceIls: 100,                                 label: "ביזנס",  highlight: "הכי משתלם" },
+  { id: "mini",     credits: 25,  priceIls: 10,  label: "התחלה",   payUrl: "https://pay.grow.link/NDMzNTA~a85f87a80f781ac09fb2bac7f7ef655f-MzU2MjI3OQ" },
+  { id: "starter",  credits: 50,  priceIls: 25,  label: "פופולרי", highlight: "הכי נמכר" },
+  { id: "pro",      credits: 100, priceIls: 50,  label: "פרו" },
+  { id: "business", credits: 200, priceIls: 100, label: "ביזנס",   highlight: "הכי משתלם" },
 ];
 
 /** Base price per mode. For `advanced_effects` this is the starting price —

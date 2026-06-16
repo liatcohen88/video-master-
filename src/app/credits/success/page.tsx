@@ -1,25 +1,29 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, AlertCircle, ShoppingBag, Wand2, Sparkles } from "lucide-react";
+import { AlertCircle, ShoppingBag, Wand2, Check } from "lucide-react";
 import { useContent } from "@/lib/useContent";
-import LogoMark from "@/components/LogoMark";
+import { useAuth } from "@/lib/useAuth";
+import { browserClient } from "@/lib/supabase";
+import MasterCoin from "@/components/MasterCoin";
 
 // useSearchParams() suspends during prerender, so the page must be wrapped
-// in a Suspense boundary or Next 15 fails the build with "Error occurred
-// prerendering". Force-dynamic avoids prerender entirely for this route —
-// it's a payment-callback page that always needs fresh URL params anyway.
+// in a Suspense boundary. Force-dynamic avoids prerender entirely.
 export const dynamic = "force-dynamic";
 
 /**
- * /credits/success — PayPlus redirects here after the user finishes the
- * hosted payment page. URL params: ?pkg=<id>&credits=<n>  (on success)
- *                                   ?status=fail           (on cancel/decline)
+ * /credits/success — Grow redirects here after the user completes payment.
  *
- * The actual credit grant happens server-side via the PayPlus webhook
- * (/api/payplus/webhook); this page is purely the visual receipt.
+ * URL params:
+ *   ?credits=<n>   how many credits were just purchased (display only)
+ *   ?pkg=<id>      which package
+ *   ?status=fail   on cancel/decline
+ *
+ * The actual credit grant happens server-side via /api/grow/webhook so this
+ * page is purely visual. We poll the auth profile briefly after mount to
+ * pick up the new balance if the webhook landed within ~5 seconds.
  */
 export default function CreditsSuccessPage() {
   return (
@@ -35,6 +39,27 @@ function SuccessInner() {
   const creditsStr = sp.get("credits");
   const credits    = creditsStr ? parseInt(creditsStr, 10) : NaN;
 
+  const auth = useAuth();
+  const [polledBalance, setPolledBalance] = useState<number | null>(null);
+
+  // Webhook lands a moment after redirect — poll Supabase directly so the
+  // balance card shows the fresh number without a manual page reload.
+  // Stop after 8 ticks (~12 seconds) so we don't hammer the DB forever.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (failed || auth.status !== "user" || !auth.profile?.id || tick >= 8) return;
+    const id = setTimeout(async () => {
+      const sb = browserClient();
+      if (!sb) return;
+      const { data } = await sb.from("profiles").select("credits").eq("id", auth.profile!.id).maybeSingle();
+      if (data?.credits != null) setPolledBalance(data.credits);
+      setTick((t) => t + 1);
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [failed, auth.status, auth.profile, tick]);
+
+  const liveBalance = polledBalance ?? (auth.status === "user" && auth.profile ? auth.profile.credits : null);
+
   const title       = useContent("purchase.title") as string;
   const body        = useContent("purchase.body") as string;
   const bodyNoQty   = useContent("purchase.bodyNoQty") as string;
@@ -43,6 +68,8 @@ function SuccessInner() {
   const errTitle    = useContent("purchase.error.title") as string;
   const errBody     = useContent("purchase.error.body") as string;
   const errRetry    = useContent("purchase.error.retry") as string;
+  const balanceLabel = useContent("credits.balanceLabel") as string;
+  const currency    = (useContent("brand.currencyName") as string) || "מאסטרים";
 
   if (failed) {
     return (
@@ -62,22 +89,42 @@ function SuccessInner() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-bg-dark via-bg-panel to-bg-dark text-white">
-      <div className="max-w-md w-full">
-        {/* Confetti-style header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex p-5 rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/15 border border-emerald-400/40 mb-4 shadow-2xl shadow-emerald-500/20">
-            <CheckCircle2 className="w-14 h-14 text-emerald-300" />
-          </div>
-          <div className="flex justify-center mb-3">
-            <LogoMark size={42} />
+    <div dir="rtl" className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-bg-dark via-bg-panel to-bg-dark text-white overflow-hidden relative">
+      {/* Ambient golden glow background — keeps the gold coin feeling lifted */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full bg-amber-400/15 blur-[120px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] rounded-full bg-amber-300/20 blur-[80px]" />
+      </div>
+
+      <div className="relative max-w-md w-full">
+        {/* Floating-coin hero — big coin in center, smaller coins orbiting */}
+        <div className="relative h-[260px] mb-2 flex items-center justify-center">
+          {/* Orbit coins — pure CSS animations, randomized phases */}
+          <FloatingCoin size={42} x={-110} y={-30} delay={0} />
+          <FloatingCoin size={36} x={120}  y={-50} delay={0.4} />
+          <FloatingCoin size={34} x={-130} y={70}  delay={0.8} />
+          <FloatingCoin size={40} x={130}  y={60}  delay={1.2} />
+          <FloatingCoin size={28} x={-30}  y={-100} delay={1.6} />
+          <FloatingCoin size={30} x={40}   y={100} delay={2.0} />
+
+          {/* Center coin */}
+          <div className="relative">
+            <div className="absolute inset-0 -m-8 rounded-full bg-amber-400/30 blur-2xl animate-pulse" />
+            <MasterCoin size={170} className="relative drop-shadow-[0_8px_24px_rgba(251,191,36,0.55)] animate-coin-bob" />
           </div>
         </div>
 
         {/* Success card */}
-        <div className="bg-bg-panel border border-emerald-400/30 rounded-3xl p-8 text-center shadow-2xl">
-          <h1 className="text-2xl md:text-3xl font-extrabold mb-3">{title}</h1>
-          <p className="text-white/70 mb-6">
+        <div className="bg-bg-panel/80 backdrop-blur border border-amber-400/30 rounded-3xl px-6 py-6 text-center shadow-2xl shadow-amber-500/10">
+          {/* Check badge */}
+          <div className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold px-3 py-1 rounded-full mb-3">
+            <Check className="w-3 h-3" /> תשלום אושר
+          </div>
+
+          <h1 className="text-3xl font-black mb-2 bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">
+            {title}
+          </h1>
+          <p className="text-white/70 text-sm mb-4">
             {Number.isFinite(credits) && credits > 0
               ? body.replace("{{credits}}", String(credits))
               : bodyNoQty}
@@ -85,29 +132,71 @@ function SuccessInner() {
 
           {/* Big credits badge */}
           {Number.isFinite(credits) && credits > 0 && (
-            <div className="inline-flex items-center gap-2 bg-amber-500/15 border border-amber-400/40 text-amber-200 text-lg font-extrabold px-5 py-2 rounded-full mb-6">
-              <Sparkles className="w-5 h-5" />
-              +{credits} מאסטרים
+            <div className="inline-flex items-center gap-1.5 bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/40 text-amber-100 text-base font-extrabold px-4 py-1.5 rounded-full mb-4">
+              <MasterCoin size={18} /> +{credits}
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="grid grid-cols-1 gap-2.5 mt-2">
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand to-accent-pink hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity"
-            >
-              <Wand2 className="w-4 h-4" /> {ctaStart}
-            </Link>
-            <Link
-              href="/credits"
-              className="flex items-center justify-center gap-2 bg-white/8 hover:bg-white/12 text-white font-bold py-3 rounded-xl"
-            >
-              <ShoppingBag className="w-4 h-4" /> {ctaMore}
-            </Link>
-          </div>
+          {/* Live balance card — updates as the webhook lands */}
+          {liveBalance !== null && (
+            <div className="bg-bg-card/70 border border-white/10 rounded-2xl px-4 py-3 mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white/70 text-sm">
+                <MasterCoin size={20} />
+                <span>{balanceLabel}</span>
+              </div>
+              <div className="text-2xl font-black text-amber-200" key={liveBalance}>
+                {liveBalance.toLocaleString()}{" "}
+                <span className="text-[11px] text-white/40 font-normal">{currency}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Primary CTA */}
+          <Link
+            href="/"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-amber-500 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity shadow-lg shadow-brand/30"
+          >
+            <Wand2 className="w-4 h-4" /> {ctaStart}
+          </Link>
+          <Link
+            href="/credits"
+            className="block text-white/40 hover:text-white/70 text-xs mt-3"
+          >
+            {ctaMore}
+          </Link>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes coin-bob {
+          0%, 100% { transform: translateY(0) rotate(-2deg); }
+          50%      { transform: translateY(-8px) rotate(2deg); }
+        }
+        .animate-coin-bob { animation: coin-bob 3.5s ease-in-out infinite; }
+        @keyframes float-coin {
+          0%   { transform: translate(var(--cx), var(--cy)) rotate(0deg);   opacity: 0; }
+          15%  { opacity: 0.85; }
+          50%  { transform: translate(calc(var(--cx) + 8px), calc(var(--cy) - 12px)) rotate(8deg); opacity: 1; }
+          85%  { opacity: 0.7; }
+          100% { transform: translate(var(--cx), var(--cy)) rotate(0deg);   opacity: 0; }
+        }
+        .float-coin { animation: float-coin 4s ease-in-out infinite; position: absolute; }
+      `}</style>
+    </div>
+  );
+}
+
+function FloatingCoin({ size, x, y, delay }: { size: number; x: number; y: number; delay: number }) {
+  return (
+    <div
+      className="float-coin"
+      style={{
+        ["--cx" as string]: `${x}px`,
+        ["--cy" as string]: `${y}px`,
+        animationDelay: `${delay}s`,
+      } as React.CSSProperties}
+    >
+      <MasterCoin size={size} className="drop-shadow-[0_4px_8px_rgba(251,191,36,0.4)]" />
     </div>
   );
 }

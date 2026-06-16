@@ -5,7 +5,7 @@ import {
   Sparkles, AlertTriangle, Shield, RefreshCw,
   Subtitles, Wand2, Mic, Layers, ArrowRight,
 } from "lucide-react";
-import { getCredits, addCredits } from "@/lib/credits";
+import { getCredits } from "@/lib/credits";
 import { getProfile } from "@/lib/userStore";
 import { useAuth } from "@/lib/useAuth";
 import { useContent } from "@/lib/useContent";
@@ -78,29 +78,13 @@ export default function CreditsPage() {
     return () => window.removeEventListener("credits-change", refresh);
   }, []);
 
-  async function buy(id: string) {
-    setBusy(id); setMsg(null);
-    try {
-      const pkg = packages.find((p) => p.id === id);
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ packageId: id, packageOverride: pkg }),
-      });
-      const j = await res.json();
-      if (j.mode === "dev-stub") {
-        addCredits(j.creditsToAdd);
-        setMsg(`✓ נוספו ${j.creditsToAdd} ${currency} לחשבון שלך!`);
-      } else if (j.url) {
-        window.location.href = j.url;
-      } else {
-        setMsg(j.error || "שגיאה לא צפויה");
-      }
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
+  // Send the buyer to our pre-checkout page /buy/[pkg]. That page collects
+  // the user's identity (so the webhook can credit the right account when
+  // Grow returns), renders the branded checkout UI, and only then
+  // redirects to Grow's hosted payment page.
+  function buy(id: string) {
+    setBusy(id);
+    window.location.href = `/buy/${id}`;
   }
 
   // "What can I do with current balance" calculator
