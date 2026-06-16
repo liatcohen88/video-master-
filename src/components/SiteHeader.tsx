@@ -76,10 +76,26 @@ export default function SiteHeader() {
   const initial = userName.charAt(0) || defaultInitial;
   const notifications = listNotifications();
 
+  // Logo + "Home" intent → REAL landing page (the upload screen), not the
+  // editor that auto-rehydrates from a saved-mid-edit session. Liat
+  // 2026-06-16: "כדי להגיע אל דף הבית אני צריכה ללחוץ על החלף — גם בתפריט
+  // בית זה הברירת מחדל שלו". The `vm_active_edit` flag tells the home
+  // page to re-attach the cached video; clearing it on intent-to-go-home
+  // gives the user a clean landing view. Hard reload guarantees React
+  // state mounts fresh.
+  function goHomeClean(e?: React.MouseEvent) {
+    if (e) e.preventDefault();
+    try { sessionStorage.removeItem("vm_active_edit"); } catch {}
+    if (typeof window !== "undefined") {
+      if (window.location.pathname === "/") window.location.reload();
+      else window.location.href = "/";
+    }
+  }
+
   return (
     <header className="flex items-center justify-between gap-3 relative">
       {/* RIGHT (RTL first) — brand lockup */}
-      <a href="/" className="flex items-center gap-2.5 min-w-0 group" title={tipHome}>
+      <a href="/" onClick={goHomeClean} className="flex items-center gap-2.5 min-w-0 group" title={tipHome}>
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-brand blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
           <LogoMark size={logoSize} mode="static" className="relative" />
@@ -92,7 +108,7 @@ export default function SiteHeader() {
 
       {/* CENTER — main nav (desktop only) */}
       <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-        <a href="/" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHome}</a>
+        <a href="/" onClick={goHomeClean} className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHome}</a>
         <a href="/credits" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navCredits}</a>
         <a href="/help" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHelp}</a>
       </nav>
@@ -247,9 +263,23 @@ export default function SiteHeader() {
 }
 
 function ProfileMenuItem({ href, icon, label, highlight }: { href: string; icon: string; label: string; highlight?: boolean }) {
+  // "Home" always lands on the real upload screen, never on a rehydrated
+  // editor (Liat: "בית זה ברירת מחדל שלו ולא הדף הבית האמיתי איפה
+  // שמעלים סרטון"). Clearing vm_active_edit + hard reload gives a clean
+  // landing UI; for non-home targets we keep the default behavior.
+  function onClick(e: React.MouseEvent) {
+    if (href !== "/") return;
+    e.preventDefault();
+    try { sessionStorage.removeItem("vm_active_edit"); } catch {}
+    if (typeof window !== "undefined") {
+      if (window.location.pathname === "/") window.location.reload();
+      else window.location.href = "/";
+    }
+  }
   return (
     <a
       href={href}
+      onClick={onClick}
       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
         highlight
           ? "bg-brand/20 text-white font-bold hover:bg-brand/30"

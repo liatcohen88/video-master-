@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/useAuth";
 import { browserClient } from "@/lib/supabase";
 import { useContent } from "@/lib/useContent";
 import MasterCoin from "@/components/MasterCoin";
-import LogoMark from "@/components/LogoMark";
+import SiteHeader from "@/components/SiteHeader";
 
 /**
  * /buy/[pkg] — pre-checkout landing.
@@ -38,7 +38,6 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
   const [err, setErr] = useState<string | null>(null);
 
   const currency       = (useContent("brand.currencyName") as string) || "מאסטרים";
-  const headerTagline  = useContent("brand.tagline") as string;
 
   if (!pkg) {
     return (
@@ -112,19 +111,13 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
         <div className="absolute bottom-1/4 left-1/4 w-[340px] h-[340px] rounded-full bg-accent-pink/20 blur-[120px]" />
       </div>
 
-      <div className="relative max-w-md mx-auto px-4 py-8">
-        {/* Brand strip — clickable, returns to the home page. */}
-        <Link
-          href="/"
-          aria-label="לדף הבית"
-          className="flex items-center justify-center gap-3 mb-6 hover:opacity-90 transition-opacity"
-        >
-          <LogoMark size={36} />
-          <div className="text-right">
-            <div className="font-extrabold text-base leading-none">MASTERS</div>
-            <div className="text-[10px] text-white/40">{headerTagline}</div>
-          </div>
-        </Link>
+      <div className="relative max-w-md mx-auto px-4 py-6">
+        {/* Full SiteHeader — same UX as every other page (logo + profile +
+            hamburger + credits pill). The logo here, like everywhere, takes
+            the user back to the real home page (clears any active-edit
+            session first). Liat 2026-06-16: "תעשה את אותו הדר עם לוגו
+            פרופיל המבורגר". */}
+        <div className="mb-6"><SiteHeader /></div>
 
         {/* Hero card: coin + price */}
         <div className="bg-gradient-to-br from-bg-panel/90 to-bg-card/90 backdrop-blur border border-amber-400/25 rounded-3xl px-6 py-7 shadow-2xl shadow-amber-500/10">
@@ -182,37 +175,28 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
           )}
 
           {/* Checkout button */}
-          {(() => {
-            const priceDisplay = pkg.priceIls % 1 === 0 ? pkg.priceIls : pkg.priceIls.toFixed(2);
-            return (
-              <button
-                type="button"
-                disabled={submitting || auth.status === "loading"}
-                onClick={onCheckout}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 disabled:opacity-90 disabled:cursor-wait text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/40 whitespace-nowrap"
-              >
-                {submitting ? (
-                  // Loading state — single line, just spinner + text. Liat
-                  // 2026-06-16: keeping the lock+arrow icons during loading
-                  // squeezed the RTL text into two lines on mobile.
-                  <>
-                    <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    <span>מעבירים אותך לסליקה...</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-4 h-4 shrink-0" />
-                    <span>
-                      {auth.status !== "user"
-                        ? `התחברות והמשך לתשלום ₪${priceDisplay}`
-                        : `המשך לתשלום ₪${priceDisplay}`}
-                    </span>
-                    <ArrowRight className="w-4 h-4 shrink-0" />
-                  </>
-                )}
-              </button>
-            );
-          })()}
+          {/* Liat 2026-06-16: "תעשה רק 'לתשלום מאובטח' ותשאיר את האיקון" —
+              price + arrow removed, just the lock + short CTA. The price is
+              already prominent in the card above; repeating it on the button
+              cramped the RTL line on mobile and got truncated. */}
+          <button
+            type="button"
+            disabled={submitting || auth.status === "loading"}
+            onClick={onCheckout}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand via-accent-pink to-brand hover:opacity-90 disabled:opacity-90 disabled:cursor-wait text-white font-bold py-3.5 rounded-xl transition-opacity shadow-lg shadow-brand/40 whitespace-nowrap"
+          >
+            {submitting ? (
+              <>
+                <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span>מעבירים אותך לסליקה...</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 shrink-0" />
+                <span>{auth.status !== "user" ? "התחברות והמשך" : "לתשלום מאובטח"}</span>
+              </>
+            )}
+          </button>
 
           {/* Trust strip */}
           <div className="flex items-center justify-center gap-4 mt-5 text-[10px] text-white/40">
