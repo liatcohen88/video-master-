@@ -113,14 +113,18 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
       </div>
 
       <div className="relative max-w-md mx-auto px-4 py-8">
-        {/* Brand strip */}
-        <div className="flex items-center justify-center gap-3 mb-6">
+        {/* Brand strip — clickable, returns to the home page. */}
+        <Link
+          href="/"
+          aria-label="לדף הבית"
+          className="flex items-center justify-center gap-3 mb-6 hover:opacity-90 transition-opacity"
+        >
           <LogoMark size={36} />
           <div className="text-right">
             <div className="font-extrabold text-base leading-none">MASTERS</div>
             <div className="text-[10px] text-white/40">{headerTagline}</div>
           </div>
-        </div>
+        </Link>
 
         {/* Hero card: coin + price */}
         <div className="bg-gradient-to-br from-bg-panel/90 to-bg-card/90 backdrop-blur border border-amber-400/25 rounded-3xl px-6 py-7 shadow-2xl shadow-amber-500/10">
@@ -212,9 +216,12 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
           המאסטרים יתווספו אוטומטית לחשבונך מיד לאחר השלמת התשלום ✓
         </p>
 
-        <div className="text-center mt-3">
-          <Link href="/credits" className="text-[11px] text-white/40 hover:text-white/70">
-            ← חזרה לחבילות
+        <div className="text-center mt-4">
+          <Link
+            href="/credits"
+            className="inline-flex items-center gap-1.5 text-sm text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full px-4 py-1.5 transition-colors"
+          >
+            <ArrowRight className="w-3.5 h-3.5" /> חזרה לחבילות
           </Link>
         </div>
       </div>
