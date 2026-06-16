@@ -73,6 +73,17 @@ export async function POST(req: NextRequest) {
 
   const hook = parseGrowWebhook(raw, contentType);
 
+  // The webhook secret can arrive in two places:
+  //   (a) a custom field in the form body (cField4) — Grow's preferred way,
+  //       but requires the merchant to configure the page with custom fields.
+  //   (b) a `?key=` query string on the postback URL — works on any Grow
+  //       page out of the box, no custom-field setup needed. We prefer (a)
+  //       when present; fall back to (b) otherwise.
+  if (!hook.secret) {
+    const urlKey = req.nextUrl.searchParams.get("key");
+    if (urlKey) hook.secret = urlKey;
+  }
+
   // 1. Authenticity — reject anything we can't verify so nobody mints credits.
   if (!verifyGrowWebhook(hook)) {
     console.warn("[grow webhook] verification failed", {
