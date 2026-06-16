@@ -601,6 +601,14 @@ export default function HomePage() {
     setErrorMessage(null);
     setProgressMessage(progExport);
 
+    // Pause any playing preview videos before the loader overlays the screen
+    // (Liat 2026-06-16: "כשאני לוחצת על יצוא הסרטון מתנגן ברקע וזה חופר").
+    // Hitting every <video> on the page covers both the main preview and
+    // the PiP card without coupling this code to those component refs.
+    if (typeof document !== "undefined") {
+      document.querySelectorAll("video").forEach((v) => { try { v.pause(); } catch {} });
+    }
+
     try {
       const fd = new FormData();
       fd.append("video", videoFile);
