@@ -51,10 +51,10 @@ export default function SaveSnapshotButton({ buildSnapshot, autoSaveMs = 5 * 60 
         const stamp = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
         snapshot(`ידני ${stamp}`);
       }}
-      title="שמור צילום מצב של הפרויקט — תוכלי לחזור אליו אחר כך"
+      title="שמירת צילום מצב של הפרויקט — אפשר לחזור אליו אחר כך"
       className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-brand/30 text-white text-xs font-medium flex items-center gap-1.5 transition border border-white/15">
       {justSaved ? <BookmarkCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Bookmark className="w-3.5 h-3.5" />}
-      {justSaved ? "נשמר!" : "שמור גרסה"}
+      {justSaved ? "נשמר!" : "שמירת גרסה"}
     </button>
   );
 }

@@ -23,9 +23,9 @@ export default function AiDecisionsBanner({ analysis, onMaximize }: Props) {
           <Brain className="w-4 h-4 text-brand-light" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold">AI ערך לך את הסרטון</h3>
+          <h3 className="text-sm font-bold">AI ערך את הסרטון</h3>
           <p className="text-[11px] text-white/50">
-            בדקי, ערכי טקסטים אם צריך, ולחצי ייצוא
+            לבדוק, לערוך טקסטים אם צריך, וללחוץ ייצוא
           </p>
         </div>
       </div>

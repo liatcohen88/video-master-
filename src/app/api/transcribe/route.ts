@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { spawn, spawnSync } from "node:child_process";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -79,7 +79,7 @@ async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
   if (file.size > OPENAI_MAX_BYTES) {
     throw new Error(
       `הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
-      "OpenAI Whisper מוגבל ל-25 MB. אנחנו עובדים על חיתוך אוטומטי לחלקים — בינתיים נסי סרטון קצר יותר.",
+      "OpenAI Whisper מוגבל ל-25 MB. אנחנו עובדים על חיתוך אוטומטי לחלקים — בינתיים כדאי לנסות סרטון קצר יותר.",
     );
   }
 
@@ -226,7 +226,7 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
     }
     const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
     return NextResponse.json(
-      { error: `כל המודלים קרסו (חוסר זיכרון). נסי סרטון קצר יותר. ${message}` },
+      { error: `כל המודלים קרסו (חוסר זיכרון). כדאי לנסות סרטון קצר יותר. ${message}` },
       { status: 500 },
     );
   } catch (err: unknown) {
@@ -277,7 +277,7 @@ function runPython(videoPath: string, maxWordsPerLine: number, model: string) {
       if ((e as NodeJS.ErrnoException).code === "ENOENT") {
         reject(new Error(
           "תמלול לא זמין כרגע — Whisper לא הותקן על השרת ו-OPENAI_API_KEY לא הוגדר. " +
-          "פני למפתחת.",
+          "יש לפנות לתמיכה.",
         ));
         return;
       }

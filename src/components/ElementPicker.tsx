@@ -65,7 +65,7 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
       dir="rtl"
     >
       <div className="px-3 py-2.5 border-b border-white/10 text-xs text-white/70 text-center">
-        בחרי אמוג'י להוספה לכתובית
+        בחירת אמוג'י להוספה לכתובית
       </div>
 
       <div className="overflow-y-auto p-3 flex-1">

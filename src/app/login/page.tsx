@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -35,7 +35,7 @@ export default function LoginPage() {
     setErr(null);
 
     if (!isSupabaseConfigured()) {
-      setErr("מערכת ההרשמה לא מוגדרת. פני למפתחת.");
+      setErr("מערכת ההרשמה לא מוגדרת. יש לפנות לתמיכה.");
       return;
     }
     const sb = browserClient();
@@ -47,8 +47,8 @@ export default function LoginPage() {
 
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("invalid")) setErr("אימייל או סיסמה שגויים. נסי שוב.");
-      else if (msg.includes("email not confirmed")) setErr("צריך לאשר את האימייל קודם. בדקי את התיבה.");
+      if (msg.includes("invalid")) setErr("אימייל או סיסמה שגויים. יש לנסות שוב.");
+      else if (msg.includes("email not confirmed")) setErr("צריך לאשר את האימייל קודם. יש לבדוק את התיבה.");
       else setErr(error.message);
       return;
     }

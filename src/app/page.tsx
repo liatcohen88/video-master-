@@ -833,7 +833,7 @@ export default function HomePage() {
                   }}
                   className="w-full mt-2 bg-white/5 hover:bg-white/10 border border-white/15 text-white/70 hover:text-white font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm transition-colors"
                 >
-                  🔄 מחק תמלול ותמלל מחדש
+                  🔄 מחיקת התמלול ותמלול מחדש
                 </button>
               )}
 
@@ -1112,7 +1112,7 @@ export default function HomePage() {
                       onClick={() => setDownloadSuccess(null)}
                       className="w-full bg-gradient-to-r from-brand to-accent-pink hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity"
                     >
-                      סגרי
+                      סגירה
                     </button>
                   </div>
                 </div>
@@ -1206,7 +1206,7 @@ function _Header_DEPRECATED() {
             credits?"). Now: tap balance → /credits. Simpler. */}
         <a href="/credits"
            className="bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-white/10 hover:border-brand/40 px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors"
-           title="היתרה שלך — לחצי לקניית חבילה">
+           title="היתרה — ללחיצה לקניית חבילה">
           <MasterCoin size={16} />
           <span className="font-bold text-white">{credits.toLocaleString()}</span>
         </a>

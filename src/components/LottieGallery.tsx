@@ -130,7 +130,7 @@ export default function LottieGallery({
                       setAnchorRect(ev.currentTarget.getBoundingClientRect());
                     }}
                     className="p-1 text-white/40 hover:text-white"
-                    title={el.sfxId === "none" ? "צליל מבוטל" : el.sfxId ? `צליל: ${getSfxAsset(el.sfxId)?.label ?? el.sfxId}` : "ללא צליל — לחצי להוספה"}
+                    title={el.sfxId === "none" ? "צליל מבוטל" : el.sfxId ? `צליל: ${getSfxAsset(el.sfxId)?.label ?? el.sfxId}` : "ללא צליל — ללחיצה להוספה"}
                   >
                     {el.sfxId === "none" || !el.sfxId
                       ? <VolumeX className="w-3.5 h-3.5" />

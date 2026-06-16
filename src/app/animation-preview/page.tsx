@@ -164,7 +164,7 @@ function BrowserMockup() {
 
             {/* AI tip */}
             <div style={{ margin: "0 10px 10px", padding: "8px 10px", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(255,200,0,0.2)", borderRadius: 8, fontSize: 10, color: "rgba(255,220,100,0.85)", lineHeight: 1.5, fontFamily: "var(--font-heebo),sans-serif", direction: "rtl" }}>
-              💡 <strong>תוספת אופציינלית</strong> — ה-AI לא מפעיל אותם אוטומטית. תוכלי לבחור בכל אחד מהם, ולשלם רק עבור מה שבחרת.
+              💡 <strong>תוספת אופציינלית</strong> — ה-AI לא מפעיל אותם אוטומטית. אפשר לבחור בכל אחד מהם, ולשלם רק עבור מה שנבחר.
             </div>
 
             {/* tabs */}
@@ -365,7 +365,7 @@ export default function AnimationPreviewPage() {
               </span>
             </h1>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 17, marginTop: "1rem", lineHeight: 1.7 }}>
-              העלי וידאו. תקבלי כתוביות מסונכרנות, beat-drops, אייקונים ו-drama mode — אוטומטית.
+              מעלים וידאו. מקבלים כתוביות מסונכרנות, beat-drops, אייקונים ו-drama mode — אוטומטית.
             </p>
           </div>
 

@@ -84,7 +84,7 @@ export default function EmojiPicker({
       dir="rtl"
     >
       <div className="text-xs text-white/40 mb-2 text-center">
-        בחרי אמוג'י חדש (נוכחי: {currentEmoji})
+        בחירת אמוג'י חדש (נוכחי: {currentEmoji})
       </div>
 
       {/* Search bar — Hebrew keyword search ("ציוץ" → 🐦, "אש" → 🔥, etc.) */}

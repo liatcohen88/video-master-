@@ -67,9 +67,9 @@ export default function ReferenceUploader({ onAnalyzed }: Props) {
           <Film className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="text-base font-bold">או — תני לי דוגמת סרטון 🎯</h3>
+          <h3 className="text-base font-bold">או — דוגמת סרטון להשראה 🎯</h3>
           <p className="text-xs text-white/50 mt-0.5">
-            העלי סרטון רפרנס - AI ינתח את הסטייל ויחיל אותו על הוידאו שלך
+            מעלים סרטון רפרנס - AI ינתח את הסטייל ויחיל אותו על הוידאו שלך
           </p>
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function ReferenceUploader({ onAnalyzed }: Props) {
           "
         >
           <Sparkles className="w-4 h-4 text-fuchsia-300" />
-          העלי סרטון רפרנס לניתוח
+          להעלאת סרטון רפרנס לניתוח
         </button>
       )}
 
@@ -130,7 +130,7 @@ export default function ReferenceUploader({ onAnalyzed }: Props) {
             onClick={() => inputRef.current?.click()}
             className="text-xs text-fuchsia-300/70 hover:text-fuchsia-200 underline"
           >
-            נסי רפרנס אחר
+            לנסות רפרנס אחר
           </button>
         </div>
       )}

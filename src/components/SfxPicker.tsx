@@ -120,7 +120,7 @@ export default function SfxPicker({
       dir="rtl"
     >
       <div className="text-xs text-white/40 mb-2 text-center">
-        בחרי צליל (נוכחי: <span className="text-white/70">{currentLabel}</span>)
+        בחירת צליל (נוכחי: <span className="text-white/70">{currentLabel}</span>)
       </div>
 
       {/* Search */}
@@ -171,7 +171,7 @@ export default function SfxPicker({
           return (
             <div className="text-center text-xs text-white/40 py-6">
               לא נמצאו צלילים ל-״{query}״
-              <div className="text-[10px] text-white/30 mt-1">תוכלי לעדכן שמות צלילים ב-/admin → SFX</div>
+              <div className="text-[10px] text-white/30 mt-1">ניתן לעדכן שמות צלילים ב-/admin → SFX</div>
             </div>
           );
         }

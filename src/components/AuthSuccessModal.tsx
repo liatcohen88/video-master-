@@ -75,7 +75,7 @@ export default function AuthSuccessModal() {
       >
         <button
           onClick={close}
-          aria-label="סגרי"
+          aria-label="סגירה"
           className="absolute top-3 left-3 text-white/40 hover:text-white p-1 rounded-md"
         >
           <X className="w-4 h-4" />

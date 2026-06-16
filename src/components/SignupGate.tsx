@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -48,7 +48,7 @@ export default function SignupGate({
 
   async function googleSignIn() {
     setErr(null);
-    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. פני למפתחת."); return; }
+    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. יש לפנות לתמיכה."); return; }
     const sb = browserClient();
     if (!sb) return;
     setBusy(true);
@@ -75,7 +75,7 @@ export default function SignupGate({
       setErr(passShortMsg);
       return;
     }
-    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. פני למפתחת."); return; }
+    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. יש לפנות לתמיכה."); return; }
     const sb = browserClient();
     if (!sb) return;
     setBusy(true);
