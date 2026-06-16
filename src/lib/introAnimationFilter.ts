@@ -105,7 +105,7 @@ export function buildIntroAnimationFilters(
         // First pad below to give slide room
         `pad=iw:ih*2:0:0:black`,
         // Crop animated: y goes from ih (bottom edge) to 0 over `d` seconds
-        `crop=${outputW}:${outputH}:0:'if(lt(t,${d}), ih/2*(1-t/${d}) + ih/2, ih/2)':eval=frame`,
+        `crop=${outputW}:${outputH}:0:'if(lt(t,${d}), ih/2*(1-t/${d}) + ih/2, ih/2)'`,
       ];
 
     case "shake": {
@@ -123,7 +123,7 @@ export function buildIntroAnimationFilters(
       const yExpr = `(${pad} + ${ampPx}*${decay}*cos(2*PI*${freq}*t*1.3))`;
       return [
         `pad=iw+${pad * 2}:ih+${pad * 2}:${pad}:${pad}:black`,
-        `crop=${outputW}:${outputH}:'${xExpr}':'${yExpr}':eval=frame`,
+        `crop=${outputW}:${outputH}:'${xExpr}':'${yExpr}'`,
         `fade=in:st=0:d=${(d * 0.4).toFixed(3)}`,
       ];
     }
@@ -133,7 +133,7 @@ export function buildIntroAnimationFilters(
       // slideUp but on the x axis.
       return [
         `pad=iw*2:ih:0:0:black`,
-        `crop=${outputW}:${outputH}:'if(lt(t,${d}), iw/2*(1-t/${d}) + iw/2, iw/2)':0:eval=frame`,
+        `crop=${outputW}:${outputH}:'if(lt(t,${d}), iw/2*(1-t/${d}) + iw/2, iw/2)':0`,
       ];
 
     case "irisOpen":
