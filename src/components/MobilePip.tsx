@@ -81,16 +81,33 @@ export default function MobilePip({ children }: { children: React.ReactNode }) {
     return () => ro.disconnect();
   }, [isPip]);
 
-  // Sentinel watcher. Sentinel sits AFTER the children. When the user
-  // scrolls past the bottom of the preview, sentinel leaves the top of
-  // the viewport → isPip=true. rootMargin gives a small hysteresis buffer.
+  // Sentinel watcher. Sentinel sits AFTER the children. PiP must turn ON
+  // ONLY when the user has scrolled PAST the preview (sentinel is above
+  // the viewport top) — NOT when the sentinel is simply below the
+  // viewport because the preview is tall and the user hasn't scrolled
+  // yet (Liat 2026-06-16: "במובייל עדיין כשאני למעלה הסרטון בקטן" — on
+  // mobile a 9:16 preview fills the whole screen and pushes the sentinel
+  // below the fold from the very start. The old `!entry.isIntersecting`
+  // check fired immediately because off-screen-BOTTOM is not intersecting
+  // either, so PiP turned on at the top of the page).
+  //
+  // Fix: explicitly check the sentinel's bounding rect against the root
+  // bounds. PiP only activates when the sentinel is ABOVE the viewport,
+  // never when it's below.
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
-      ([entry]) => { setIsPip(!entry.isIntersecting); },
-      // Negative top margin: sentinel is "still intersecting" until it's
-      // 40px above the viewport top. Tiny scroll oscillations don't toggle.
+      ([entry]) => {
+        if (entry.isIntersecting) { setIsPip(false); return; }
+        const rb = entry.rootBounds;
+        if (!rb) return;
+        // Sentinel above viewport top → user scrolled past preview → PiP ON
+        // Sentinel below viewport bottom → user hasn't scrolled there yet → PiP OFF
+        setIsPip(entry.boundingClientRect.top < rb.top);
+      },
+      // Negative top margin: gives a 40px hysteresis buffer so micro-scrolls
+      // near the boundary don't toggle.
       { rootMargin: "-40px 0px 0px 0px", threshold: 0 },
     );
     io.observe(sentinel);
