@@ -1200,8 +1200,22 @@ function _Header_DEPRECATED() {
 
   return (
     <header className="flex items-center justify-between gap-3">
-      {/* RIGHT (RTL first) — brand lockup: logo tight to name + tagline */}
-      <a href="/" className="flex items-center gap-2.5 min-w-0 group" title="לדף הבית">
+      {/* RIGHT (RTL first) — brand lockup: logo tight to name + tagline.
+          The logo links to "/" so it always works as "home". Since this
+          header IS the home page, a same-URL click does nothing by default —
+          we intercept and scroll back to the top so the click still feels
+          responsive (Liat 2026-06-16: "הלוגו לא מעביר לדף הבית אלא לאותו דף"). */}
+      <a
+        href="/"
+        className="flex items-center gap-2.5 min-w-0 group"
+        title="לדף הבית"
+        onClick={(e) => {
+          if (typeof window !== "undefined" && window.location.pathname === "/") {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }}
+      >
         <div className="relative shrink-0">
           <div className="absolute inset-0 bg-brand blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
           <LogoMark size={logoSize} mode="static" className="relative" />
