@@ -670,6 +670,7 @@ export const CONTENT_DEFAULTS = {
 
   // ── AILoadingOverlay (default hint copy) ────────────
   "aiLoader.defaultHint":    "ה-AI מקשיב ומבין כל מילה. זה ייקח בערך דקה עד שתיים — תלוי באורך הסרטון.",
+  "aiLoader.stayWarning":    "⚠️ אנא הישארי בדף ואל תעברי לטאב אחר — סגירה תבטל את התהליך.",
 
   // ── EffectsPanel — silence cut block ────────────────────────────
   "effects.silenceCut.toggleLabel":  "חיתוך אוטומטי של שתיקות",

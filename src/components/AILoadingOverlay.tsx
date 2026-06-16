@@ -22,6 +22,7 @@ type Props = {
  */
 export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
   const cmsHint = useContent("aiLoader.defaultHint") as string;
+  const stayWarn = useContent("aiLoader.stayWarning") as string;
   const finalHint = hint !== undefined ? hint : cmsHint;
   return (
     <div
@@ -61,6 +62,16 @@ export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
 
         {finalHint && (
           <p className="text-[11px] text-white/40 max-w-xs leading-relaxed">{finalHint}</p>
+        )}
+
+        {/* Stay-on-page warning — Liat: "אולי כדאי גם במייצא לך את הסרטון
+            ובמתמלל שנוסיף איזו שורה שנא לא לצאת מהדף כי זה לא עובד אם
+            יוצאים, זה מראה שגיאה". Shown on both transcribe AND export
+            loaders since both use this overlay. */}
+        {stayWarn && (
+          <p className="text-xs text-amber-300/90 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2 max-w-xs leading-relaxed">
+            {stayWarn}
+          </p>
         )}
       </div>
 
