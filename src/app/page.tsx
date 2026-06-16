@@ -48,6 +48,7 @@ import AILoadingOverlay from "@/components/AILoadingOverlay";
 import SignupGate from "@/components/SignupGate";
 import { useAuth } from "@/lib/useAuth";
 import SiteHeader from "@/components/SiteHeader";
+import { detectDramaMoments, detectWowMoments } from "@/lib/dramaEffects";
 import {
   hashVideoFile,
   saveCurrentVideo,
@@ -341,32 +342,20 @@ export default function HomePage() {
   }
 
   function applyReferenceStyle(ref: ReferenceStyle) {
-    // Snap mode / template / settings / effects into the preset.
-    // Preserve face data and emphasis moments from analysis (those are
-    // video-specific, not style-specific).
-    setMode(ref.preset.mode);
-    setSettings({
-      ...MODE_DEFAULT_SETTINGS[ref.preset.mode],
-      ...ref.preset.settings,
-    });
+    // Liat 2026-06-16: "כשאני לוחצת על תבנית מוכנה זה ממש מוחק לי את כל
+    // האפקטים שעשיתי. שישנה רק את הכתוביות בלי האפקטים". So a reference
+    // style now only touches subtitle visuals — template + style + the
+    // animation type — and leaves the user's mode, settings, and effects
+    // alone. The full-look swap was overstepping.
     const tpl = TEMPLATES.find((t) => t.id === ref.preset.templateId);
     if (tpl) {
       setTemplateId(tpl.id);
       setStyle(tpl.style);
     }
-    const merged: VideoEffects = {
-      // Start from the user's CURRENT effects so picking a reference style
-      // doesn't wipe their settings (transparentLogoBg, customLogos, SFX
-      // tweaks, etc.). The preset only overrides the subtitle-related fields
-      // it explicitly cares about.
-      ...effects,
-      ...ref.preset.effectsOverride,
-      // Keep video-derived fields
-      faceCenterX: analysis?.face_detected ? analysis.face_center_x : undefined,
-      faceCenterY: analysis?.face_detected ? analysis.face_center_y : undefined,
-      emphasisMoments: analysis?.emphasis_moments ?? [],
-    };
-    setEffects(merged);
+    // The animation type is the one effect field that belongs to "subtitle
+    // visuals" — every other field (zoom, color, drama, SFX, logos, music)
+    // is left untouched.
+    setEffects({ ...effects, subtitleAnimation: ref.preset.effectsOverride.subtitleAnimation });
     setActiveReferenceId(ref.id);
   }
 
@@ -1004,6 +993,19 @@ export default function HomePage() {
                 onChange={setSubtitles}
                 currentTime={currentTime}
                 allowElements={modeCapabilities(mode).elements}
+                /* When dramaMode is on, label rows that will fire either a
+                   drama (B&W flash) or wow (warm pop) effect so the user
+                   sees the link between transcript line and on-screen beat.
+                   Liat 2026-06-16: "כשאתה מוסיף את האפקט שיהיה מידע ב
+                   עריכת כתוביות שהוא דלוק". */
+                dramaSubIds={(() => {
+                  if (!effects.dramaMode) return new Set();
+                  const ids = new Set<string>();
+                  const inWindow = (t: number) => subtitles.find((s) => t >= s.start && t <= s.end + 0.05)?.id;
+                  for (const d of detectDramaMoments(subtitles)) { const id = inWindow(d.t); if (id) ids.add(`drama:${id}`); }
+                  for (const w of detectWowMoments(subtitles))   { const id = inWindow(w.t); if (id) ids.add(`wow:${id}`); }
+                  return ids;
+                })()}
                 elementOverrides={effects.elementOverrides ?? {}}
                 positionOverrides={effects.elementPositionOverrides ?? {}}
                 disabledElements={effects.disabledElements ?? []}

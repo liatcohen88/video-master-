@@ -44,6 +44,11 @@ type Props = {
   onAutoElementChange?: (key: string, override: AutoElementOverride) => void;
   /** When false (e.g. "כתוביות בלבד" mode) emojis/icons are disabled entirely. */
   allowElements?: boolean;
+  /** Set of `drama:<subId>` or `wow:<subId>` markers. When a subtitle row
+   *  matches, we show a small chip telling the user that line will fire
+   *  the corresponding on-video effect. Liat: "כשאתה מוסיף את האפקט
+   *  שיהיה מידע בעריכת כתוביות שהוא דלוק". */
+  dramaSubIds?: Set<string>;
 };
 
 function fmt(t: number) {
@@ -67,6 +72,7 @@ export default function SubtitleEditor({
   elementSfxOverrides = {},
   onAutoElementChange,
   allowElements = true,
+  dramaSubIds,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickerForSub, setPickerForSub] = useState<string | null>(null);
@@ -253,6 +259,26 @@ export default function SubtitleEditor({
                   <span className="mx-1">←</span>
                   <span>{fmt(sub.end)}</span>
                 </div>
+                {/* Drama/wow effect chip — shows when the global drama
+                    toggle is on AND this specific line matches a trigger
+                    word. Lets the user see at a glance which lines will
+                    pop a B&W flash vs a warm pop on the video. */}
+                {dramaSubIds?.has(`drama:${sub.id}`) && (
+                  <span
+                    title="במהלך השורה הזו יופעל פילטר שחור-לבן + צליל סטינג"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/20"
+                  >
+                    🎬 דרמה
+                  </span>
+                )}
+                {dramaSubIds?.has(`wow:${sub.id}`) && (
+                  <span
+                    title="במהלך השורה הזו יופעל פילטר חם נמרץ (WOW)"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/30"
+                  >
+                    ✨ WOW
+                  </span>
+                )}
                 <div className="flex-1" />
                 {/* SFX-only button (no Lottie needed) — Liat liked the original
                     icon-only design. Don't change. */}
