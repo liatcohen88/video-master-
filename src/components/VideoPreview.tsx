@@ -8,7 +8,7 @@ import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
 import { detectBeatDrops, beatDropZoomAt } from "@/lib/wowEffects";
 import { colorFilterCss } from "@/lib/colorFilters";
-import { detectDramaMoments, dramaActiveAt, pickDramaSting } from "@/lib/dramaEffects";
+import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt } from "@/lib/dramaEffects";
 import { introFrameAt } from "@/lib/introAnimations";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "@/lib/sfxLibrary";
 import { playSfxCapped } from "@/lib/playSfxCapped";
@@ -324,6 +324,17 @@ export default function VideoPreview({
     [effects?.dramaMode, subtitles],
   );
   const activeDrama = effects?.dramaMode ? dramaActiveAt(currentTime, dramaMoments) : null;
+
+  // --- WOW words — warm saturation pop on "מטורף / וואו / מדהים" ---------
+  // Same trigger model as drama, very different vibe. Liat 2026-06-16: "מה
+  // קשור מטורף לשחור-לבן? מטורף זה התלהבות". So excited words get a brief
+  // warm pulse (saturation + contrast bump) instead of B&W. Piggybacks on
+  // the same dramaMode toggle so users opt in once.
+  const wowMoments = useMemo(
+    () => effects?.dramaMode ? detectWowMoments(subtitles) : [],
+    [effects?.dramaMode, subtitles],
+  );
+  const activeWow = effects?.dramaMode ? wowActiveAt(currentTime, wowMoments) : null;
 
   // Drama claims the moment exclusively. Liat 2026-06-16: typing "מטורף"
   // was triggering BOTH the B&W flash AND the emphasis zoom/glow on top
@@ -723,10 +734,14 @@ export default function VideoPreview({
             // because B&W is the whole point of the moment.
             filter: activeDrama
               ? "grayscale(1) contrast(1.25) brightness(0.96)"
-              : ([
-                  colorFilterCss(effects?.colorFilter),
-                  effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
-                ].filter(Boolean).join(" ") || undefined),
+              : activeWow
+                // WOW words — warm pop: bumped saturation + slight warm tint
+                // + a touch more contrast. Stays in color, just energetic.
+                ? "saturate(1.45) contrast(1.12) brightness(1.04) sepia(0.08)"
+                : ([
+                    colorFilterCss(effects?.colorFilter),
+                    effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
+                  ].filter(Boolean).join(" ") || undefined),
             transition: "transform 0.08s linear, filter 0.3s ease",
             // The video sits just above the (usually absent) dynamic BG layer.
             // IMPORTANT: keep this z-index LOW so all overlays (subtitles,

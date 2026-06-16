@@ -23,6 +23,14 @@ import { getContent } from "./contentStore";
  *  phrases or rare single words only. "מה", "באמת", "וואלה" were removed:
  *  they're conversational fillers in Hebrew, not drama signals, and made
  *  the sting fire on half the subtitles ("הוא משתגעעעעעע"). */
+/**
+ * DRAMA words = the surprise/disbelief moment. Each one is a beat where the
+ * speaker hits a wall — "I can't believe this", "no way", "this can't be
+ * happening". The B&W flash + sting fits the trope BECAUSE the moment is a
+ * negative shock. Liat 2026-06-16: "מה קשור מטורף לשחור-לבן? מטורף זה
+ * התלהבות, לא הלם." — split per her note: excited words ("מטורף", "וואו"…)
+ * moved to WOW_WORDS_BASE below and trigger a different (positive) effect.
+ */
 export const DRAMA_WORDS_BASE: { key: string; re: RegExp }[] = [
   { key: "אני לא מאמין",     re: /אני\s+לא\s+מאמין/u },
   { key: "זה לא קורה לי",    re: /זה\s+לא\s+קורה\s+לי/u },
@@ -31,6 +39,14 @@ export const DRAMA_WORDS_BASE: { key: string; re: RegExp }[] = [
   { key: "לא נכון",          re: /לא\s+נכון/u },
   { key: "אין מצב",         re: /אין\s+מצב/u },
   { key: "שיט",             re: heWord("שיט") },
+];
+
+/**
+ * WOW / animation words = excited highlights. Different vibe entirely — the
+ * speaker is amazed in a GOOD way. Triggers a brief warm color pop + zoom
+ * pulse, not B&W. Detected by detectWowMoments() below.
+ */
+export const WOW_WORDS_BASE: { key: string; re: RegExp }[] = [
   { key: "מטורף",           re: heWord("מטורף") },
   { key: "מטורפת",          re: heWord("מטורפת") },
   { key: "מדהים",           re: heWord("מדהים") },
@@ -48,6 +64,15 @@ function resolveDramaWords(): RegExp[] {
   const extras = (getContent("drama.extraWords")  as string[]) ?? [];
   const hiddenSet = new Set(hidden);
   const base = DRAMA_WORDS_BASE.filter((p) => !hiddenSet.has(p.key)).map((p) => p.re);
+  const extra = extras.filter(Boolean).map((w) => heWord(w.trim()));
+  return [...base, ...extra];
+}
+
+function resolveWowWords(): RegExp[] {
+  const hidden = (getContent("wow.hiddenWords") as string[]) ?? [];
+  const extras = (getContent("wow.extraWords")  as string[]) ?? [];
+  const hiddenSet = new Set(hidden);
+  const base = WOW_WORDS_BASE.filter((p) => !hiddenSet.has(p.key)).map((p) => p.re);
   const extra = extras.filter(Boolean).map((w) => heWord(w.trim()));
   return [...base, ...extra];
 }
@@ -101,6 +126,51 @@ export function detectDramaMoments(subtitles: Subtitle[]): DramaMoment[] {
 export function dramaActiveAt(t: number, moments: DramaMoment[]): DramaMoment | null {
   // Pre-roll the filter by 60ms so the swap aligns with the spoken word
   // (lips move before the audio peaks).
+  const PRE = 0.06;
+  for (const d of moments) {
+    if (t >= d.t - PRE && t < d.t + d.duration) return d;
+  }
+  return null;
+}
+
+// ── WOW words ───────────────────────────────────────────────────────────
+// Same engine as drama, separate list + lighter visual. Triggers a brief
+// warm color pop + soft zoom pulse (rendered in VideoPreview) instead of
+// the B&W flash. Duration shorter (0.7s) — it's an accent, not a beat.
+
+export type WowMoment = {
+  t: number;
+  duration: number;
+  word: string;
+};
+
+const WOW_DURATION = 0.7;
+const WOW_DEDUPE = 1.5; // tighter than drama — wow words land quick
+
+export function detectWowMoments(subtitles: Subtitle[]): WowMoment[] {
+  const out: WowMoment[] = [];
+  const PATTERNS = resolveWowWords();
+  for (const sub of subtitles) {
+    if (!sub.text.trim()) continue;
+    for (const re of PATTERNS) {
+      const m = sub.text.match(re);
+      if (!m) continue;
+      const cleaned = m[0].replace(/[?.,!]/g, "").trim();
+      const first = cleaned.split(/\s+/)[0] ?? cleaned;
+      const wordHit = sub.words?.find((w) =>
+        w.word.includes(first) || first.includes(w.word),
+      );
+      const t = wordHit
+        ? wordHit.start
+        : sub.start + (sub.text.indexOf(m[0]) / Math.max(sub.text.length, 1)) * (sub.end - sub.start);
+      if (out.some((d) => Math.abs(d.t - t) < WOW_DEDUPE)) continue;
+      out.push({ t, duration: WOW_DURATION, word: cleaned });
+    }
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
+export function wowActiveAt(t: number, moments: WowMoment[]): WowMoment | null {
   const PRE = 0.06;
   for (const d of moments) {
     if (t >= d.t - PRE && t < d.t + d.duration) return d;
