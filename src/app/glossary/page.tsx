@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Sparkles, Film, Tag } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import { resolveBrandLogos, brandLogoCdnUrl } from "@/lib/brandLogos";
-import { DRAMA_WORDS_BASE } from "@/lib/dramaEffects";
+import { DRAMA_WORDS_BASE, WOW_WORDS_BASE } from "@/lib/dramaEffects";
 import { KEYWORD_CATEGORIES } from "@/lib/keywordElements";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -21,16 +21,28 @@ import SiteHeader from "@/components/SiteHeader";
  *   automatically because the source-of-truth IS the CMS.
  */
 export default function GlossaryPage() {
-  // CMS additions — drama and keywords let the admin add custom words
+  // CMS additions — drama/wow/keywords let the admin add custom words
   const dramaExtras = (useContent("drama.extraWords") as string[]) ?? [];
   const dramaHidden = (useContent("drama.hiddenWords") as string[]) ?? [];
   const dramaHiddenSet = new Set(dramaHidden);
+  const wowExtras = (useContent("wow.extraWords") as string[]) ?? [];
+  const wowHidden = (useContent("wow.hiddenWords") as string[]) ?? [];
+  const wowHiddenSet = new Set(wowHidden);
+
+  // Subscribe to brand-CMS keys so any admin edit re-renders this page live.
+  // resolveBrandLogos() reads them via getContent — but we need useContent
+  // here for React to know to re-render when they change.
+  useContent("brands.custom");
+  useContent("brands.hidden");
+  useContent("brands.nameOverrides");
 
   const intro     = useContent("glossary.intro") as string;
   const brandsTitle  = useContent("glossary.brands.title") as string;
   const brandsBody   = useContent("glossary.brands.body") as string;
   const dramaTitle   = useContent("glossary.drama.title") as string;
   const dramaBody    = useContent("glossary.drama.body") as string;
+  const wowTitle     = useContent("glossary.wow.title") as string;
+  const wowBody      = useContent("glossary.wow.body") as string;
   const elementsTitle= useContent("glossary.elements.title") as string;
   const elementsBody = useContent("glossary.elements.body") as string;
   const backToApp    = useContent("glossary.backToApp") as string;
@@ -96,6 +108,30 @@ export default function GlossaryPage() {
             {dramaExtras.map((w) => (
               <span key={`x-${w}`}
                 className="inline-flex items-center gap-1 bg-red-500/15 border border-red-300/40 text-red-100 text-sm px-3 py-1 rounded-full">
+                ➕ {w}
+              </span>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── WOW words ── */}
+        <Section
+          icon={<Sparkles className="w-5 h-5" />}
+          title={wowTitle}
+          body={wowBody}
+          accent="from-fuchsia-500/15 to-pink-500/5"
+          iconBg="bg-fuchsia-500/20 text-fuchsia-200"
+        >
+          <div className="flex flex-wrap gap-2">
+            {WOW_WORDS_BASE.filter((p) => !wowHiddenSet.has(p.key)).map((p) => (
+              <span key={p.key}
+                className="inline-flex items-center gap-1 bg-fuchsia-500/10 border border-fuchsia-400/30 text-fuchsia-100 text-sm px-3 py-1 rounded-full">
+                🤩 {p.key}
+              </span>
+            ))}
+            {wowExtras.map((w) => (
+              <span key={`xw-${w}`}
+                className="inline-flex items-center gap-1 bg-fuchsia-500/15 border border-fuchsia-300/40 text-fuchsia-50 text-sm px-3 py-1 rounded-full">
                 ➕ {w}
               </span>
             ))}
