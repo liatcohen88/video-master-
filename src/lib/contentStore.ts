@@ -1053,12 +1053,28 @@ function read(): Content {
 }
 
 // ── Cloud sync (Supabase content_overrides table) ─────────────────────
-// We keep localStorage as a synchronous read-through cache so first paint
-// uses last-known values (no flash of defaults). On mount, hydrateFromCloud
-// merges the server-side overrides on top and dispatches `content-change`
-// so every useContent() subscriber re-renders.
+// First paint uses values seeded SSR-side into window.__CMS_OVERRIDES__
+// (no flash of defaults). hydrateFromCloud() then refreshes against the
+// live server in case the SSR snapshot is stale, and dispatches
+// `content-change` so every useContent() subscriber re-renders.
 let cloudHydrated = false;
 let cloudHydratePromise: Promise<void> | null = null;
+
+// One-shot seed from SSR-injected overrides. Root layout writes
+// window.__CMS_OVERRIDES__ before the React tree hydrates, so this runs
+// before the first useContent() read.
+if (typeof window !== "undefined") {
+  const seed = (window as unknown as { __CMS_OVERRIDES__?: Content }).__CMS_OVERRIDES__;
+  if (seed && typeof seed === "object" && Object.keys(seed).length > 0) {
+    try {
+      const localRaw = localStorage.getItem(LS_KEY);
+      const local: Content = localRaw ? JSON.parse(localRaw) : {};
+      const merged = { ...local, ...seed };
+      localStorage.setItem(LS_KEY, JSON.stringify(merged));
+      cloudHydrated = true;
+    } catch { /* ignore */ }
+  }
+}
 
 export function hydrateFromCloud(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();

@@ -9,6 +9,9 @@ import ConfirmDialogRoot from "@/components/ConfirmDialog";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
 import { pageMetadata, softwareJsonLd, getSiteUrl } from "@/lib/seo";
+import { loadOverridesServer } from "@/lib/contentStoreServer";
+import ContentProvider from "@/lib/ContentProvider";
+import type { Content } from "@/lib/contentStore";
 
 const heebo = Heebo({ subsets: ["hebrew", "latin"], variable: "--font-heebo", display: "swap" });
 const rubik = Rubik({ subsets: ["hebrew", "latin"], variable: "--font-rubik", display: "swap" });
@@ -31,12 +34,18 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const fontVars = `${heebo.variable} ${rubik.variable} ${assistant.variable} ${varela.variable} ${secular.variable} ${suez.variable} ${frank.variable} ${bellefair.variable}`;
+  // SSR the CMS overrides into window.__CMS_OVERRIDES__ so the very first
+  // render already has Liat's edited copy. Without this, useContent() reads
+  // from localStorage which is empty on first visit → defaults flash for
+  // ~1.5s until hydrateFromCloud() finishes its fetch.
+  const overrides = (await loadOverridesServer()) as Content;
+  const overridesJson = JSON.stringify(overrides).replace(/</g, "\\u003c");
   return (
     <html lang="he" dir="rtl" className={fontVars}>
       <head>
@@ -45,16 +54,23 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd()) }}
         />
+        {/* Inline CMS overrides BEFORE any client component mounts — kills
+            the first-paint flash of default copy. contentStore reads this. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: `window.__CMS_OVERRIDES__=${overridesJson};` }}
+        />
       </head>
       <body className="font-sans antialiased">
-        <AnimatedBackground />
-        {children}
-        <SiteFooter />
-        <Toaster />
-        <OnboardingSplash />
-        <ConfirmDialogRoot />
-        <SfxCustomLoader />
-        <AccessibilityPanel />
+        <ContentProvider initial={overrides}>
+          <AnimatedBackground />
+          {children}
+          <SiteFooter />
+          <Toaster />
+          <OnboardingSplash />
+          <ConfirmDialogRoot />
+          <SfxCustomLoader />
+          <AccessibilityPanel />
+        </ContentProvider>
       </body>
     </html>
   );
