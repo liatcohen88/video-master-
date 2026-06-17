@@ -204,7 +204,13 @@ export default function SubtitleEditor({
     const prev = subtitles[afterIndex];
     const next = subtitles[afterIndex + 1];
     const start = prev?.end ?? 0;
-    const end = next?.start ?? start + 2;
+    // Guarantee a visible duration even when prev.end === next.start (no
+    // gap between adjacent subtitles). Without this, start===end → the
+    // subtitle has 0 length and never renders in the preview (the active
+    // check is `t >= start && t < end`).
+    const MIN_DUR = 1.5;
+    const naturalEnd = next?.start ?? start + 2;
+    const end = Math.max(naturalEnd, start + MIN_DUR);
     const newSub: Subtitle = {
       id: `sub-${Date.now()}`,
       start, end, text: c.defaultText,

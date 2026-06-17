@@ -46,6 +46,29 @@ export async function spendCredits(
 }
 
 /**
+ * Refund credits that were already spent — used when a render fails
+ * server-side so the user isn't charged for a video they never got.
+ * Best-effort: logs on failure, doesn't throw (we don't want a refund
+ * problem to mask the original render error).
+ */
+export async function refundCredits(userId: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  const supa = adminClient();
+  if (!supa) return;
+  try {
+    const { data: row } = await supa
+      .from("profiles")
+      .select("credits")
+      .eq("id", userId)
+      .maybeSingle();
+    const current = Number(row?.credits ?? 0);
+    await supa.from("profiles").update({ credits: current + amount }).eq("id", userId);
+  } catch (e) {
+    console.error("[refundCredits] failed:", e);
+  }
+}
+
+/**
  * Read the current credit balance for a user without spending. Used to
  * sync the client display after a successful render (since the local
  * cache is now stale).

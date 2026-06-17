@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimit } from "@/lib/rateLimit";
-import { spendCredits } from "@/lib/serverCredits";
+import { spendCredits, refundCredits } from "@/lib/serverCredits";
 import { calcDynamicCost } from "@/lib/credits";
 import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
@@ -100,8 +100,17 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[render-remotion] failed", err);
+    // Refund credits — the user paid for a render they didn't get. The
+    // client is expected to auto-retry against /api/render (FFmpeg), which
+    // will charge again on success.
+    await refundCredits(user.id, cost.total);
     return NextResponse.json(
-      { error: "ייצוא נכשל. יש לפנות לתמיכה.", detail: String(err) },
+      {
+        error: "ייצוא נכשל בנתיב הראשי. ניסיון חוזר אוטומטי...",
+        engine: "remotion",
+        detail: String(err),
+        retry: "/api/render",
+      },
       { status: 500 },
     );
   } finally {
