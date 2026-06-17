@@ -7,6 +7,8 @@ import type { Subtitle } from "@/lib/types";
 import { detectElements } from "@/lib/keywordElements";
 import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
 import { getSfxAsset } from "@/lib/sfxLibrary";
+import { DRAMA_WORDS_BASE, WOW_WORDS_BASE } from "@/lib/dramaEffects";
+import { POWER_WORDS_BASE } from "@/lib/wowEffects";
 import EmojiPicker from "./EmojiPicker";
 import ElementPicker, { type PickedElement } from "./ElementPicker";
 import SfxPicker from "./SfxPicker";
@@ -85,6 +87,40 @@ export default function SubtitleEditor({
   const [sfxPickerAnchor, setSfxPickerAnchor] = useState<DOMRect | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const addBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  // Chip popover state — Liat: "תעשה אולי אפשרות שלוחצים יש מידע שמתעדכן
+  // איזה מילים נכללות". Each chip shows a tooltip on hover; clicking opens
+  // a popover with the actual word list for that effect category so the
+  // user understands WHY this line was tagged.
+  const [chipPop, setChipPop] = useState<{ subId: string; type: "drama" | "wow" | "power" } | null>(null);
+
+  // Per-line precomputed flag: does this row contain any POWER word
+  // (particle burst / punch shake / beat-drop trigger)? Power words are a
+  // SEPARATE list from the WOW filter words — overlap is partial, which
+  // is why some lines fire particles without firing the warm filter.
+  const powerSubIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const sub of subtitles) {
+      if (!sub.text) continue;
+      for (const pw of POWER_WORDS_BASE) {
+        if (pw.re.test(sub.text)) {
+          set.add(sub.id);
+          break;
+        }
+      }
+    }
+    return set;
+  }, [subtitles]);
+
+  // For the popover, list the SPECIFIC words from the active subtitle that
+  // matched each category. Otherwise the popover would just dump 25 power
+  // words even if only one is in this line — useless noise.
+  function matchedWordsFor(subId: string, type: "drama" | "wow" | "power"): string[] {
+    const sub = subtitles.find((s) => s.id === subId);
+    if (!sub) return [];
+    const list = type === "drama" ? DRAMA_WORDS_BASE : type === "wow" ? WOW_WORDS_BASE : POWER_WORDS_BASE;
+    return list.filter((w) => w.re.test(sub.text)).map((w) => w.key);
+  }
 
   // CMS-editable copy for the editor surface (every label/tooltip the user sees)
   const c = {
@@ -264,20 +300,40 @@ export default function SubtitleEditor({
                     word. Lets the user see at a glance which lines will
                     pop a B&W flash vs a warm pop on the video. */}
                 {dramaSubIds?.has(`drama:${sub.id}`) && (
-                  <span
-                    title="במהלך השורה הזו יופעל פילטר שחור-לבן + צליל סטינג"
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/20"
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "drama" }); }}
+                    title="לחיצה: רשימת המילים שמפעילות שחור-לבן"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/20 hover:bg-white/15"
                   >
                     🎬 דרמה
-                  </span>
+                  </button>
                 )}
                 {dramaSubIds?.has(`wow:${sub.id}`) && (
-                  <span
-                    title="במהלך השורה הזו יופעל פילטר חם נמרץ (WOW)"
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/30"
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "wow" }); }}
+                    title="לחיצה: רשימת המילים שמפעילות פילטר חם נמרץ"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/30 hover:bg-amber-500/25"
                   >
                     ✨ WOW
-                  </span>
+                  </button>
+                )}
+                {/* Power-words chip — drives particle burst, punch shake,
+                    and beat-drop zoom. SEPARATE word list from WOW filter
+                    above (deliberate). Liat noted particles seemed to fire
+                    "randomly mid-video" — they fire on power words that
+                    aren't in the WOW filter list (אש, ענק, חייבים…), so
+                    this chip makes that visible per-line. */}
+                {powerSubIds.has(sub.id) && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "power" }); }}
+                    title="לחיצה: רשימת המילים שמפעילות חלקיקים + רעידה"
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 hover:bg-fuchsia-500/25"
+                  >
+                    💥 פעימה
+                  </button>
                 )}
                 <div className="flex-1" />
                 {/* SFX-only button (no Lottie needed) — Liat liked the original
@@ -560,6 +616,83 @@ export default function SubtitleEditor({
             onClose={() => setSfxPickerForSub(null)}
             anchorRect={sfxPickerAnchor}
           />
+        );
+      })()}
+
+      {/* Chip popover — shows the SPECIFIC trigger words from this line
+          plus the full word list for the category. Clicking outside or the
+          X closes. Liat 2026-06-17: needed transparency on what makes
+          drama/wow/power fire so she can decide whether to edit the
+          subtitle text. */}
+      {chipPop && (() => {
+        const matched = matchedWordsFor(chipPop.subId, chipPop.type);
+        const full = chipPop.type === "drama"
+          ? DRAMA_WORDS_BASE.map((w) => w.key)
+          : chipPop.type === "wow"
+            ? WOW_WORDS_BASE.map((w) => w.key)
+            : POWER_WORDS_BASE.map((w) => w.key);
+        const title = chipPop.type === "drama"
+          ? "🎬 דרמה — שחור-לבן + סטינג"
+          : chipPop.type === "wow"
+            ? "✨ WOW — פילטר חם נמרץ"
+            : "💥 פעימה — חלקיקים + רעידה + זום";
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+            onClick={() => setChipPop(null)}
+            dir="rtl"
+          >
+            <div
+              className="bg-bg-panel border border-white/15 rounded-2xl max-w-md w-full p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-white">{title}</h3>
+                <button
+                  onClick={() => setChipPop(null)}
+                  className="text-white/40 hover:text-white p-1"
+                  aria-label="סגירה"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="text-xs text-white/50 mb-1">במשפט הזה זוהו:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {matched.length === 0 ? (
+                    <span className="text-xs text-white/40">אין התאמה ישירה</span>
+                  ) : matched.map((w) => (
+                    <span key={w} className="text-xs font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/40">
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-white/50 mb-1">כל המילים בקטגוריה ({full.length}):</div>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                  {full.map((w) => (
+                    <span
+                      key={w}
+                      className={`text-xs px-2 py-1 rounded-full border ${
+                        matched.includes(w)
+                          ? "bg-amber-500/20 text-amber-200 border-amber-400/40 font-bold"
+                          : "bg-white/5 text-white/60 border-white/10"
+                      }`}
+                    >
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 text-[11px] text-white/40 leading-relaxed">
+                ניתן לערוך את הרשימה הזו בפאנל אדמין → ניהול מילים.
+              </div>
+            </div>
+          </div>
         );
       })()}
     </details>
