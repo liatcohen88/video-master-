@@ -18,7 +18,10 @@
  * exactly as the live preview understands them.
  */
 
-import { AbsoluteFill, Video, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
+import { AbsoluteFill, Video, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
+import { useEffect, useState } from "react";
+import { Lottie } from "@remotion/lottie";
+import { LOTTIE_ICONS } from "../lib/lottieRegistry";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "../lib/types";
 import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt } from "../lib/dramaEffects";
 import { colorFilterCss } from "../lib/colorFilters";
@@ -81,6 +84,47 @@ function buildSfxTriggers(
     }
   }
   return triggers;
+}
+
+/**
+ * Wrap @remotion/lottie to fetch JSON from a public/lottie/*.json path
+ * via Remotion's static-file resolver. delayRender pauses the frame
+ * until the JSON loads — required when bridging async work into a
+ * frame-driven render.
+ */
+function LottieIconRender({
+  iconId, size, color: _color,
+}: {
+  iconId: string;
+  size: number;
+  color?: string;
+}) {
+  const icon = LOTTIE_ICONS.find((l) => l.id === iconId);
+  const [data, setData] = useState<unknown | null>(null);
+  const [handle] = useState(() => delayRender(`lottie-${iconId}`));
+
+  useEffect(() => {
+    if (!icon) {
+      continueRender(handle);
+      return;
+    }
+    fetch(staticFile(icon.jsonPath.replace(/^\//, "")))
+      .then((r) => r.json())
+      .then((j) => {
+        setData(j);
+        continueRender(handle);
+      })
+      .catch(() => continueRender(handle));
+  }, [icon, handle]);
+
+  if (!icon || !data) return null;
+  return (
+    <Lottie
+      // @ts-expect-error animationData type is loose; runtime accepts the parsed JSON.
+      animationData={data}
+      style={{ width: size, height: size }}
+    />
+  );
 }
 
 // Mirrors ElementOverlay in VideoPreview.tsx — % anchors are the same so
@@ -464,6 +508,63 @@ export function VideoComposition({
             />
           );
         })}
+
+      {/* Lottie animated icons — two sources:
+            1. effects.lottieElements (standalone, legacy EffectsPanel)
+            2. subtitle.manualEmojis with lottieIconId (newer editor)
+          Each renders the animation at the per-occurrence position. */}
+      {(() => {
+        const items: Array<{
+          iconId: string;
+          time: number;
+          durationSec: number;
+          position: keyof typeof EMOJI_POS;
+          color?: string;
+        }> = [
+          ...(effects?.lottieElements ?? []).map((l) => ({
+            iconId: l.iconId,
+            time: l.time,
+            durationSec: l.durationSec ?? 2,
+            position: (l.position ?? "top-right") as keyof typeof EMOJI_POS,
+            color: l.color,
+          })),
+          ...subtitles.flatMap((sub) =>
+            (sub.manualEmojis ?? [])
+              .filter((m) => m.lottieIconId)
+              .map((m) => ({
+                iconId: m.lottieIconId!,
+                time: sub.start,
+                durationSec: m.durationSec ?? 2,
+                position: m.position as keyof typeof EMOJI_POS,
+                color: m.color,
+              })),
+          ),
+        ];
+        return items
+          .filter((it) => t >= it.time && t < it.time + it.durationSec)
+          .map((it, i) => {
+            const pos = EMOJI_POS[it.position] ?? EMOJI_POS["top-right"];
+            const size = Math.max(80, height * 0.18);
+            return (
+              <div
+                key={`lottie-${i}-${it.time}`}
+                style={{
+                  position: "absolute",
+                  left: pos.left,
+                  top: pos.top,
+                  transform: "translate(-50%, -50%)",
+                  width: size,
+                  height: size,
+                  zIndex: 10,
+                  pointerEvents: "none",
+                  filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))",
+                }}
+              >
+                <LottieIconRender iconId={it.iconId} size={size} color={it.color} />
+              </div>
+            );
+          });
+      })()}
 
       {/* Emoji overlay layer — contextual (auto-detected) + manual emojis
           added by the user in the subtitle editor. Visible window logic
