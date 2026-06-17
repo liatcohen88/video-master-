@@ -818,7 +818,7 @@ export const CONTENT_DEFAULTS = {
   // ── Signup / SignupGate shared validations ────────
   "auth.error.passwordTooShort":  "הסיסמה צריכה להיות לפחות 8 תווים.",
   "auth.error.invalidCreds":      "אימייל או סיסמה שגויים.",
-  "auth.signup.namePlaceholder":  "ליאת",
+  "auth.signup.namePlaceholder":  "ישראלי ישראלה",
   "auth.signup.termsLinkLabel":   "תנאי השימוש",
   "auth.signup.error.emailExists":"האימייל כבר רשום. אולי שכחת סיסמה?",
   "signupGate.error.emailExists": "האימייל כבר רשום. עברי להתחברות 👇",
@@ -934,7 +934,7 @@ export const CONTENT_DEFAULTS = {
   "header.notifications.markAllRead": "סמן הכל כנקרא",
   "header.notifications.empty": "אין התראות חדשות",
   "header.mobileMenuLabel":"תפריט",
-  "header.defaultUserName":"משתמש",
+  "header.defaultUserName":"לא מחובר",
   "header.defaultInitial": "מ",
 
   // ── Accessibility statement page ──────────────────────────

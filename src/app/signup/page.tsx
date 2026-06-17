@@ -72,6 +72,15 @@ export default function SignupPage() {
       return;
     }
 
+    // Supabase quirk: with email-confirm ON, signing up an EXISTING email
+    // returns success + a fake user object with identities=[] (enumeration
+    // prevention). Without this check the user thinks they registered when
+    // they didn't. Surface the duplicate-email message explicitly.
+    if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+      setErr(emailExists);
+      return;
+    }
+
     if (data.session) {
       // Set the welcome-popup flag for the home page to pick up on mount.
       // Cleared by AuthSuccessModal after showing once.
@@ -191,7 +200,7 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-brand"
-                placeholder="liat@example.com"
+                placeholder="name@example.com"
                 dir="ltr"
               />
             </label>

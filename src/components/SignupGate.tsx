@@ -99,6 +99,13 @@ export default function SignupGate({
         } else setErr(error.message);
         return;
       }
+      // Supabase enumeration-prevention: an existing email returns success
+      // with an empty identities array. Detect and surface as a duplicate.
+      if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+        setErr(emailExists);
+        setMode("login");
+        return;
+      }
       if (data.session) onSuccess();
       else {
         setErr(confirmEmail);
@@ -186,7 +193,7 @@ export default function SignupGate({
               type="email" autoComplete="email" required
               value={email} onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-brand"
-              placeholder="liat@example.com" dir="ltr"
+              placeholder="name@example.com" dir="ltr"
             />
           </label>
 

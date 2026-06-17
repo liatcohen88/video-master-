@@ -54,7 +54,12 @@ export default function SiteHeader() {
   // otherwise fall back to the localStorage credit (legacy + offline mode).
   const [localCredits, setLocalCredits] = useState(0);
   const credits = auth.profile?.credits ?? localCredits;
-  const userName = auth.profile?.display_name || auth.profile?.email?.split("@")[0] || defaultUserName;
+  // When the user is a guest, force "לא מחובר" — defaultUserName is the
+  // CMS string for that case. Otherwise prefer display_name → email-prefix
+  // → fallback. Liat 2026-06-17: don't show "משתמש" for unauthenticated.
+  const userName = isGuest
+    ? defaultUserName
+    : (auth.profile?.display_name || auth.profile?.email?.split("@")[0] || defaultUserName);
 
   const [unread, setUnread] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
