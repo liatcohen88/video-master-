@@ -3,10 +3,11 @@
 # Coolify auto-detects this file and runs the extra setup phase.
 
 [phases.setup]
-# `chromium` is added so Remotion can render React → MP4 via headless
-# Chrome without downloading its own ~150MB Headless Shell on cold start.
-# The remotionRender.ts helper picks it up via the CHROME_BIN env var.
-nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zlib", "stdenv.cc.cc.lib", "chromium"]
+# Chromium intentionally NOT in nixPkgs — adding it bloated the docker
+# image past the disk envelope on CX23 (build #17 OOM'd at layer export).
+# Remotion downloads its own Headless Shell on first render (~150MB to
+# ~/.cache/remotion). Slower first cold-render, but the build fits.
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zlib", "stdenv.cc.cc.lib"]
 aptPkgs = ["build-essential", "libsndfile1", "zlib1g"]
 
 [phases.install]
