@@ -986,10 +986,15 @@ function BrandOverlay({
   positionOverride?: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
 }) {
   const [imgFailed, setImgFailed] = useState(false);
-  // Exact-px overrides win over the default 14% scale. Min 16 so a typo'd
-  // 0 doesn't make the logo vanish.
+  // Exact-px overrides win over the default 14% scale. The user picks the
+  // size in EXPORT pixels (a 1920-tall portrait video), so scale it down
+  // by containerHeight/1920 in the preview — otherwise a 109px logo would
+  // look correct in the main preview (~720px tall) but huge in the PiP
+  // (~250px tall). Min 16 so a typo'd 0 doesn't make the logo vanish.
+  const EXPORT_H = 1920;
+  const previewScale = containerHeight > 0 ? containerHeight / EXPORT_H : 1;
   const logoSize = typeof sizePxOverride === "number" && sizePxOverride > 0
-    ? Math.max(16, sizePxOverride)
+    ? Math.max(16, sizePxOverride * previewScale)
     : Math.max(64, containerHeight * 0.14);
   const cardPadding = logoSize * 0.18;
 
@@ -1091,11 +1096,14 @@ function CustomLogoOverlay({
     }
   })();
 
-  // Exact px > S/M/L scale. If the user dialed in a specific size we trust
-  // it (clamped to a sane min so they can't accidentally zero it out).
+  // Exact px > S/M/L scale. sizePx is in EXPORT pixels (1920-tall canvas),
+  // so scale to the current preview container — keeps PiP / main preview /
+  // export all visually consistent.
+  const EXPORT_H = 1920;
+  const previewScale = containerHeight > 0 ? containerHeight / EXPORT_H : 1;
   const sizeScale = logo.size === "S" ? 0.07 : logo.size === "L" ? 0.14 : 0.10;
   const size = typeof logo.sizePx === "number" && logo.sizePx > 0
-    ? Math.max(8, logo.sizePx)
+    ? Math.max(8, logo.sizePx * previewScale)
     : Math.max(40, containerHeight * sizeScale);
 
   return (
