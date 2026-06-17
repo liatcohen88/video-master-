@@ -57,6 +57,7 @@ import {
   loadTranscription,
   clearTranscriptionForHash,
   saveSnapshot,
+  listSnapshots,
   loadCurrentVideo,
   storedToFile,
   type ProjectSnapshot,
@@ -158,8 +159,28 @@ export default function HomePage() {
     if (typeof window !== "undefined" && sessionStorage.getItem("vm_active_edit") === "1") {
       (async () => {
         const v = await loadCurrentVideo();
-        if (v) await handleVideo(storedToFile(v));
-        else sessionStorage.removeItem("vm_active_edit"); // stale flag
+        if (!v) {
+          sessionStorage.removeItem("vm_active_edit"); // stale flag
+          return;
+        }
+        const file = storedToFile(v);
+        // Critical: handleVideo() resets effects/subtitles to defaults. After
+        // a guest signs up via OAuth, Supabase reloads the tab, and a fresh
+        // handleVideo would wipe the just-saved snapshot. Find the latest
+        // snapshot for THIS video and resume from it so the user keeps every
+        // edit they made before signing in. Liat: "כל מה שהמשתמש עשה ישמר".
+        try {
+          const hash = await hashVideoFile(file);
+          const snaps = await listSnapshots();
+          const latest = snaps
+            .filter((s) => s.videoHash === hash)
+            .sort((a, b) => b.at - a.at)[0];
+          if (latest) {
+            await handleResume(file, latest);
+            return;
+          }
+        } catch { /* fall through to fresh handleVideo */ }
+        await handleVideo(file);
       })();
       return;
     }

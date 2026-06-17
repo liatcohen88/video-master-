@@ -52,6 +52,11 @@ export default function SignupGate({
     const sb = browserClient();
     if (!sb) return;
     setBusy(true);
+    // Mark the tab as actively editing so the post-OAuth redirect lands
+    // back in the editor with the snapshot restored — not the home page.
+    // sessionStorage survives a same-origin redirect, so this flag is still
+    // there when Supabase brings us back to "/".
+    try { sessionStorage.setItem("vm_active_edit", "1"); } catch {}
     const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: {

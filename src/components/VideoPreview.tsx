@@ -348,6 +348,21 @@ export default function VideoPreview({
     );
   }, [effects?.emphasisMoments, dramaMoments]);
 
+  // Defensive defaults — explicitly turn OFF mute/loop and pause whenever a
+  // new videoUrl loads. Some mobile browsers (iOS Safari especially)
+  // silently set muted=true on inline video without a user gesture, and
+  // a sessionStorage rehydration could otherwise leave loop=true on.
+  // Liat saw the video "looping muted" right after transcribe — this
+  // useEffect is the belt-and-suspenders fix.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = false;
+    v.loop = false;
+    // Paused on load so the user starts playback themselves with sound on.
+    try { v.pause(); } catch { /* ignore */ }
+  }, [videoUrl]);
+
   // --- Intro animation — first ~0.5-0.9s of the video ------------------
   // Architecture decision: the intro animation lives on a SEPARATE wrapper
   // div around the video. React keeps writing zoom/pan transform on the
@@ -718,7 +733,23 @@ export default function VideoPreview({
           x5-playsinline="true"
           controlsList="nodownload nofullscreen noplaybackrate"
           disablePictureInPicture
-          className="block w-full h-full"
+          // Click anywhere on the video to toggle play/pause — Liat: "שאני
+          // לוחצת באמצע הסרטון שיעצור לא רק בטיימליין למטה". Don't fight
+          // the native controls (the bottom-bar play button does the same
+          // thing); we only handle clicks that land on the video surface.
+          onClick={(e) => {
+            const v = videoRef.current;
+            if (!v) return;
+            // Ignore clicks that target the native controls themselves
+            // (Safari/Chrome bubble a click on the controls bar to the
+            // <video>). If the click was inside the bottom 40px, assume
+            // it was the control bar and let it do its thing.
+            const rect = (e.currentTarget as HTMLVideoElement).getBoundingClientRect();
+            if (e.clientY > rect.bottom - 44) return;
+            if (v.paused) v.play().catch(() => {});
+            else v.pause();
+          }}
+          className="block w-full h-full cursor-pointer"
           style={{
             objectFit: hasAspect ? "cover" : "contain",
             objectPosition,
