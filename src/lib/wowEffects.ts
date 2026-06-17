@@ -61,6 +61,10 @@ export type BeatDrop = {
   intensity: number;
   /** Pulse shape duration in seconds. Default 0.25 (snappy). */
   duration: number;
+  /** The matched word (cleaned of punctuation). Particle burst uses this
+   *  to look up the rendered subtitle word in the DOM so the sparkles
+   *  emit FROM the actual word, not from a fixed lower-third point. */
+  word?: string;
 };
 
 const RAMP_IN  = 0.06;  // very fast ramp up — sells the punch
@@ -100,7 +104,7 @@ export function detectBeatDrops(
       }
 
       if (drops.some((d) => Math.abs(d.t - t) < SOON)) continue;
-      drops.push({ t, intensity, duration: RAMP_IN + 0.03 + RAMP_OUT });
+      drops.push({ t, intensity, duration: RAMP_IN + 0.03 + RAMP_OUT, word: cleaned });
     }
   }
 

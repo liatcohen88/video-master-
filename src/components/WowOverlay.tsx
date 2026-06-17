@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import type { Subtitle } from "@/lib/types";
 import { detectBeatDrops, type BeatDrop } from "@/lib/wowEffects";
 
@@ -62,7 +62,7 @@ export default function WowOverlay({
       aria-hidden
     >
       {enabled && burstKey !== null && (
-        <Burst key={burstKey} drop={active!} />
+        <Burst key={burstKey} drop={active!} containerRef={shakeRef} />
       )}
 
       <style jsx>{`
@@ -81,14 +81,44 @@ export default function WowOverlay({
   );
 }
 
-/** 10 sparkle particles flying out in a circle from the subtitle area
- *  (lower-third of the preview), not the geometric center. The subtitle
- *  text is what the user is reading — the burst should radiate FROM that
- *  word, not from a random point in the sky. */
-function Burst({ drop: _drop }: { drop: BeatDrop }) {
+/** 10 sparkle particles radiating from the matched word's on-screen
+ *  position. SubtitleOverlay tags each word span with data-vm-word; we
+ *  look up the most recently rendered span for this drop's word, measure
+ *  its center relative to the overlay container, and anchor the burst
+ *  there. Falls back to the lower-third center if the word isn't in the
+ *  DOM yet (subtitle hasn't started rendering this frame). */
+function Burst({ drop, containerRef }: {
+  drop: BeatDrop;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
   const N = 10;
+  const [pos, setPos] = useState<{ left: string; top: string }>({ left: "50%", top: "72%" });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !drop.word) return;
+    // Match by data-vm-word, scoped to the current container.
+    const all = container.parentElement?.querySelectorAll<HTMLElement>(
+      `[data-vm-word="${cssEscape(drop.word)}"]`,
+    );
+    const span = all && all.length > 0 ? all[all.length - 1] : null;
+    if (!span) return;
+    const wordRect = span.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) return;
+    const cx = wordRect.left + wordRect.width / 2 - containerRect.left;
+    const cy = wordRect.top + wordRect.height / 2 - containerRect.top;
+    setPos({
+      left: `${(cx / containerRect.width) * 100}%`,
+      top: `${(cy / containerRect.height) * 100}%`,
+    });
+  }, [drop, containerRef]);
+
   return (
-    <div className="absolute inset-x-0 top-[72%] flex justify-center">
+    <div
+      className="absolute"
+      style={{ left: pos.left, top: pos.top, transform: "translate(-50%, -50%)" }}
+    >
       <div className="relative w-1 h-1">
         {Array.from({ length: N }).map((_, i) => {
           const angle = (i / N) * Math.PI * 2;
@@ -131,4 +161,10 @@ function Burst({ drop: _drop }: { drop: BeatDrop }) {
       `}</style>
     </div>
   );
+}
+
+// CSS.escape isn't on every browser engine we target; do a tight subset
+// good enough for word strings (drop quotes and backslashes).
+function cssEscape(s: string): string {
+  return s.replace(/["\\]/g, "");
 }

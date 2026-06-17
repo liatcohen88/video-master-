@@ -461,20 +461,41 @@ export default function VideoPreview({
   }, [effects?.introAnimation, effects?.introSfxId, videoUrl]);
 
   // Force iOS Safari to decode + display the first frame as soon as the
-  // videoUrl arrives. preload="auto" alone isn'\''t reliable on mobile —
-  // calling .load() kicks the pipeline, and a tiny seek to 0 makes Safari
-  // commit a real frame instead of showing a black square until the user
-  // taps play. (Liat'\''s "מסך שחור בעורך אחרי העלאת סרטון".)
+  // videoUrl arrives. preload="auto" + .load() + seek alone leave a black
+  // square on mobile because Safari WONT paint a frame until either
+  // .play() runs at least once OR the video is muted+autoplayed. We do a
+  // tiny "muted play kick" to commit one frame, then immediately pause
+  // and unmute. Inaudible, invisible — just a black->frame transition the
+  // user never notices.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !videoUrl) return;
-    try {
-      v.load();
-      // Seek to 0 to force a frame; if we'\''re already loaded this is a no-op.
-      const onMeta = () => { try { v.currentTime = 0; } catch {} };
-      v.addEventListener("loadedmetadata", onMeta, { once: true });
-      return () => v.removeEventListener("loadedmetadata", onMeta);
-    } catch {/* ignore */}
+    let cancelled = false;
+    (async () => {
+      try {
+        v.load();
+        if (v.readyState < 1) {
+          await new Promise<void>((res) => {
+            v.addEventListener("loadedmetadata", () => res(), { once: true });
+          });
+        }
+        if (cancelled) return;
+        try { v.currentTime = 0; } catch {}
+        const wasMuted = v.muted;
+        v.muted = true;
+        try {
+          await v.play();
+          await new Promise((res) => requestAnimationFrame(() => res(null)));
+          if (cancelled) return;
+          v.pause();
+          v.muted = wasMuted;
+          try { v.currentTime = 0; } catch {}
+        } catch {
+          v.muted = wasMuted;
+        }
+      } catch { /* best effort */ }
+    })();
+    return () => { cancelled = true; };
   }, [videoUrl]);
 
   // Drama Mode is now VISUAL ONLY (B&W flash). The auto-sting was removed
@@ -1247,6 +1268,7 @@ function SubtitleOverlay({
               <span key={i}>
                 {i > 0 && " "}
                 <span
+                  data-vm-word={w.word.replace(/[?.,!]/g, "").trim()}
                   style={{
                     color: i === activeIdx && !isHighlightSame
                       ? style.highlightColor
