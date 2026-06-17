@@ -7,7 +7,14 @@ const nextConfig: NextConfig = {
   // ffmpeg-static / ffprobe-static export an absolute path to a platform-
   // specific binary. webpack would mangle the path resolution, so leave them
   // external and let Vercel ship the binaries from node_modules.
-  serverExternalPackages: ["@napi-rs/canvas", "sharp", "ffmpeg-static", "ffprobe-static"],
+  serverExternalPackages: [
+    "@napi-rs/canvas", "sharp", "ffmpeg-static", "ffprobe-static",
+    // Remotion ships a native @rspack/binding-*.node binary inside
+    // @remotion/bundler plus headless-chrome integration in
+    // @remotion/renderer. Both must be require()d at runtime by Node;
+    // bundling chokes on the .node file ("Module parse failed").
+    "@remotion/bundler", "@remotion/renderer", "@remotion/lottie", "remotion",
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: "500mb",
