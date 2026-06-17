@@ -18,13 +18,70 @@
  * exactly as the live preview understands them.
  */
 
-import { AbsoluteFill, Video, Audio, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
+import { AbsoluteFill, Video, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "../lib/types";
 import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt } from "../lib/dramaEffects";
 import { colorFilterCss } from "../lib/colorFilters";
 import { detectElements, type ElementEvent } from "../lib/keywordElements";
 import { detectBeatDrops, beatDropZoomAt } from "../lib/wowEffects";
 import { introFrameAt } from "../lib/introAnimations";
+import { detectBrands, brandLogoCdnUrl } from "../lib/brandLogos";
+import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
+
+function buildSfxTriggers(
+  subtitles: Subtitle[],
+  effects: VideoEffects | null,
+): Array<{ time: number; url: string; gain: number }> {
+  if (!effects) return [];
+  const triggers: Array<{ time: number; url: string; gain: number }> = [];
+  const gain = 0.6 * (effects.sfxMasterVolume ?? 1);
+  const disabled = new Set(effects.disabledElements ?? []);
+  const sfxOverrides = effects.elementSfxOverrides ?? {};
+
+  if (effects.contextualElements && effects.contextualSfx) {
+    for (const ev of detectElements(subtitles)) {
+      const key = `${ev.category.id}-${Math.round(ev.time * 10)}`;
+      if (disabled.has(key)) continue;
+      const ov = sfxOverrides[key];
+      if (ov === "none") continue;
+      const sfxId = ov ?? DEFAULT_SFX_FOR_KIND[ev.category.sfx];
+      const url = getSfxAsset(sfxId)?.url;
+      if (url) triggers.push({ time: ev.time, url, gain });
+    }
+  }
+  for (const sub of subtitles) {
+    if (sub.sfxId && sub.sfxId !== "none") {
+      const url = getSfxAsset(sub.sfxId)?.url;
+      if (url) triggers.push({ time: sub.start, url, gain });
+    }
+    for (const em of sub.manualEmojis ?? []) {
+      if (!em.sfxId || em.sfxId === "none") continue;
+      const url = getSfxAsset(em.sfxId)?.url;
+      if (url) triggers.push({ time: sub.start, url, gain });
+    }
+  }
+  for (const lot of effects.lottieElements ?? []) {
+    if (!lot.sfxId || lot.sfxId === "none") continue;
+    const url = getSfxAsset(lot.sfxId)?.url;
+    if (url) triggers.push({ time: lot.time, url, gain });
+  }
+  for (const logo of effects.customLogos ?? []) {
+    if (logo.persistent !== false || typeof logo.time !== "number") continue;
+    if (!logo.sfxId || logo.sfxId === "none") continue;
+    const url = getSfxAsset(logo.sfxId)?.url;
+    if (url) triggers.push({ time: logo.time, url, gain });
+  }
+  if ((effects.brandLogosDetect ?? true) && effects.brandSfxId !== "none") {
+    const sfxId = effects.brandSfxId ?? DEFAULT_SFX_FOR_KIND.whoosh;
+    const url = getSfxAsset(sfxId)?.url;
+    if (url) {
+      for (const ev of detectBrands(subtitles)) {
+        triggers.push({ time: ev.time, url, gain });
+      }
+    }
+  }
+  return triggers;
+}
 
 // Mirrors ElementOverlay in VideoPreview.tsx — % anchors are the same so
 // the emoji lands in the identical visual slot.
@@ -197,6 +254,25 @@ export function VideoComposition({
         />
       )}
 
+      {/* SFX audio mix — each trigger is its own <Sequence> at the right
+          frame so Remotion plays it once at that timeline position. Cap
+          duration at ~3.5s so a long sample doesn't drag past its moment. */}
+      {buildSfxTriggers(subtitles, effects).map((trig, i) => {
+        const fromFrame = Math.max(0, Math.round(trig.time * fps));
+        const maxFrames = Math.round(3.5 * fps);
+        return (
+          <Sequence key={`sfx-${i}`} from={fromFrame} durationInFrames={maxFrames}>
+            <Audio src={trig.url} volume={trig.gain} />
+          </Sequence>
+        );
+      })}
+
+      {/* Intro SFX — fires at t=0 alongside the intro animation. */}
+      {effects?.introSfxId && effects.introSfxId !== "none" && (() => {
+        const url = getSfxAsset(effects.introSfxId)?.url;
+        return url ? <Audio src={url} volume={effects.sfxMasterVolume ?? 1} /> : null;
+      })()}
+
       {/* Background music — mixed UNDER the source video's own audio at
           the user-set volume. Remotion auto-handles audio mixing in the
           final MP4 so we don't need an FFmpeg pass. */}
@@ -267,6 +343,82 @@ export function VideoComposition({
             })}
           </AbsoluteFill>
         );
+      })()}
+
+      {/* Brand logos — auto-detected from speech ("Apple", "Nike", etc.).
+          Pulled as SVG from Iconify CDN (brandLogoCdnUrl). Stacked in the
+          top-right corner with a small offset per occurrence to avoid
+          overlap. Each shows for ~brand.durationSec from its trigger time. */}
+      {effects?.contextualElements && effects.brandLogosDetect !== false && (() => {
+        const brands = detectBrands(subtitles);
+        const margin = 8; // % from edge
+        const transparentBg = effects.transparentLogoBg ?? false;
+        return brands
+          .map((b, i) => ({ b, i }))
+          .filter(({ b }) => t >= b.time && t < b.time + b.durationSec)
+          .map(({ b, i }) => {
+            const sizeKey = `${b.brand.id}-${Math.round(b.time * 10)}`;
+            const sizeOverride = effects.brandSizePx?.[sizeKey];
+            const posOverride = effects.brandPosition?.[sizeKey];
+            const logoSize = typeof sizeOverride === "number" && sizeOverride > 0
+              ? Math.max(16, sizeOverride)
+              : Math.max(64, height * 0.14);
+            const pad = logoSize * 0.18;
+            const corner: React.CSSProperties = (() => {
+              if (!posOverride) {
+                return { top: `${10 + i * 12}%`, right: `${8 + i * 4}%` };
+              }
+              switch (posOverride) {
+                case "top-right":     return { top: `${margin}%`, right: `${margin}%` };
+                case "top-left":      return { top: `${margin}%`, left: `${margin}%` };
+                case "top-center":    return { top: `${margin}%`, left: "50%", transform: "translateX(-50%)" };
+                case "bottom-right":  return { bottom: `${margin}%`, right: `${margin}%` };
+                case "bottom-left":   return { bottom: `${margin}%`, left: `${margin}%` };
+                case "bottom-center": return { bottom: `${margin}%`, left: "50%", transform: "translateX(-50%)" };
+                default:              return { top: `${margin}%`, right: `${margin}%` };
+              }
+            })();
+            const containerStyle: React.CSSProperties = transparentBg
+              ? {
+                  padding: 0,
+                  background: "transparent",
+                  filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.7))",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: `${pad * 0.7}px`,
+                }
+              : {
+                  background: "rgba(255,255,255,0.96)",
+                  padding: `${pad}px ${pad * 1.4}px`,
+                  borderRadius: `${pad * 0.7}px`,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: `${pad * 0.7}px`,
+                };
+            return (
+              <div
+                key={`brand-${b.brand.id}-${b.time}`}
+                style={{
+                  position: "absolute",
+                  ...corner,
+                  zIndex: 9,
+                  pointerEvents: "none",
+                }}
+              >
+                <div style={containerStyle}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={brandLogoCdnUrl(b.brand)}
+                    alt={b.brand.name}
+                    width={logoSize}
+                    height={logoSize}
+                    style={{ display: "block", width: logoSize, height: logoSize }}
+                  />
+                </div>
+              </div>
+            );
+          });
       })()}
 
       {/* Custom logos — user-uploaded watermarks. Persistent ones show
