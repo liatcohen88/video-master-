@@ -18,12 +18,13 @@
  * exactly as the live preview understands them.
  */
 
-import { AbsoluteFill, Video, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
+import { AbsoluteFill, Video, Audio, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "../lib/types";
 import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt } from "../lib/dramaEffects";
 import { colorFilterCss } from "../lib/colorFilters";
 import { detectElements, type ElementEvent } from "../lib/keywordElements";
 import { detectBeatDrops, beatDropZoomAt } from "../lib/wowEffects";
+import { introFrameAt } from "../lib/introAnimations";
 
 // Mirrors ElementOverlay in VideoPreview.tsx — % anchors are the same so
 // the emoji lands in the identical visual slot.
@@ -94,7 +95,20 @@ export function VideoComposition({
   // --- Zoom / Ken Burns / Punch ----------------------------------------
   // Mirrors VideoPreview's zoom logic exactly. Beat-drop pulses always
   // add on top so the wow feature stands alone even when zoomEffect=none.
-  const beatDrops = effects?.beatDropZoom ? detectBeatDrops(subtitles) : [];
+  // Beat drops are shared between zoom pulse, particle burst, and shake —
+  // detect once when any of them is on.
+  const wantsDrops = !!(effects?.beatDropZoom || effects?.particleBurst || effects?.punchShake);
+  const beatDrops = wantsDrops ? detectBeatDrops(subtitles) : [];
+  const activeDrop = beatDrops.find((d) => t >= d.t && t < d.t + 0.7);
+  // Tiny screen-shake when a drop is active. Frame-driven: damped sine over
+  // 220ms so the wiggle decays even if multiple drops chain together.
+  const shakeT = (activeDrop && effects?.punchShake) ? t - activeDrop.t : -1;
+  const shakeX = shakeT >= 0 && shakeT < 0.22
+    ? Math.sin(shakeT * 80) * 2 * (1 - shakeT / 0.22)
+    : 0;
+  const shakeY = shakeT >= 0 && shakeT < 0.22
+    ? Math.cos(shakeT * 90) * 1.5 * (1 - shakeT / 0.22)
+    : 0;
   const emphasisMoments: number[] = effects?.emphasisMoments ?? [];
   const zoomScale = (() => {
     const beat = beatDropZoomAt(t, beatDrops);
@@ -115,8 +129,14 @@ export function VideoComposition({
   })();
   const panX = effects?.zoomEffect === "kenburns" ? Math.sin(progress * Math.PI) * 4 : 0;
   const panY = effects?.zoomEffect === "kenburns" ? Math.cos(progress * Math.PI) * 2 : 0;
-  const videoTransform = (zoomScale !== 1 || panX !== 0 || panY !== 0)
-    ? `scale(${zoomScale}) translate(${panX}%, ${panY}%)`
+  // Intro animation — applies only in the first ~500-900ms. Composes into
+  // the same transform chain by MULTIPLYING the scale and ADDING translate.
+  const intro = introFrameAt(t, effects?.introAnimation);
+  const finalScale = zoomScale * intro.scaleMul;
+  const finalPanX = panX + intro.translateX;
+  const finalPanY = panY + intro.translateY;
+  const videoTransform = (finalScale !== 1 || finalPanX !== 0 || finalPanY !== 0 || intro.rotate)
+    ? `scale(${finalScale}) translate(${finalPanX}%, ${finalPanY}%) rotate(${intro.rotate}deg)`
     : undefined;
 
   // Same drama/wow detection the live preview uses — re-running it here is
@@ -143,7 +163,12 @@ export function VideoComposition({
   const currentSub = subtitles.find((s) => t >= s.start && t <= s.end);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#0b0b16" }}>
+    <AbsoluteFill
+      style={{
+        backgroundColor: "#0b0b16",
+        transform: (shakeX || shakeY) ? `translate(${shakeX}px, ${shakeY}px)` : undefined,
+      }}
+    >
       {/* Base video layer — Studio renders without a video while we
           iterate on overlay parity; production renders always supply src. */}
       {videoSrc ? (
@@ -153,9 +178,11 @@ export function VideoComposition({
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            filter: videoFilter,
+            filter: [videoFilter, intro.extraFilter].filter(Boolean).join(" ") || undefined,
             transform: videoTransform,
             transformOrigin: "center center",
+            opacity: intro.opacity,
+            clipPath: intro.clipPath,
           }}
         />
       ) : (
@@ -169,6 +196,122 @@ export function VideoComposition({
           }}
         />
       )}
+
+      {/* Background music — mixed UNDER the source video's own audio at
+          the user-set volume. Remotion auto-handles audio mixing in the
+          final MP4 so we don't need an FFmpeg pass. */}
+      {effects?.bgMusicUrl && (
+        <Audio
+          src={effects.bgMusicUrl}
+          volume={effects.bgMusicVolume ?? 0.3}
+        />
+      )}
+
+      {/* Intro overlay layer — flash white / fade from black / etc. Sits
+          ABOVE the video so the color fully covers the frame. Returns
+          opacity 0 once the intro window is over so it stops painting. */}
+      {intro.overlayBg && (intro.overlayOpacity ?? 0) > 0 && (
+        <AbsoluteFill
+          style={{
+            background: intro.overlayBg,
+            opacity: intro.overlayOpacity,
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        />
+      )}
+
+      {/* WOW particle burst — 10 sparkles fly outward from the subtitle
+          band when a beat drop is active. Frame-driven (no CSS keyframes
+          needed) so it works identically in Studio preview and headless
+          Chromium export. Mirrors WowOverlay.Burst from VideoPreview. */}
+      {effects?.particleBurst && activeDrop && (() => {
+        const local = t - activeDrop.t;
+        const phase = Math.min(1, local / 0.62);
+        const N = 10;
+        // Position the burst origin where the subtitle text sits — same
+        // 72% vertical anchor as the live preview.
+        const originX = width / 2;
+        const originY = height * 0.72;
+        return (
+          <AbsoluteFill style={{ pointerEvents: "none", zIndex: 8 }}>
+            {Array.from({ length: N }).map((_, i) => {
+              const angle = (i / N) * Math.PI * 2;
+              const dx = Math.cos(angle) * 110 * phase;
+              const dy = Math.sin(angle) * 110 * phase;
+              const hue = (i * 36) % 360;
+              // Match Burst's keyframes: opacity ramps in fast then fades.
+              const opacity = phase < 0.1
+                ? phase / 0.1
+                : Math.max(0, 1 - (phase - 0.1) / 0.9);
+              const scale = phase < 0.1
+                ? 0.4 + (phase / 0.1) * (1.4 - 0.4)
+                : 1.4 - (phase - 0.1) * 0.7;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: `${originX + dx}px`,
+                    top: `${originY + dy}px`,
+                    width: 6,
+                    height: 6,
+                    borderRadius: 9999,
+                    transform: `translate(-50%, -50%) scale(${scale})`,
+                    background: `hsl(${hue} 95% 65%)`,
+                    boxShadow: `0 0 8px hsl(${hue} 95% 65%)`,
+                    opacity,
+                  }}
+                />
+              );
+            })}
+          </AbsoluteFill>
+        );
+      })()}
+
+      {/* Custom logos — user-uploaded watermarks. Persistent ones show
+          throughout, timed ones only inside their window. URL must be
+          absolute (http(s) or data:) so headless Chromium can fetch it. */}
+      {(effects?.customLogos ?? [])
+        .filter((logo) => {
+          if (logo.persistent ?? true) return true;
+          const t0 = logo.time ?? 0;
+          const dur = logo.durationSec ?? 0;
+          return t >= t0 && t < t0 + dur;
+        })
+        .map((logo, i) => {
+          const margin = Math.max(8, height * 0.025);
+          const corner: React.CSSProperties = (() => {
+            switch (logo.position) {
+              case "top-right":    return { top: margin, right: margin };
+              case "top-left":     return { top: margin, left: margin };
+              case "bottom-right": return { bottom: margin, right: margin };
+              case "bottom-left":  return { bottom: margin, left: margin };
+              default:             return { top: margin, right: margin };
+            }
+          })();
+          const sizeScale = logo.size === "S" ? 0.07 : logo.size === "L" ? 0.14 : 0.10;
+          const size = typeof logo.sizePx === "number" && logo.sizePx > 0
+            ? Math.max(8, logo.sizePx)
+            : Math.max(40, height * sizeScale);
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`logo-${i}`}
+              src={logo.src}
+              alt={logo.name || "logo"}
+              style={{
+                position: "absolute",
+                ...corner,
+                width: `${size}px`,
+                height: "auto",
+                opacity: 0.9,
+                pointerEvents: "none",
+                zIndex: 7,
+              }}
+            />
+          );
+        })}
 
       {/* Emoji overlay layer — contextual (auto-detected) + manual emojis
           added by the user in the subtitle editor. Visible window logic
