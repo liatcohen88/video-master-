@@ -23,6 +23,7 @@ import {
 import { getCredits } from "@/lib/credits";
 import { confirm } from "@/components/ConfirmDialog";
 import { toast } from "@/components/Toaster";
+import { useAuth } from "@/lib/useAuth";
 
 // Default mode labels. Per-row Hebrew label is now CMS-overridable via
 // dashboard.modeLabel.* — see useModeLabel() below.
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [profileEditing, setProfileEditing] = useState(false);
   const [snapshots, setSnapshots] = useState<ProjectSnapshot[]>([]);
   const [hasSavedVideo, setHasSavedVideo] = useState(false);
+  const auth = useAuth();
   const currency = (useContent("brand.currencyName") as string) || "קרדיטים";
   const appName  = useContent("brand.appName") as string;
   const tagline  = useContent("brand.tagline") as string;
@@ -136,7 +138,20 @@ export default function DashboardPage() {
 
   if (!hydrated) return <div className="min-h-screen" />;
 
-  const profile       = getProfile();
+  // Real Supabase profile takes precedence over the mock userStore fixture.
+  // Liat 2026-06-17: dashboard was showing "היי ליאת" + liat@example.com +
+  // wrong credit count for everyone because getProfile() reads a hardcoded
+  // demo object. Now we hydrate from useAuth() and fall back to the mock
+  // only when Supabase isn't configured (dev).
+  const mockProfile  = getProfile();
+  const authProfile  = auth.status === "user" ? auth.profile : null;
+  const realName     = authProfile?.display_name
+    || authProfile?.email?.split("@")[0]
+    || mockProfile.name;
+  const realEmail    = authProfile?.email ?? mockProfile.email;
+  const realCredits  = authProfile?.credits ?? credits;
+  const realJoinedAt = authProfile?.created_at ?? mockProfile.joinedAt;
+  const profile = { ...mockProfile, name: realName, email: realEmail, joinedAt: realJoinedAt };
   const stats         = getUserStats();
   const videos        = listMyVideos();
   const notifications = listNotifications();
@@ -159,7 +174,7 @@ export default function DashboardPage() {
             <Link href="/credits"
               className="flex items-center gap-2 bg-black/40 backdrop-blur border border-white/15 hover:border-brand/40 rounded-full pl-3 pr-2 py-1.5 transition-colors group">
               <MasterCoin size={16} />
-              <span className="text-sm font-bold">{credits.toLocaleString()}</span>
+              <span className="text-sm font-bold">{realCredits.toLocaleString()}</span>
               <span className="text-[10px] text-white/60">{currency}</span>
               <span className="bg-brand/40 group-hover:bg-brand/60 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 transition-colors">+</span>
             </Link>
