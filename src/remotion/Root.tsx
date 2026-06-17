@@ -30,7 +30,16 @@ const DEFAULT_PROPS: CompositionProps = {
   videoSrc: staticFile("demo.mp4"),
   subtitles: [
     { id: "s1", start: 0.5, end: 2.5, text: "שלום, זו דוגמה ראשונה" },
-    { id: "s2", start: 3.0, end: 5.0, text: "אין מצב שזה קרה!" },
+    {
+      id: "s2",
+      start: 3.0,
+      end: 5.0,
+      text: "אין מצב שזה קרה!",
+      manualEmojis: [
+        { emoji: "🔥", position: "top-right", durationSec: 2 },
+        { emoji: "😱", position: "bottom-left", durationSec: 2 },
+      ],
+    },
     { id: "s3", start: 5.5, end: 7.5, text: "מטורף, ממש מטורף" },
   ],
   style: {
