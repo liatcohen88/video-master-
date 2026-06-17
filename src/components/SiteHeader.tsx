@@ -52,8 +52,11 @@ export default function SiteHeader() {
   const isGuest = auth.status === "guest";
   // For credits: prefer the Supabase profile balance when we have one,
   // otherwise fall back to the localStorage credit (legacy + offline mode).
+  // Guests get hard-zero — the localStorage value lingers from previous
+  // sessions (Liat saw "75 מאסטרים" without being signed in). Real credits
+  // only exist server-side against an authenticated user.
   const [localCredits, setLocalCredits] = useState(0);
-  const credits = auth.profile?.credits ?? localCredits;
+  const credits = isGuest ? 0 : (auth.profile?.credits ?? localCredits);
   // When the user is a guest, force "לא מחובר" — defaultUserName is the
   // CMS string for that case. Otherwise prefer display_name → email-prefix
   // → fallback. Liat 2026-06-17: don't show "משתמש" for unauthenticated.
