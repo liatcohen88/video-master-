@@ -396,6 +396,13 @@ export default function DashboardPage() {
                 </a>
               </div>
             ))}
+            {/* Footer hint with link to support — Liat 2026-06-17 */}
+            <div className="text-[11px] text-white/40 pt-3 mt-2 border-t border-white/5">
+              לא מצאת את החשבונית שחיפשת?{" "}
+              <Link href="/contact" className="text-brand-light hover:underline font-bold">
+                צור איתנו קשר
+              </Link>
+            </div>
           </div>
         </details>
 
