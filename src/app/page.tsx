@@ -627,7 +627,13 @@ export default function HomePage() {
       const { browserClient } = await import("@/lib/supabase");
       const sb = browserClient();
       const token = (await sb?.auth.getSession())?.data.session?.access_token;
-      const res = await fetch("/api/render", {
+      // Engine dispatch — NEXT_PUBLIC_EXPORT_ENGINE=remotion routes to the
+      // parity-verified Remotion path. Default stays "ffmpeg" so we don't
+      // disrupt paying customers during the migration.
+      const engine = process.env.NEXT_PUBLIC_EXPORT_ENGINE === "remotion"
+        ? "/api/render-remotion"
+        : "/api/render";
+      const res = await fetch(engine, {
         method: "POST",
         body: fd,
         headers: token ? { authorization: `Bearer ${token}` } : undefined,

@@ -3,7 +3,10 @@
 # Coolify auto-detects this file and runs the extra setup phase.
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zlib", "stdenv.cc.cc.lib"]
+# `chromium` is added so Remotion can render React → MP4 via headless
+# Chrome without downloading its own ~150MB Headless Shell on cold start.
+# The remotionRender.ts helper picks it up via the CHROME_BIN env var.
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zlib", "stdenv.cc.cc.lib", "chromium"]
 aptPkgs = ["build-essential", "libsndfile1", "zlib1g"]
 
 [phases.install]
@@ -33,3 +36,6 @@ cmd = "npm run start"
 # them only into the Python child process, not the global Node environment.
 [variables]
 PYTHON_PATH = "/opt/whisper-venv/bin/python3"
+# Tell Remotion which Chromium to use instead of downloading its own. The
+# Nix-installed binary is symlinked via PATH; "chromium" resolves at runtime.
+CHROME_BIN = "chromium"

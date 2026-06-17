@@ -53,5 +53,9 @@ export async function renderViaRemotion({ inputProps, outPath }: RemotionRenderA
     crf: 18,
     // Single-process for now; we'll tune concurrency once the PoC is green.
     concurrency: 1,
+    // CHROME_BIN points to the system chromium installed via Nixpacks. On
+    // dev machines it's unset → Remotion falls back to its bundled Headless
+    // Shell (one-time download to ~/.cache/remotion).
+    browserExecutable: process.env.CHROME_BIN,
   });
 }
