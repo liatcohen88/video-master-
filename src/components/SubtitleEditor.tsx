@@ -688,9 +688,6 @@ export default function SubtitleEditor({
                 </div>
               </div>
 
-              <div className="mt-4 text-[11px] text-white/40 leading-relaxed">
-                ניתן לערוך את הרשימה הזו בפאנל אדמין → ניהול מילים.
-              </div>
             </div>
           </div>
         );

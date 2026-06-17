@@ -106,8 +106,8 @@ export default function SignupPage() {
       const msg = error.message.toLowerCase();
       if (msg.includes("provider is not enabled")) {
         setErr(provider === "google"
-          ? "התחברות עם Google עוד לא הופעלה. (מנהלת — הפעילי ב-Supabase → Authentication → Providers → Google)"
-          : "התחברות עם Apple עוד לא הופעלה. (מנהלת — הפעילי ב-Supabase → Authentication → Providers → Apple)");
+          ? "התחברות עם Google אינה זמינה כרגע. נא לנסות שוב מאוחר יותר."
+          : "התחברות עם Apple אינה זמינה כרגע. נא לנסות שוב מאוחר יותר.");
       } else setErr(error.message);
     }
   }
