@@ -100,16 +100,13 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[render-remotion] failed", err);
-    // Refund credits — the user paid for a render they didn't get. The
-    // client is expected to auto-retry against /api/render (FFmpeg), which
-    // will charge again on success.
+    // Refund credits so a server-side failure doesn't cost the user.
     await refundCredits(user.id, cost.total);
     return NextResponse.json(
       {
-        error: "ייצוא נכשל בנתיב הראשי. ניסיון חוזר אוטומטי...",
+        error: "הייצוא נכשל. אנחנו על זה — נסי שוב בעוד דקה.",
         engine: "remotion",
         detail: String(err),
-        retry: "/api/render",
       },
       { status: 500 },
     );

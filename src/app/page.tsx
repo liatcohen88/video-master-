@@ -655,18 +655,7 @@ export default function HomePage() {
         ? "/api/render-remotion"
         : "/api/render";
       const headers = token ? { authorization: `Bearer ${token}` } : undefined;
-      let res = await fetch(engine, { method: "POST", body: fd, headers });
-      // Remotion fallback: if the new pipeline returns 500 with a `retry`
-      // hint, transparently re-issue against /api/render (the proven FFmpeg
-      // path). The remotion route already refunded the credits, so the
-      // FFmpeg path charging again is correct (single net charge).
-      if (!res.ok && engine === "/api/render-remotion") {
-        const body = await res.clone().json().catch(() => ({}));
-        if (body.retry === "/api/render") {
-          console.warn("[export] remotion failed, falling back to ffmpeg:", body.detail);
-          res = await fetch("/api/render", { method: "POST", body: fd, headers });
-        }
-      }
+      const res = await fetch(engine, { method: "POST", body: fd, headers });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `שגיאת שרת ${res.status}`);

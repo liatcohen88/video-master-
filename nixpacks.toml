@@ -37,6 +37,9 @@ cmd = "npm run start"
 # them only into the Python child process, not the global Node environment.
 [variables]
 PYTHON_PATH = "/opt/whisper-venv/bin/python3"
-# Tell Remotion which Chromium to use instead of downloading its own. The
-# Nix-installed binary is symlinked via PATH; "chromium" resolves at runtime.
-CHROME_BIN = "chromium"
+# CHROME_BIN intentionally UNSET — chromium isn't in nixPkgs (it bloated
+# the image past the CX23 disk envelope). With no CHROME_BIN, Remotion
+# downloads its own Headless Shell on first render (~150MB to
+# ~/.cache/remotion). First render is slow (~30s cold download), every
+# render after that is fast — the binary stays cached for the container
+# lifetime.
