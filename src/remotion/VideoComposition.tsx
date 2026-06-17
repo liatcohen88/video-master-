@@ -249,14 +249,17 @@ export function VideoComposition({
 
   // Filter chain mirrors VideoPreview line-for-line. Drama beats wow beats
   // the default color stack — same precedence as the live preview.
+  // WOW intentionally has NO color/filter change — matches the live
+  // preview after Liat's 2026-06-17 ask. WOW visuals come purely from
+  // particles + shake + zoom in the layers below; the color stack stays
+  // neutral when WOW fires.
   const videoFilter = activeDrama
     ? "grayscale(1) contrast(1.25) brightness(0.96)"
-    : activeWow
-      ? "saturate(1.45) contrast(1.12) brightness(1.04) sepia(0.08)"
-      : ([
-          colorFilterCss(effects?.colorFilter),
-          effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
-        ].filter(Boolean).join(" ") || undefined);
+    : ([
+        colorFilterCss(effects?.colorFilter),
+        effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
+      ].filter(Boolean).join(" ") || undefined);
+  void activeWow;
 
   // Active subtitle = the one whose window contains the current time. Same
   // findIndex pattern as VideoPreview so a frame on the boundary picks the

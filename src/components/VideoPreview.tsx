@@ -361,6 +361,16 @@ export default function VideoPreview({
     v.loop = false;
     // Paused on load so the user starts playback themselves with sound on.
     try { v.pause(); } catch { /* ignore */ }
+    // Force the first frame to paint so the preview isn't a black square.
+    // iOS Safari sometimes shows black until first play even with
+    // preload=auto; jumping to 0.05s on loadedmetadata reliably forces a
+    // frame to render. Liat: "מסך שחור בהתחלה אני כן רוצה שיראו משהו".
+    const onMeta = () => {
+      try { if (v.currentTime < 0.05) v.currentTime = 0.05; } catch {/* ignore */}
+    };
+    if (v.readyState >= 1) onMeta();
+    else v.addEventListener("loadedmetadata", onMeta, { once: true });
+    return () => v.removeEventListener("loadedmetadata", onMeta);
   }, [videoUrl]);
 
   // --- Intro animation — first ~0.5-0.9s of the video ------------------
@@ -733,23 +743,7 @@ export default function VideoPreview({
           x5-playsinline="true"
           controlsList="nodownload nofullscreen noplaybackrate"
           disablePictureInPicture
-          // Click anywhere on the video to toggle play/pause — Liat: "שאני
-          // לוחצת באמצע הסרטון שיעצור לא רק בטיימליין למטה". Don't fight
-          // the native controls (the bottom-bar play button does the same
-          // thing); we only handle clicks that land on the video surface.
-          onClick={(e) => {
-            const v = videoRef.current;
-            if (!v) return;
-            // Ignore clicks that target the native controls themselves
-            // (Safari/Chrome bubble a click on the controls bar to the
-            // <video>). If the click was inside the bottom 40px, assume
-            // it was the control bar and let it do its thing.
-            const rect = (e.currentTarget as HTMLVideoElement).getBoundingClientRect();
-            if (e.clientY > rect.bottom - 44) return;
-            if (v.paused) v.play().catch(() => {});
-            else v.pause();
-          }}
-          className="block w-full h-full cursor-pointer"
+          className="block w-full h-full"
           style={{
             objectFit: hasAspect ? "cover" : "contain",
             objectPosition,
@@ -765,14 +759,16 @@ export default function VideoPreview({
             // because B&W is the whole point of the moment.
             filter: activeDrama
               ? "grayscale(1) contrast(1.25) brightness(0.96)"
-              : activeWow
-                // WOW words — warm pop: bumped saturation + slight warm tint
-                // + a touch more contrast. Stays in color, just energetic.
-                ? "saturate(1.45) contrast(1.12) brightness(1.04) sepia(0.08)"
-                : ([
-                    colorFilterCss(effects?.colorFilter),
-                    effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
-                  ].filter(Boolean).join(" ") || undefined),
+              : ([
+                  // WOW intentionally has NO color/filter change anymore —
+                  // Liat 2026-06-17: "אני לא רוצה פילטר חם שהמילה לא תשחק
+                  // בצבע. רק הרעידה החלקיקים והזום מספיק". The wow effects
+                  // (particle burst + punch shake + beat-drop zoom) all
+                  // come from the OTHER layer; this filter chain stays
+                  // neutral when WOW fires.
+                  colorFilterCss(effects?.colorFilter),
+                  effects?.cinematicColor ? "contrast(1.08) saturate(1.16) brightness(1.02) sepia(0.06)" : "",
+                ].filter(Boolean).join(" ") || undefined),
             transition: "transform 0.08s linear, filter 0.3s ease",
             // The video sits just above the (usually absent) dynamic BG layer.
             // IMPORTANT: keep this z-index LOW so all overlays (subtitles,
@@ -782,6 +778,31 @@ export default function VideoPreview({
           }}
         />
         </div>{/* /introWrapper */}
+
+        {/* Center tap-target to toggle play/pause. Liat 2026-06-17:
+            "תעשה שרק שלוחצים על האמצע יעצר הסרטון לא בכל מקום כי זה
+            עושה בעיות עם הקוד זה נתקע וחוזר נתקע וחוזר". A small 40%×40%
+            box dead-center catches taps WITHOUT covering the bottom
+            control bar or the subtitle/emoji area. */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            const v = videoRef.current;
+            if (!v) return;
+            if (v.paused) v.play().catch(() => {});
+            else v.pause();
+          }}
+          className="absolute cursor-pointer"
+          style={{
+            top: "30%",
+            left: "30%",
+            width: "40%",
+            height: "40%",
+            zIndex: 5,
+            background: "transparent",
+          }}
+          aria-label="לחיצה לעצור / להמשיך"
+        />
 
         {/* Background music — hidden audio element shadowing the video's
             play/pause/seek. Volume managed via effects.bgMusicVolume. */}
