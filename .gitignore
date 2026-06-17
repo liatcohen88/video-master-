@@ -45,3 +45,8 @@ public/lottie/*.broken-raster
 # ── Local databases / dumps ───────────────────────────────
 *.sqlite
 *.db
+
+# Local Remotion PoC demo video — not for repo
+public/demo.mp4
+# Remotion render output
+out/
