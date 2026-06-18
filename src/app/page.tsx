@@ -164,23 +164,25 @@ export default function HomePage() {
           return;
         }
         const file = storedToFile(v);
-        // Critical: handleVideo() resets effects/subtitles to defaults. After
-        // a guest signs up via OAuth, Supabase reloads the tab, and a fresh
-        // handleVideo would wipe the just-saved snapshot. Find the latest
-        // snapshot for THIS video and resume from it so the user keeps every
-        // edit they made before signing in. Liat: "כל מה שהמשתמש עשה ישמר".
+        // Critical: handleVideo() RESETS effects/subtitles to defaults — never
+        // use it on a refresh, it wipes the user's work. Prefer the per-video
+        // snapshot (keyed by hash). If no snapshot matches (hash drift, first
+        // edit before the 1s autosave, etc.) fall back to handleResume WITHOUT
+        // a snapshot — it re-attaches the video and enters editing while
+        // LEAVING the per-field useAutoSavedState values (effects/subtitles/
+        // style, restored from localStorage on mount) intact. Either way the
+        // user keeps everything. Liat: "כל מה שעשיתי נמחק" — this is the fix.
         try {
           const hash = await hashVideoFile(file);
           const snaps = await listSnapshots();
           const latest = snaps
             .filter((s) => s.videoHash === hash)
             .sort((a, b) => b.at - a.at)[0];
-          if (latest) {
-            await handleResume(file, latest);
-            return;
-          }
-        } catch { /* fall through to fresh handleVideo */ }
-        await handleVideo(file);
+          await handleResume(file, latest);
+        } catch {
+          // Even on error, resume (no reset) rather than handleVideo.
+          await handleResume(file);
+        }
       })();
       return;
     }
@@ -279,6 +281,15 @@ export default function HomePage() {
     };
   }, [phase, videoHash]);
 
+  // Always flag "actively editing" while in the editor so ANY refresh
+  // re-enters the editor and restores state — not just refreshes that
+  // happened to go through handleVideo/handleResume.
+  useEffect(() => {
+    if (phase === "editing") {
+      try { sessionStorage.setItem("vm_active_edit", "1"); } catch {}
+    }
+  }, [phase]);
+
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [activeReferenceId, setActiveReferenceId] = useState<string | undefined>(undefined);
 
@@ -374,6 +385,23 @@ export default function HomePage() {
         return;
       }
 
+      // No per-video snapshot and no cached transcription for THIS hash —
+      // but the per-field autosave (useAutoSavedState) may still hold the
+      // last project's subtitles in localStorage. If so, the user was
+      // mid-edit; re-enter the editor and let those hydrated values stand
+      // (effects/style/subtitles already restored on mount). Only truly
+      // empty projects fall back to setup.
+      let lsSubs = 0;
+      try {
+        const raw = localStorage.getItem("vm_project_v1.subtitles");
+        if (raw) lsSubs = (JSON.parse(raw) as unknown[])?.length ?? 0;
+      } catch { /* ignore */ }
+      if (lsSubs > 0) {
+        setPhase("editing");
+        if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+        toast.success("הפרויקט שוחזר");
+        return;
+      }
       // Worst case: video only, no transcription → land on setup so user
       // can pick mode/settings and run the AI.
       toast.info(toastVideoLoaded);
