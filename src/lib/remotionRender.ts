@@ -31,10 +31,13 @@ export type RemotionRenderArgs = {
   bgMusicBuffer?: Buffer;
   bgMusicFileName?: string;
   outPath: string;
+  /** Called as frames render — used by the background-job runner to heartbeat
+   *  the job so a long (but healthy) render isn't mistaken for a dead one. */
+  onProgress?: (p: { renderedFrames: number; totalFrames: number }) => void;
 };
 
 export async function renderViaRemotion({
-  inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName, outPath,
+  inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName, outPath, onProgress,
 }: RemotionRenderArgs): Promise<void> {
   // Use the project's REAL public/ dir as the bundle publicDir. It already
   // holds sfx/, lottie/, custom-logos/ etc., so every staticFile() the
@@ -112,6 +115,9 @@ export async function renderViaRemotion({
       // (NOT delayRenderTimeoutInMilliseconds — that was silently ignored
       // last attempt, all renders kept failing at exactly 28000ms).
       timeoutInMilliseconds: 120_000,
+      onProgress: onProgress
+        ? ({ renderedFrames }) => onProgress({ renderedFrames, totalFrames: composition.durationInFrames })
+        : undefined,
     });
   } finally {
     // The bundle directory is under tmp; remove it so /tmp doesn't fill.

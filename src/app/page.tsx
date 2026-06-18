@@ -134,6 +134,10 @@ export default function HomePage() {
   const [progressMessage, setProgressMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  // Background export job — the render runs server-side; this drives a
+  // non-blocking "מייצא ברקע" badge so the user can keep working / leave.
+  const [exportJob, setExportJob] = useState<{ id: string; filename: string; status: "rendering" | "done" } | null>(null);
+  const exportPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [insufficientInfo, setInsufficientInfo] = useState<InsufficientInfo | null>(null);
   const [whisperModel, setWhisperModel] = useAutoSavedState<string>("whisperModel", "ivrit-ai/whisper-large-v3-turbo-ct2");
   const [effects, setEffects] = useAutoSavedState<VideoEffects>("effects", MODE_DEFAULT_EFFECTS.subtitles_only);
@@ -191,6 +195,21 @@ export default function HomePage() {
     if (modeMeta.wasRestored) {
       toast.info(toastResume);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Resume an in-flight background export after a reload/navigation — the
+  // render keeps running on the server, so re-attach the poller and deliver
+  // the file when it's ready (the user doesn't lose the export by leaving).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("vm_export_job");
+      if (raw) {
+        const j = JSON.parse(raw) as { id?: string; filename?: string };
+        if (j?.id && j?.filename) beginExportJob(j.id, j.filename);
+      }
+    } catch { /* ignore */ }
+    return () => { if (exportPollRef.current) clearInterval(exportPollRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -645,6 +664,85 @@ export default function HomePage() {
     }
   }
 
+  // ───────────────── Background export job (poll + deliver) ─────────────────
+  // The MP4 render runs server-side and can take minutes. Instead of blocking
+  // on a spinner, the export starts a background job; we poll its status and
+  // deliver the file when ready, so the user can keep working or leave.
+  async function exportAuthHeader(): Promise<Record<string, string>> {
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+      return token ? { authorization: `Bearer ${token}` } : {};
+    } catch { return {}; }
+  }
+
+  async function deliverExportFile(blob: Blob, filename: string): Promise<boolean> {
+    const file = new File([blob], filename, { type: "video/mp4" });
+    const navAny = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    const canShare = typeof navAny.share === "function"
+      && typeof navAny.canShare === "function"
+      && navAny.canShare({ files: [file] });
+    if (canShare) {
+      try { await navAny.share({ files: [file], title: filename }); return true; }
+      catch (e) { if (!(e instanceof Error) || e.name !== "AbortError") console.warn("[export] share failed", e); }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    return false;
+  }
+
+  function clearExportJob() {
+    if (exportPollRef.current) { clearInterval(exportPollRef.current); exportPollRef.current = null; }
+    setExportJob(null);
+    try { localStorage.removeItem("vm_export_job"); } catch {}
+  }
+
+  // Download the finished MP4. Exposed so the badge's "הורד" button can retry.
+  async function downloadExportResult(jobId: string, filename: string) {
+    try {
+      const res = await fetch(`/api/render-result/${jobId}`, { headers: await exportAuthHeader() });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const blob = await res.blob();
+      const shared = await deliverExportFile(blob, filename);
+      setDownloadSuccess(filename);
+      toast.success(shared ? "✓ הסרטון מוכן ונשמר!" : "✓ הסרטון מוכן וירד אלייך!");
+      setTimeout(() => setDownloadSuccess(null), 12000);
+    } catch {
+      // Keep the badge in "done" state so the user can retry the download.
+      setExportJob((j) => (j ? { ...j, status: "done" } : j));
+      toast.error("הסרטון מוכן — לחצי 'הורד' שוב");
+    }
+  }
+
+  async function pollExportStatus(jobId: string, filename: string) {
+    try {
+      const res = await fetch(`/api/render-status/${jobId}`, { headers: await exportAuthHeader() });
+      if (res.status === 404) { clearExportJob(); toast.error("הייצוא לא נמצא — נסי שוב"); return; }
+      if (!res.ok) return; // transient — keep polling
+      const { status } = await res.json();
+      if (status === "done") {
+        if (exportPollRef.current) { clearInterval(exportPollRef.current); exportPollRef.current = null; }
+        setExportJob({ id: jobId, filename, status: "done" });
+        try { localStorage.removeItem("vm_export_job"); } catch {}
+        await downloadExportResult(jobId, filename);
+      } else if (status === "failed") {
+        clearExportJob();
+        toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
+      }
+      // queued / rendering → keep polling
+    } catch { /* network hiccup — keep polling */ }
+  }
+
+  function beginExportJob(jobId: string, filename: string) {
+    if (exportPollRef.current) clearInterval(exportPollRef.current);
+    setExportJob({ id: jobId, filename, status: "rendering" });
+    try { localStorage.setItem("vm_export_job", JSON.stringify({ id: jobId, filename })); } catch {}
+    exportPollRef.current = setInterval(() => { void pollExportStatus(jobId, filename); }, 4000);
+    void pollExportStatus(jobId, filename); // immediate first check
+  }
+
   async function exportProject() {
     // Guests must sign up before the download starts. SignupGate opens an
     // inline popup with the 25-master gift framing; on success the gate's
@@ -845,47 +943,28 @@ export default function HomePage() {
         throw new Error(body.error || `שגיאת שרת ${res.status}`);
       }
 
-      const blob = await res.blob();
       const now = new Date();
       const dateStamp = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
       const filename = `video-master-${dateStamp}.mp4`;
 
-      // Mobile UX: a regular <a download> on iOS Safari opens the file in a
-      // new tab and leaves the user lost ("איפה הסרטון נשמר?"). The Web Share
-      // API hands the file straight to the OS share-sheet, which has a "Save
-      // to Photos" / "Save to Files" / WhatsApp / etc. option built in.
-      // Falls back to the classic <a download> when share isn'\''t available
-      // (desktop browsers, older mobile, or PWA contexts that block sharing).
-      const file = new File([blob], filename, { type: "video/mp4" });
-      const navAny = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-      const canShare = typeof navAny.share === "function"
-        && typeof navAny.canShare === "function"
-        && navAny.canShare({ files: [file] });
-      let savedViaShare = false;
-      if (canShare) {
-        try {
-          await navAny.share({ files: [file], title: filename });
-          savedViaShare = true;
-        } catch (shareErr) {
-          // User cancelled share-sheet, or share failed — fall through to
-          // the classic <a download> path below. Don'\''t treat cancel as a
-          // hard error: if savedViaShare stays false we still get the
-          // anchor fallback.
-          if (!(shareErr instanceof Error) || shareErr.name !== "AbortError") {
-            console.warn("[export] share() failed, falling back to <a download>", shareErr);
-          }
-        }
+      // Remotion path returns 202 + { jobId } and renders in the BACKGROUND so
+      // the user isn't stuck on a spinner for minutes (Liat: "יצוא לוקח המון
+      // זמן... מחכה כבר 10 דקות"). Start the poller + non-blocking badge and
+      // bail; the poller delivers the MP4 when it's ready. The legacy FFmpeg
+      // engine still streams the blob directly (handled below).
+      const contentType = res.headers.get("content-type") || "";
+      if (res.status === 202 || contentType.includes("application/json")) {
+        const { jobId } = await res.json().catch(() => ({} as { jobId?: string }));
+        if (!jobId) throw new Error("לא התקבל מזהה ייצוא מהשרת");
+        beginExportJob(jobId, filename);
+        toast.success("🎬 הסרטון בעיבוד — אפשר להמשיך לעבוד, נודיע לך כשמוכן");
+        return; // finally{} closes the loader; the badge tracks progress
       }
-      if (!savedViaShare) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
+
+      const blob = await res.blob();
+      const shared = await deliverExportFile(blob, filename);
       setDownloadSuccess(filename);
-      toast.success(savedViaShare ? "✓ נשמר בגלריה שלך!" : `✓ ${filename} ירד בהצלחה`);
+      toast.success(shared ? "✓ נשמר בגלריה שלך!" : `✓ ${filename} ירד בהצלחה`);
       // Auto-clear the success message after 10 seconds
       setTimeout(() => setDownloadSuccess(null), 10000);
     } catch (e: unknown) {
@@ -922,6 +1001,43 @@ export default function HomePage() {
           transcription (setup phase) and MP4 export (editing phase). */}
       {isProcessing && (
         <AILoadingOverlay title={loaderTitle} subtitle={progressMessage || undefined} />
+      )}
+
+      {/* Non-blocking background-export badge. The render runs server-side so
+          the user can keep editing / leave; this floats bottom-center and
+          turns into a download button when ready. */}
+      {exportJob && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] max-w-[92vw]">
+          {exportJob.status === "rendering" ? (
+            <div className="flex items-center gap-3 rounded-2xl bg-bg-card/95 backdrop-blur border border-brand/40 shadow-2xl px-4 py-3">
+              <span className="inline-block w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+              <div className="text-sm">
+                <div className="font-bold text-white">מייצא את הסרטון ברקע…</div>
+                <div className="text-[11px] text-white/50">אפשר להמשיך לעבוד — נודיע לך כשמוכן 🎬</div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl bg-emerald-600/95 backdrop-blur border border-emerald-300/40 shadow-2xl px-4 py-3">
+              <div className="text-sm">
+                <div className="font-bold text-white">✓ הסרטון מוכן!</div>
+                <div className="text-[11px] text-white/80">{exportJob.filename}</div>
+              </div>
+              <button
+                onClick={() => downloadExportResult(exportJob.id, exportJob.filename)}
+                className="px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-sm font-bold hover:bg-white/90"
+              >
+                ⬇️ הורד
+              </button>
+              <button
+                onClick={clearExportJob}
+                className="p-1 text-white/70 hover:text-white"
+                title="סגור"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {phase === "setup" && (

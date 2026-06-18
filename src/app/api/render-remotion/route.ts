@@ -14,9 +14,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, rm, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimit } from "@/lib/rateLimit";
 import { spendCredits, refundCredits } from "@/lib/serverCredits";
@@ -24,11 +21,30 @@ import { calcDynamicCost } from "@/lib/credits";
 import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
 import { renderViaRemotion } from "@/lib/remotionRender";
+import { createJob, updateJob, jobOutputPath, cleanupOldJobs } from "@/lib/renderJobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 1800;
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+
+// Hold references to in-flight background renders so the Node GC doesn't
+// collect the un-awaited promise. The process is long-lived (next start), so
+// these keep running after the HTTP response returns.
+const runningJobs = new Set<Promise<void>>();
+
+// Serialize renders: this box is a 4-core machine that ALSO serves the live
+// site. Running several headless-Chromium renders at once would saturate the
+// CPU and freeze the site for everyone. A single-slot queue means each job
+// waits its turn — fine, since the user isn't blocked (they get a jobId
+// instantly and a "queued/rendering" badge). The chain never breaks: a failed
+// job's rejection is swallowed so the next one still runs.
+let renderQueue: Promise<unknown> = Promise.resolve();
+function enqueueRender(fn: () => Promise<void>): Promise<void> {
+  const run = renderQueue.then(fn, fn);
+  renderQueue = run.catch(() => {});
+  return run;
+}
 
 export async function POST(req: NextRequest) {
   const user = await requireUser(req);
@@ -116,54 +132,58 @@ export async function POST(req: NextRequest) {
   const spent = await spendCredits(user.id, cost.total);
   if (!spent.ok) return NextResponse.json({ error: "אין מספיק מאסטרים" }, { status: 402 });
 
-  // The renderer creates a per-request publicDir next to outPath, writes
-  // the input video into it, then bundles with publicDir so Remotion
-  // serves the video at <bundle>/<filename>.
-  const workDir = join(tmpdir(), `remotion-${Date.now()}-${user.id}`);
-  await mkdir(workDir, { recursive: true });
   const videoFileName = `input-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
-  const outPath = join(workDir, "out.mp4");
   const videoBuffer = Buffer.from(await file.arrayBuffer());
 
-  try {
-    await renderViaRemotion({
-      inputProps: {
-        videoSrc: videoFileName,
-        subtitles,
-        style,
-        effects,
-        width: canvasW,
-        height: canvasH,
-        durationSec,
-        fps: 30,
-      },
-      videoBuffer,
-      videoFileName,
-      bgMusicBuffer,
-      bgMusicFileName,
-      outPath,
-    });
-    const bytes = await readFile(outPath);
-    return new NextResponse(bytes, {
-      status: 200,
-      headers: {
-        "Content-Type": "video/mp4",
-        "Content-Disposition": 'attachment; filename="master-video.mp4"',
-      },
-    });
-  } catch (err) {
-    console.error("[render-remotion] failed", err);
-    // Refund credits so a server-side failure doesn't cost the user.
-    await refundCredits(user.id, cost.total);
-    return NextResponse.json(
-      {
-        error: "הייצוא נכשל. אנחנו על זה — נסי שוב בעוד דקה.",
-        engine: "remotion",
-        detail: String(err),
-      },
-      { status: 500 },
-    );
-  } finally {
-    rm(workDir, { recursive: true, force: true }).catch(() => {});
-  }
+  // Suggested download filename (date-stamped). new Date() is fine here — this
+  // is a request handler, not a replayable workflow.
+  const d = new Date();
+  const filename = `video-master-${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}.mp4`;
+
+  // Create the job and kick the render off in the BACKGROUND so the user gets
+  // an instant response instead of waiting minutes on a spinner. The render
+  // writes straight into the job folder; the client polls /api/render-status
+  // and downloads from /api/render-result when done.
+  const job = await createJob(user.id, filename);
+  cleanupOldJobs().catch(() => {});
+
+  const task = enqueueRender(async () => {
+    await updateJob(job.id, { status: "rendering" });
+    try {
+      await renderViaRemotion({
+        inputProps: {
+          videoSrc: videoFileName,
+          subtitles,
+          style,
+          effects,
+          width: canvasW,
+          height: canvasH,
+          durationSec,
+          fps: 30,
+        },
+        videoBuffer,
+        videoFileName,
+        bgMusicBuffer,
+        bgMusicFileName,
+        outPath: jobOutputPath(job.id),
+        onProgress: ({ renderedFrames, totalFrames }) => {
+          // Heartbeat ~every 15 frames so a long render isn't flagged stale.
+          if (renderedFrames % 15 === 0) {
+            updateJob(job.id, { status: "rendering" }).catch(() => {});
+          }
+          void totalFrames;
+        },
+      });
+      await updateJob(job.id, { status: "done" });
+    } catch (err) {
+      console.error("[render-remotion] job failed", job.id, err);
+      // Refund credits so a server-side failure doesn't cost the user.
+      await refundCredits(user.id, cost.total).catch(() => {});
+      await updateJob(job.id, { status: "failed", error: "render failed" });
+    }
+  });
+  runningJobs.add(task);
+  task.finally(() => runningJobs.delete(task));
+
+  return NextResponse.json({ jobId: job.id }, { status: 202 });
 }
