@@ -211,6 +211,3 @@ export function defaultUrlForKind(kind: SfxKind): string {
   return BY_ID[id]?.url ?? "";
 }
 
-export function sfxFilePath(id: string, projectRoot: string): string {
-  return require("path").join(projectRoot, "public", "sfx", `sfx_${id}.mp3`);
-}

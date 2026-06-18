@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
   const mode = (formData.get("mode") as EditMode) || "subtitles_only";
   const durationSec = Number(formData.get("durationSec")) || 10;
   const cost = calcDynamicCost(mode, effects);
-  const spent = await spendCredits(user.id, cost, "render-remotion");
-  if (!spent) return NextResponse.json({ error: "אין מספיק מאסטרים" }, { status: 402 });
+  const spent = await spendCredits(user.id, cost.total);
+  if (!spent.ok) return NextResponse.json({ error: "אין מספיק מאסטרים" }, { status: 402 });
 
   // Stage the source video on disk so headless Chromium can <video src=...>
   // it via file://. tmpdir() is wiped on container restart — that's fine
