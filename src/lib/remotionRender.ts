@@ -12,19 +12,30 @@
  */
 
 import path from "node:path";
+import { mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import type { CompositionProps } from "@/remotion/VideoComposition";
 
 let cachedBundleUrl: string | null = null;
 
+/**
+ * Fixed directory that Remotion serves at the bundle root via http://...
+ * Each render writes its input video here (the route is concurrency:1 so a
+ * stable filename is fine). file:// URLs don't work — headless Chromium
+ * rejects them with ERR_UNKNOWN_URL_SCHEME. Bundling with a publicDir
+ * means the same files become reachable as http://serve/input.mp4 etc.
+ */
+export const REMOTION_PUBLIC_DIR = path.join(tmpdir(), "remotion-public");
+
 async function getBundle(): Promise<string> {
   if (cachedBundleUrl) return cachedBundleUrl;
+  await mkdir(REMOTION_PUBLIC_DIR, { recursive: true });
   const entryPoint = path.join(process.cwd(), "src", "remotion", "index.ts");
   cachedBundleUrl = await bundle({
     entryPoint,
-    // No webpack overrides yet — defaults handle TS + Tailwind classes
-    // fine for our simple composition. Add when we need next/font etc.
+    publicDir: REMOTION_PUBLIC_DIR,
   });
   return cachedBundleUrl;
 }
