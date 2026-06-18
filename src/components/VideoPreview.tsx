@@ -6,6 +6,7 @@ import { ASPECT_RATIO_INFO } from "@/lib/types";
 import { fontClassFor } from "@/lib/fonts";
 import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
+import { twemojiUrl } from "@/lib/twemoji";
 import { detectBeatDrops, beatDropZoomAt } from "@/lib/wowEffects";
 import { colorFilterCss } from "@/lib/colorFilters";
 import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt } from "@/lib/dramaEffects";
@@ -1152,16 +1153,28 @@ function ElementOverlay({
       style={{
         ...pos,
         transform: "translate(-50%, -50%)",
-        fontSize: `${size}px`,
         lineHeight: 1,
         // Simple stable entrance — scales in once and STAYS at scale(1).
         // Forwards fill-mode ensures no snap-back to scale(0) at end.
         animation: "element-enter 320ms cubic-bezier(0.16,1,0.3,1) forwards",
-        textShadow: "0 4px 24px rgba(0,0,0,0.7)",
         willChange: "transform, opacity",
       }}
     >
-      {element.category.emoji}
+      {/* Twemoji IMAGE (not the OS emoji font) so the editor matches the
+          Linux export pixel-for-pixel. eslint-disable-next-line @next/next/no-img-element */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={twemojiUrl(element.category.emoji)}
+        alt={element.category.emoji}
+        width={size}
+        height={size}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          display: "block",
+          filter: "drop-shadow(0 4px 24px rgba(0,0,0,0.7))",
+        }}
+      />
     </div>
   );
 }

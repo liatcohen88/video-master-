@@ -18,7 +18,8 @@
  * exactly as the live preview understands them.
  */
 
-import { AbsoluteFill, OffthreadVideo, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Audio, Img, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
+import { twemojiUrl } from "../lib/twemoji";
 import { useEffect, useState } from "react";
 import { Lottie } from "@remotion/lottie";
 import { LOTTIE_ICONS } from "../lib/lottieRegistry";
@@ -706,12 +707,22 @@ export function VideoComposition({
                   top: pos.top,
                   transform: `translate(-50%, -50%) scale(${scale})`,
                   opacity,
-                  fontSize: `${size}px`,
                   lineHeight: 1,
-                  textShadow: "0 4px 24px rgba(0,0,0,0.7)",
                 }}
               >
-                {el.category.emoji}
+                {/* Twemoji image — identical to the editor preview, regardless
+                    of the host OS emoji font. onError no-ops so a missing
+                    glyph never fails the whole render. */}
+                <Img
+                  src={twemojiUrl(el.category.emoji)}
+                  onError={() => undefined}
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    display: "block",
+                    filter: "drop-shadow(0 4px 24px rgba(0,0,0,0.7))",
+                  }}
+                />
               </div>
             );
           })}
