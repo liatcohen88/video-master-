@@ -685,33 +685,44 @@ export default function HomePage() {
       fd.append("video", videoFile);
       fd.append("subtitles", JSON.stringify(subtitles));
       fd.append("style", JSON.stringify(style));
-      // Custom logos are stored client-side as blob: URLs (from the file
-      // upload). The server-side Remotion render can't fetch a browser
-      // blob: URL — it 404s ("blob:https://.../<uuid> not found"). Convert
-      // each blob: logo to an inline data: URL (base64), which headless
-      // Chromium renders fine. http(s)/data srcs pass through untouched.
-      let effectsForExport = effects;
-      if (effects.customLogos?.some((l) => typeof l.src === "string" && l.src.startsWith("blob:"))) {
-        const blobToDataUrl = async (url: string): Promise<string> => {
-          const blob = await fetch(url).then((r) => r.blob());
-          return await new Promise<string>((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(fr.result as string);
-            fr.onerror = reject;
-            fr.readAsDataURL(blob);
-          });
-        };
-        const logos = await Promise.all(
-          (effects.customLogos ?? []).map(async (l) => {
-            if (typeof l.src === "string" && l.src.startsWith("blob:")) {
-              try { return { ...l, src: await blobToDataUrl(l.src) }; }
-              catch { return l; }
-            }
-            return l;
-          }),
-        );
-        effectsForExport = { ...effects, customLogos: logos };
-      }
+      // ANY blob: URL anywhere in effects (custom logos, AI brand logos,
+      // uploaded images, bg media, etc.) is a browser-only object URL the
+      // server-side Remotion render cannot fetch — it 404s. Deep-walk the
+      // whole effects object and convert EVERY blob: string to an inline
+      // data: URL (base64), which headless Chromium renders fine. http(s)/
+      // data values pass through untouched. Cached per-URL so a blob reused
+      // across fields is fetched once.
+      const blobCache = new Map<string, string>();
+      const blobToDataUrl = async (url: string): Promise<string> => {
+        const cached = blobCache.get(url);
+        if (cached) return cached;
+        const blob = await fetch(url).then((r) => r.blob());
+        const data = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result as string);
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        });
+        blobCache.set(url, data);
+        return data;
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const deepConvertBlobs = async (val: any): Promise<any> => {
+        if (typeof val === "string") {
+          if (val.startsWith("blob:")) {
+            try { return await blobToDataUrl(val); } catch { return val; }
+          }
+          return val;
+        }
+        if (Array.isArray(val)) return Promise.all(val.map(deepConvertBlobs));
+        if (val && typeof val === "object") {
+          const out: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(val)) out[k] = await deepConvertBlobs(v);
+          return out;
+        }
+        return val;
+      };
+      const effectsForExport = (await deepConvertBlobs(effects)) as typeof effects;
       fd.append("effects", JSON.stringify(effectsForExport));
       // mode is needed by the server-side credit spend (audit C1).
       fd.append("mode", mode);
