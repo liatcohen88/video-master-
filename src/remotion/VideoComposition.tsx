@@ -497,6 +497,10 @@ export function VideoComposition({
           throughout, timed ones only inside their window. URL must be
           absolute (http(s) or data:) so headless Chromium can fetch it. */}
       {(effects?.customLogos ?? [])
+        // Safety net: a blob: URL can't be fetched by the headless render
+        // (the client converts these to data: URLs before export, but skip
+        // any that slip through so one bad logo doesn't 404 the whole job).
+        .filter((logo) => typeof logo.src === "string" && !logo.src.startsWith("blob:"))
         .filter((logo) => {
           if (logo.persistent ?? true) return true;
           const t0 = logo.time ?? 0;

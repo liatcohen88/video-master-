@@ -624,7 +624,34 @@ export default function HomePage() {
       fd.append("video", videoFile);
       fd.append("subtitles", JSON.stringify(subtitles));
       fd.append("style", JSON.stringify(style));
-      fd.append("effects", JSON.stringify(effects));
+      // Custom logos are stored client-side as blob: URLs (from the file
+      // upload). The server-side Remotion render can't fetch a browser
+      // blob: URL — it 404s ("blob:https://.../<uuid> not found"). Convert
+      // each blob: logo to an inline data: URL (base64), which headless
+      // Chromium renders fine. http(s)/data srcs pass through untouched.
+      let effectsForExport = effects;
+      if (effects.customLogos?.some((l) => typeof l.src === "string" && l.src.startsWith("blob:"))) {
+        const blobToDataUrl = async (url: string): Promise<string> => {
+          const blob = await fetch(url).then((r) => r.blob());
+          return await new Promise<string>((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result as string);
+            fr.onerror = reject;
+            fr.readAsDataURL(blob);
+          });
+        };
+        const logos = await Promise.all(
+          (effects.customLogos ?? []).map(async (l) => {
+            if (typeof l.src === "string" && l.src.startsWith("blob:")) {
+              try { return { ...l, src: await blobToDataUrl(l.src) }; }
+              catch { return l; }
+            }
+            return l;
+          }),
+        );
+        effectsForExport = { ...effects, customLogos: logos };
+      }
+      fd.append("effects", JSON.stringify(effectsForExport));
       // mode is needed by the server-side credit spend (audit C1).
       fd.append("mode", mode);
       // Background music is stored client-side as a blob: URL, which the
