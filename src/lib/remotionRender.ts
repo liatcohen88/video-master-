@@ -62,7 +62,10 @@ export async function renderViaRemotion({
       // delayRender timeout fires before each frame finishes decoding.
       // 120s gives realistic headroom — actual frame work is much
       // shorter, this just stops the timeout-on-slow-frame failures.
-      delayRenderTimeoutInMilliseconds: 120_000,
+      // The option name in @remotion/renderer v4 is `timeoutInMilliseconds`
+      // (NOT delayRenderTimeoutInMilliseconds — that was silently ignored
+      // last attempt, all renders kept failing at exactly 28000ms).
+      timeoutInMilliseconds: 120_000,
     });
   } finally {
     // The bundle directory is under tmp; remove it so /tmp doesn't fill.
