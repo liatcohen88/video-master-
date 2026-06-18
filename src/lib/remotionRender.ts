@@ -57,6 +57,12 @@ export async function renderViaRemotion({
         // Belt-and-suspenders — kept from earlier file:// debugging.
         disableWebSecurity: true,
       },
+      // CX23 has 2 vCPU + 4GB RAM, and headless Chromium decoding a
+      // 1080×1920 video frame-by-frame is slow. The default 28s
+      // delayRender timeout fires before each frame finishes decoding.
+      // 120s gives realistic headroom — actual frame work is much
+      // shorter, this just stops the timeout-on-slow-frame failures.
+      delayRenderTimeoutInMilliseconds: 120_000,
     });
   } finally {
     // The bundle directory is under tmp; remove it so /tmp doesn't fill.
