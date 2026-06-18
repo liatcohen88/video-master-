@@ -499,6 +499,7 @@ export const CONTENT_DEFAULTS = {
   "dashboard.snapshots.countSuffix":   "כתוביות",
   "dashboard.snapshots.restoreBtn":    "שחזר",
   "dashboard.snapshots.deleteTooltip": "מחיקת גרסה",
+  "dashboard.snapshots.retentionNotice": "💡 מומלץ להוריד את הסרטון למחשב — גרסאות נשמרות בדפדפן עד 7 ימים בלבד.",
   "dashboard.invoices.countHint":      "{{n}} עסקאות",
   "dashboard.invoices.downloadTooltip":"הורד PDF",
   "dashboard.danger.title":   "מחיקת זיכרון סרטונים",

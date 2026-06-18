@@ -156,20 +156,28 @@ export async function saveSnapshot(snap: Omit<ProjectSnapshot, "id">): Promise<v
   }
 }
 
+/** Snapshots older than this are auto-deleted on every list call.
+ *  Reason: IndexedDB lives in the user's browser; without a cap it can
+ *  grow forever and eventually hit the per-origin storage quota. 7 days
+ *  matches the "download your video to keep it" notice on the dashboard. */
+const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function listSnapshots(): Promise<ProjectSnapshot[]> {
   const db = await openDB();
   if (!db) return [];
-  return new Promise((resolve) => {
+  const all = await new Promise<ProjectSnapshot[]>((resolve) => {
     const t = db.transaction(STORE_SNAPSHOTS, "readonly");
     const s = t.objectStore(STORE_SNAPSHOTS);
     const r = s.getAll();
-    r.onsuccess = () => {
-      const arr = (r.result as ProjectSnapshot[]) ?? [];
-      arr.sort((a, b) => b.at - a.at);
-      resolve(arr);
-    };
+    r.onsuccess = () => resolve((r.result as ProjectSnapshot[]) ?? []);
     r.onerror = () => resolve([]);
   });
+  const cutoff = Date.now() - SNAPSHOT_TTL_MS;
+  const expired = all.filter((s) => s.at < cutoff && s.id !== undefined);
+  if (expired.length > 0) {
+    await Promise.all(expired.map((s) => deleteSnapshot(s.id!)));
+  }
+  return all.filter((s) => s.at >= cutoff).sort((a, b) => b.at - a.at);
 }
 
 export async function deleteSnapshot(id: number): Promise<void> {

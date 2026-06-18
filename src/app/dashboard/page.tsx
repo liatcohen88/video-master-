@@ -89,6 +89,7 @@ export default function DashboardPage() {
   const cSnapCountSuffix= useContent("dashboard.snapshots.countSuffix") as string;
   const cSnapRestoreBtn = useContent("dashboard.snapshots.restoreBtn") as string;
   const cSnapDelTooltip = useContent("dashboard.snapshots.deleteTooltip") as string;
+  const cSnapRetention  = useContent("dashboard.snapshots.retentionNotice") as string;
   const cInvCountHint   = useContent("dashboard.invoices.countHint") as string;
   const cInvDlTooltip   = useContent("dashboard.invoices.downloadTooltip") as string;
   const cDangerTitle    = useContent("dashboard.danger.title") as string;
@@ -369,6 +370,11 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+            )}
+            {snapshots.length > 0 && (
+              <p className="mt-3 text-[11px] text-amber-200/80 bg-amber-500/5 border border-amber-400/20 rounded-lg px-3 py-2 leading-relaxed">
+                {cSnapRetention}
+              </p>
             )}
           </div>
         </details>
