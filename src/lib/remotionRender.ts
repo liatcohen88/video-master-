@@ -57,5 +57,13 @@ export async function renderViaRemotion({ inputProps, outPath }: RemotionRenderA
     // dev machines it's unset → Remotion falls back to its bundled Headless
     // Shell (one-time download to ~/.cache/remotion).
     browserExecutable: process.env.CHROME_BIN,
+    chromiumOptions: {
+      // We pass the source video as `file:///tmp/...` via inputProps. The
+      // bundle is served from http://localhost so Chromium blocks the
+      // cross-protocol load with "Not allowed to load local resource".
+      // disableWebSecurity drops the same-origin check just for THIS
+      // headless render — no security impact (Chromium isn't exposed).
+      disableWebSecurity: true,
+    },
   });
 }
