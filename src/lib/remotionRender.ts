@@ -62,6 +62,13 @@ export async function renderViaRemotion({
         // <defunct> chrome-headless zombies in ps). swangle = SwiftShader
         // + ANGLE, pure CPU rasterization.
         gl: "swangle",
+        // Run Chrome multi-process. Remotion's Linux default is
+        // --single-process, which crashes decoding <Video> (the silent
+        // mid-frame death we saw — zombie chrome-headless procs, render
+        // never advances past frame 0). Multi-process is the documented
+        // production setting; it needs shared memory, so the container is
+        // launched with --shm-size=2g (Coolify custom_docker_run_options).
+        enableMultiProcessOnLinux: true,
       },
       // CX23 has 2 vCPU + 4GB RAM, and headless Chromium decoding a
       // 1080×1920 video frame-by-frame is slow. The default 28s
