@@ -16,10 +16,14 @@ nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "ffmpeg-full", "zl
 # Costs ~50MB image size — much less than installing chromium itself.
 aptPkgs = [
   "build-essential", "libsndfile1", "zlib1g",
-  "libnss3", "libnspr4", "libatk1.0-0", "libatk-bridge2.0-0",
-  "libcups2", "libdrm2", "libgbm1", "libxkbcommon0",
+  # Ubuntu 24.04 (noble) ships with the t64 ABI transition — several
+  # libs were renamed (libasound2 → libasound2t64 etc.). Use t64 variants
+  # so apt actually finds them; the old names are virtuals without
+  # installation candidates and break the build.
+  "libnss3", "libnspr4", "libatk1.0-0t64", "libatk-bridge2.0-0t64",
+  "libcups2t64", "libdrm2", "libgbm1", "libxkbcommon0",
   "libxcomposite1", "libxdamage1", "libxrandr2", "libxfixes3",
-  "libxshmfence1", "libpango-1.0-0", "libcairo2", "libasound2"
+  "libxshmfence1", "libpango-1.0-0", "libcairo2", "libasound2t64"
 ]
 
 [phases.install]
