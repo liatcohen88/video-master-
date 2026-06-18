@@ -15,15 +15,28 @@ import { loadFont as loadRubik } from "@remotion/google-fonts/Rubik";
 import { loadFont as loadHeebo } from "@remotion/google-fonts/Heebo";
 import { loadFont as loadAssistant } from "@remotion/google-fonts/Assistant";
 
-const OPTS = {
-  weights: ["400", "700", "800", "900"],
-  subsets: ["hebrew", "latin"],
-  ignoreTooManyRequestsWarning: true,
-} as const;
+// Each font's loadFont() narrows weights/subsets to its own literal union,
+// so a shared const object won't satisfy all three. Build per-call and let
+// each loadFont validate; the values are valid for all three fonts.
+const weights = ["400", "700", "800", "900"];
+const subsets = ["hebrew", "latin"];
 
-const rubik = loadRubik("normal", OPTS);
-const heebo = loadHeebo("normal", OPTS);
-const assistant = loadAssistant("normal", OPTS);
+const rubik = loadRubik("normal", {
+  weights: weights as ("400" | "700" | "800" | "900")[],
+  subsets: subsets as ("hebrew" | "latin")[],
+  ignoreTooManyRequestsWarning: true,
+});
+const heebo = loadHeebo("normal", {
+  weights: weights as ("400" | "700" | "800" | "900")[],
+  subsets: subsets as ("hebrew" | "latin")[],
+  ignoreTooManyRequestsWarning: true,
+});
+const assistant = loadAssistant("normal", {
+  // Assistant tops out at 800 (no 900 weight available).
+  weights: ["400", "700", "800"] as ("400" | "700" | "800")[],
+  subsets: subsets as ("hebrew" | "latin")[],
+  ignoreTooManyRequestsWarning: true,
+});
 
 const FAMILY: Record<string, string> = {
   Rubik: rubik.fontFamily,
