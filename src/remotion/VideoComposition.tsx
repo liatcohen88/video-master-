@@ -508,8 +508,10 @@ export function VideoComposition({
             const sizeKey = `${b.brand.id}-${Math.round(b.time * 10)}`;
             const sizeOverride = effects.brandSizePx?.[sizeKey];
             const posOverride = effects.brandPosition?.[sizeKey];
+            // sizeOverride is 1920-reference px (preview scales by H/1920) —
+            // scale to this canvas's height so 1:1 doesn't render it oversized.
             const logoSize = typeof sizeOverride === "number" && sizeOverride > 0
-              ? Math.max(16, sizeOverride)
+              ? Math.max(16, sizeOverride * (height / 1920))
               : Math.max(64, height * 0.14);
             const pad = logoSize * 0.18;
             const corner: React.CSSProperties = (() => {
@@ -595,8 +597,13 @@ export function VideoComposition({
             }
           })();
           const sizeScale = logo.size === "S" ? 0.07 : logo.size === "L" ? 0.14 : 0.10;
+          // sizePx is authored against a 1920-tall reference (the preview scales
+          // it by containerHeight/1920). The export canvas height varies by
+          // aspect (1080 for 1:1, 1920 for 9:16, …), so scale sizePx by
+          // height/1920 too — otherwise a 1:1 export renders the logo 1.78×
+          // too big vs the preview (Liat: "לוגו בצד לא אותו גודל").
           const size = typeof logo.sizePx === "number" && logo.sizePx > 0
-            ? Math.max(8, logo.sizePx)
+            ? Math.max(8, logo.sizePx * (height / 1920))
             : Math.max(40, height * sizeScale);
           return (
             // eslint-disable-next-line @next/next/no-img-element

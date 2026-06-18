@@ -807,11 +807,18 @@ export default function HomePage() {
       fd.append("mode", mode);
       // Natural video dimensions so the export canvas can match the source
       // aspect when aspectRatio = "original" (preview shows the full frame).
+      // ALSO the real video DURATION — without it the server falls back to a
+      // 10s default and the export gets truncated (Liat: "מסרטון של 24 שניות
+      // שמר רק 10 שניות"). Pull both from the main <video> element.
       try {
-        const vEl = document.querySelector("video") as HTMLVideoElement | null;
+        const vids = Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
+        const vEl = vids.find((v) => v.videoWidth && v.duration && isFinite(v.duration)) || vids[0] || null;
         if (vEl?.videoWidth && vEl?.videoHeight) {
           fd.append("naturalWidth", String(vEl.videoWidth));
           fd.append("naturalHeight", String(vEl.videoHeight));
+        }
+        if (vEl?.duration && isFinite(vEl.duration) && vEl.duration > 0) {
+          fd.append("durationSec", String(vEl.duration));
         }
       } catch { /* best effort */ }
       // Enable per-word highlighting only when highlight differs from main color

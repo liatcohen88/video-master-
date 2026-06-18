@@ -72,7 +72,11 @@ export async function renderViaRemotion({
       outputLocation: outPath,
       inputProps,
       crf: 18,
-      concurrency: 1,
+      // CX33 has 4 vCPU + 8GB. concurrency:1 made a full-length render crawl
+      // (Liat: "יצוא לוקח המון המון זמן"). 3 parallel frame workers ≈ 3× faster
+      // and still leaves a core for FFmpeg/encode; swangle is CPU-only so the
+      // per-worker memory is modest and fits in 8GB + 2g shm.
+      concurrency: 3,
       browserExecutable: process.env.CHROME_BIN,
       chromiumOptions: {
         // Belt-and-suspenders — kept from earlier file:// debugging.
