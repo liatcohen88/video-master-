@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
+import { mkdir, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { requireUser } from "@/lib/apiAuth";
@@ -23,7 +23,7 @@ import { spendCredits, refundCredits } from "@/lib/serverCredits";
 import { calcDynamicCost } from "@/lib/credits";
 import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
-import { renderViaRemotion, REMOTION_PUBLIC_DIR } from "@/lib/remotionRender";
+import { renderViaRemotion } from "@/lib/remotionRender";
 
 export const runtime = "nodejs";
 export const maxDuration = 1800;
@@ -67,22 +67,18 @@ export async function POST(req: NextRequest) {
   const spent = await spendCredits(user.id, cost.total);
   if (!spent.ok) return NextResponse.json({ error: "אין מספיק מאסטרים" }, { status: 402 });
 
-  // Stage the source video in Remotion's bundled public dir so headless
-  // Chromium can fetch it via http://localhost/<filename>. file:// URLs
-  // fail with ERR_UNKNOWN_URL_SCHEME in headless mode.
+  // The renderer creates a per-request publicDir next to outPath, writes
+  // the input video into it, then bundles with publicDir so Remotion
+  // serves the video at <bundle>/<filename>.
   const workDir = join(tmpdir(), `remotion-${Date.now()}-${user.id}`);
   await mkdir(workDir, { recursive: true });
-  await mkdir(REMOTION_PUBLIC_DIR, { recursive: true });
   const videoFileName = `input-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
-  const videoPath = join(REMOTION_PUBLIC_DIR, videoFileName);
   const outPath = join(workDir, "out.mp4");
-  await writeFile(videoPath, Buffer.from(await file.arrayBuffer()));
+  const videoBuffer = Buffer.from(await file.arrayBuffer());
 
   try {
     await renderViaRemotion({
       inputProps: {
-        // Relative URL — Remotion's bundle serves files from publicDir
-        // at the http origin Chromium is loading from.
         videoSrc: videoFileName,
         subtitles,
         style,
@@ -92,6 +88,8 @@ export async function POST(req: NextRequest) {
         durationSec,
         fps: 30,
       },
+      videoBuffer,
+      videoFileName,
       outPath,
     });
     const bytes = await readFile(outPath);
@@ -116,8 +114,5 @@ export async function POST(req: NextRequest) {
     );
   } finally {
     rm(workDir, { recursive: true, force: true }).catch(() => {});
-    // Also delete the per-render input file from the bundle's publicDir
-    // so /tmp/remotion-public/ doesn't grow without bound.
-    rm(videoPath, { force: true }).catch(() => {});
   }
 }
