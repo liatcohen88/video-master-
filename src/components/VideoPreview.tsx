@@ -348,29 +348,52 @@ export default function VideoPreview({
     );
   }, [effects?.emphasisMoments, dramaMoments]);
 
-  // Defensive defaults — explicitly turn OFF mute/loop and pause whenever a
-  // new videoUrl loads. Some mobile browsers (iOS Safari especially)
-  // silently set muted=true on inline video without a user gesture, and
-  // a sessionStorage rehydration could otherwise leave loop=true on.
-  // Liat saw the video "looping muted" right after transcribe — this
-  // useEffect is the belt-and-suspenders fix.
+  // Single source of truth for "video loaded → paint a frame and stay
+  // paused-with-sound". Combines: defensive mute/loop reset, seek to a
+  // small offset to paint, and an iOS muted-play-kick when seek alone
+  // doesn't trigger a decode. Used to be TWO competing useEffects which
+  // raced each other (the second reset currentTime to 0 before the first
+  // had decoded a frame), producing the black-square-with-subtitles-only
+  // bug Liat hit on desktop AND mobile.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v) return;
-    v.muted = false;
-    v.loop = false;
-    // Paused on load so the user starts playback themselves with sound on.
-    try { v.pause(); } catch { /* ignore */ }
-    // Force the first frame to paint so the preview isn't a black square.
-    // iOS Safari sometimes shows black until first play even with
-    // preload=auto; jumping to 0.05s on loadedmetadata reliably forces a
-    // frame to render. Liat: "מסך שחור בהתחלה אני כן רוצה שיראו משהו".
-    const onMeta = () => {
-      try { if (v.currentTime < 0.05) v.currentTime = 0.05; } catch {/* ignore */}
-    };
-    if (v.readyState >= 1) onMeta();
-    else v.addEventListener("loadedmetadata", onMeta, { once: true });
-    return () => v.removeEventListener("loadedmetadata", onMeta);
+    if (!v || !videoUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        v.muted = false;
+        v.loop = false;
+        try { v.pause(); } catch {}
+        v.load();
+        if (v.readyState < 1) {
+          await new Promise<void>((res) => {
+            v.addEventListener("loadedmetadata", () => res(), { once: true });
+          });
+        }
+        if (cancelled) return;
+        // Seek to a tiny offset (not 0 — Safari occasionally treats t=0 as
+        // "before-first-frame" and leaves it black). 0.05s is past the
+        // earliest keyframe of every codec we accept.
+        try { v.currentTime = 0.05; } catch {}
+        // Wait for the seek to commit before deciding if we still need
+        // the muted-play kick. If `seeked` fires, the frame painted.
+        const painted = await new Promise<boolean>((res) => {
+          const t = setTimeout(() => res(false), 350);
+          v.addEventListener("seeked", () => { clearTimeout(t); res(true); }, { once: true });
+        });
+        if (cancelled || painted) return;
+        // iOS Safari fallback — silent play+pause to force a decode.
+        v.muted = true;
+        try {
+          await v.play();
+          await new Promise((r) => requestAnimationFrame(() => r(null)));
+          if (cancelled) return;
+          v.pause();
+        } catch { /* autoplay blocked — frame will paint on user tap */ }
+        v.muted = false;
+      } catch { /* best effort */ }
+    })();
+    return () => { cancelled = true; };
   }, [videoUrl]);
 
   // --- Intro animation — first ~0.5-0.9s of the video ------------------
@@ -460,43 +483,11 @@ export default function VideoPreview({
     return () => { stopped = true; cancelAnimationFrame(raf); };
   }, [effects?.introAnimation, effects?.introSfxId, videoUrl]);
 
-  // Force iOS Safari to decode + display the first frame as soon as the
-  // videoUrl arrives. preload="auto" + .load() + seek alone leave a black
-  // square on mobile because Safari WONT paint a frame until either
-  // .play() runs at least once OR the video is muted+autoplayed. We do a
-  // tiny "muted play kick" to commit one frame, then immediately pause
-  // and unmute. Inaudible, invisible — just a black->frame transition the
-  // user never notices.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v || !videoUrl) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        v.load();
-        if (v.readyState < 1) {
-          await new Promise<void>((res) => {
-            v.addEventListener("loadedmetadata", () => res(), { once: true });
-          });
-        }
-        if (cancelled) return;
-        try { v.currentTime = 0; } catch {}
-        const wasMuted = v.muted;
-        v.muted = true;
-        try {
-          await v.play();
-          await new Promise((res) => requestAnimationFrame(() => res(null)));
-          if (cancelled) return;
-          v.pause();
-          v.muted = wasMuted;
-          try { v.currentTime = 0; } catch {}
-        } catch {
-          v.muted = wasMuted;
-        }
-      } catch { /* best effort */ }
-    })();
-    return () => { cancelled = true; };
-  }, [videoUrl]);
+  // First-frame paint is handled by the single consolidated useEffect at
+  // the top of this component (the one with the muted-play fallback).
+  // This block used to be a SECOND racing useEffect — removed 2026-06-18
+  // because it reset currentTime to 0 while the other was still
+  // mid-seek, leaving the video element undecoded → black square.
 
   // Drama Mode is now VISUAL ONLY (B&W flash). The auto-sting was removed
   // 2026-06-11 — every sting we tried was either too long ("אותו סאונד 5
