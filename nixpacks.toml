@@ -23,7 +23,13 @@ aptPkgs = [
   "libnss3", "libnspr4", "libatk1.0-0t64", "libatk-bridge2.0-0t64",
   "libcups2t64", "libdrm2", "libgbm1", "libxkbcommon0",
   "libxcomposite1", "libxdamage1", "libxrandr2", "libxfixes3",
-  "libxshmfence1", "libpango-1.0-0", "libcairo2", "libasound2t64"
+  "libxshmfence1", "libpango-1.0-0", "libcairo2", "libasound2t64",
+  # Fonts for the headless render. Without a color-emoji font, Chromium
+  # draws 🔥/💰/etc as tofu boxes (□) in the export — the live preview
+  # uses the user's OS emoji font, the Linux container has none.
+  # noto-color-emoji = the emoji glyphs; noto-cjk + noto-core cover any
+  # other fallback; the Hebrew subtitle font is bundled via @next/font.
+  "fonts-noto-color-emoji", "fonts-noto-core"
 ]
 
 [phases.install]
