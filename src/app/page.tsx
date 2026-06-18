@@ -710,7 +710,14 @@ export default function HomePage() {
       const deepConvertBlobs = async (val: any): Promise<any> => {
         if (typeof val === "string") {
           if (val.startsWith("blob:")) {
-            try { return await blobToDataUrl(val); } catch { return val; }
+            // A blob: object URL is browser-session-scoped and DIES on page
+            // reload. After autosave restores a project, its blob refs (e.g.
+            // a custom logo or bg-music uploaded in a prior session) point at
+            // nothing, so fetch() throws. If we returned the dead URL the
+            // server would try to load "/public/blob:..." and 404 the ENTIRE
+            // render. Drop it instead — a missing logo/music beats a failed
+            // export. (New uploads are stored as data: URLs and survive.)
+            try { return await blobToDataUrl(val); } catch { return undefined; }
           }
           return val;
         }
@@ -723,6 +730,32 @@ export default function HomePage() {
         return val;
       };
       const effectsForExport = (await deepConvertBlobs(effects)) as typeof effects;
+      // Background music: send the actual audio BYTES as a file (the proven
+      // static-file render path), not a giant inlined data: URL. Re-fetch the
+      // client-side blob and attach it; the server stages it and points
+      // bgMusicUrl at the staged filename. If the blob is dead (page was
+      // reloaded → object URL gone), the fetch throws and we leave no file +
+      // null bgMusicUrl so the render simply omits music instead of failing.
+      let bgMusicSent = false;
+      if (effects.bgMusicUrl) {
+        try {
+          const blob = await fetch(effects.bgMusicUrl).then((r) => r.blob());
+          if (blob && blob.size > 0) {
+            fd.append("bgMusic", blob, "bgmusic");
+            bgMusicSent = true;
+          }
+        } catch { /* dead blob — server treats missing as no music */ }
+      }
+      // Don't ship a redundant (and possibly multi-MB) data: URL for music
+      // when the bytes already go as a file; the server overrides bgMusicUrl
+      // from the uploaded file. Drop any leftover blob: too so it can't 404.
+      if (
+        bgMusicSent ||
+        (typeof effectsForExport.bgMusicUrl === "string" &&
+          effectsForExport.bgMusicUrl.startsWith("blob:"))
+      ) {
+        effectsForExport.bgMusicUrl = undefined;
+      }
       fd.append("effects", JSON.stringify(effectsForExport));
       // mode is needed by the server-side credit spend (audit C1).
       fd.append("mode", mode);
@@ -735,16 +768,6 @@ export default function HomePage() {
           fd.append("naturalHeight", String(vEl.videoHeight));
         }
       } catch { /* best effort */ }
-      // Background music is stored client-side as a blob: URL, which the
-      // server can't fetch. Re-fetch the blob here and attach as a file.
-      if (effects.bgMusicUrl) {
-        try {
-          const blob = await fetch(effects.bgMusicUrl).then((r) => r.blob());
-          if (blob && blob.size > 0) {
-            fd.append("bgMusic", blob, "bgmusic");
-          }
-        } catch { /* ignore — server treats missing as no music */ }
-      }
       // Enable per-word highlighting only when highlight differs from main color
       const hasHighlight =
         style.highlightColor.toLowerCase() !== style.color.toLowerCase();

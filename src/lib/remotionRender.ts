@@ -24,11 +24,17 @@ export type RemotionRenderArgs = {
   /** The filename to write the video as inside publicDir (matches
    *  inputProps.videoSrc which the composition passes to staticFile()). */
   videoFileName: string;
+  /** Optional background-music file. Staged into publicDir like the video so
+   *  the composition can load it via staticFile() — the same proven path as
+   *  the source video, instead of a fragile audio data: URL. The caller must
+   *  set inputProps.effects.bgMusicUrl to this same filename. */
+  bgMusicBuffer?: Buffer;
+  bgMusicFileName?: string;
   outPath: string;
 };
 
 export async function renderViaRemotion({
-  inputProps, videoBuffer, videoFileName, outPath,
+  inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName, outPath,
 }: RemotionRenderArgs): Promise<void> {
   // Use the project's REAL public/ dir as the bundle publicDir. It already
   // holds sfx/, lottie/, custom-logos/ etc., so every staticFile() the
@@ -41,6 +47,14 @@ export async function renderViaRemotion({
   const stagedVideoPath = path.join(publicDir, videoFileName);
   await mkdir(publicDir, { recursive: true });
   await writeFile(stagedVideoPath, videoBuffer);
+
+  // Stage the optional bg-music file alongside the video so staticFile()
+  // resolves it from the bundle. Cleaned up in finally like the video.
+  let stagedMusicPath: string | null = null;
+  if (bgMusicBuffer && bgMusicFileName) {
+    stagedMusicPath = path.join(publicDir, bgMusicFileName);
+    await writeFile(stagedMusicPath, bgMusicBuffer);
+  }
 
   const entryPoint = path.join(process.cwd(), "src", "remotion", "index.ts");
   const serveUrl = await bundle({ entryPoint, publicDir });
@@ -93,5 +107,6 @@ export async function renderViaRemotion({
     // Remove ONLY the staged input video from public/ — never the dir
     // itself (sfx/lottie/logos live there and must persist).
     rm(stagedVideoPath, { force: true }).catch(() => {});
+    if (stagedMusicPath) rm(stagedMusicPath, { force: true }).catch(() => {});
   }
 }

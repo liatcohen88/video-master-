@@ -93,8 +93,11 @@ function subtitleEntrance(
  * dir). Wrapping in staticFile() (leading slash stripped) registers it.
  * Absolute http(s) URLs (CDN bg-music) pass through.
  */
-function remotionAsset(url: string): string {
-  if (/^[a-z]+:\/\//i.test(url)) return url; // already absolute
+function remotionAsset(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  if (url.startsWith("blob:")) return null; // browser-only, un-fetchable server-side → would 404 the job
+  if (url.startsWith("data:")) return url;  // inlined upload, pass through
+  if (/^[a-z]+:\/\//i.test(url)) return url; // already absolute (http/https)
   return staticFile(url.replace(/^\//, ""));
 }
 
@@ -400,30 +403,33 @@ export function VideoComposition({
           frame so Remotion plays it once at that timeline position. Cap
           duration at ~3.5s so a long sample doesn't drag past its moment. */}
       {buildSfxTriggers(subtitles, effects).map((trig, i) => {
+        const src = remotionAsset(trig.url);
+        if (!src) return null;
         const fromFrame = Math.max(0, Math.round(trig.time * fps));
         const maxFrames = Math.round(3.5 * fps);
         return (
           <Sequence key={`sfx-${i}`} from={fromFrame} durationInFrames={maxFrames}>
-            <Audio src={remotionAsset(trig.url)} volume={trig.gain} />
+            <Audio src={src} volume={trig.gain} />
           </Sequence>
         );
       })}
 
       {/* Intro SFX — fires at t=0 alongside the intro animation. */}
       {effects?.introSfxId && effects.introSfxId !== "none" && (() => {
-        const url = getSfxAsset(effects.introSfxId)?.url;
-        return url ? <Audio src={remotionAsset(url)} volume={effects.sfxMasterVolume ?? 1} /> : null;
+        const src = remotionAsset(getSfxAsset(effects.introSfxId)?.url);
+        return src ? <Audio src={src} volume={effects.sfxMasterVolume ?? 1} /> : null;
       })()}
 
       {/* Background music — mixed UNDER the source video's own audio at
           the user-set volume. Remotion auto-handles audio mixing in the
-          final MP4 so we don't need an FFmpeg pass. */}
-      {effects?.bgMusicUrl && (
-        <Audio
-          src={remotionAsset(effects.bgMusicUrl)}
-          volume={effects.bgMusicVolume ?? 0.3}
-        />
-      )}
+          final MP4 so we don't need an FFmpeg pass. remotionAsset() returns
+          null for a dead/blob: URL so a stale music ref can't 404 the job. */}
+      {(() => {
+        const src = remotionAsset(effects?.bgMusicUrl);
+        return src ? (
+          <Audio src={src} volume={effects?.bgMusicVolume ?? 0.3} />
+        ) : null;
+      })()}
 
       {/* Intro overlay layer — flash white / fade from black / etc. Sits
           ABOVE the video so the color fully covers the frame. Returns

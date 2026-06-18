@@ -64,6 +64,31 @@ export async function POST(req: NextRequest) {
   const mode = (formData.get("mode") as EditMode) || "subtitles_only";
   const durationSec = Number(formData.get("durationSec")) || 10;
 
+  // Background music: the client uploads the actual audio bytes as a file
+  // (the in-browser bgMusicUrl is a blob: object URL the server can't fetch,
+  // and dies on page reload). Stage it like the video and point
+  // effects.bgMusicUrl at the staged filename so the composition loads it
+  // via staticFile() — the proven path. If no file came through (e.g. the
+  // user reloaded and the blob went stale), drop bgMusicUrl entirely so the
+  // composition skips it instead of trying to load a dead reference.
+  const bgMusicFile = formData.get("bgMusic") as File | null;
+  let bgMusicBuffer: Buffer | undefined;
+  let bgMusicFileName: string | undefined;
+  if (bgMusicFile && bgMusicFile.size > 0 && bgMusicFile.size <= MAX_VIDEO_BYTES) {
+    // Give the staged file a real audio extension — Remotion/FFmpeg sniff the
+    // container partly from it; an extension-less file can fail to decode.
+    const ext = ({
+      "audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/mp4": "m4a",
+      "audio/aac": "aac", "audio/wav": "wav", "audio/x-wav": "wav",
+      "audio/ogg": "ogg", "audio/webm": "webm", "audio/flac": "flac",
+    } as Record<string, string>)[bgMusicFile.type] || "mp3";
+    bgMusicFileName = `bgmusic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    bgMusicBuffer = Buffer.from(await bgMusicFile.arrayBuffer());
+    effects.bgMusicUrl = bgMusicFileName;
+  } else if (typeof effects.bgMusicUrl === "string" && effects.bgMusicUrl.startsWith("blob:")) {
+    effects.bgMusicUrl = undefined;
+  }
+
   // Canvas dimensions = the chosen aspect crop, so the export frame matches
   // what the preview shows. "original" uses the source video's natural
   // dimensions (sent by the client), falling back to 9:16. Even-rounded
@@ -114,6 +139,8 @@ export async function POST(req: NextRequest) {
       },
       videoBuffer,
       videoFileName,
+      bgMusicBuffer,
+      bgMusicFileName,
       outPath,
     });
     const bytes = await readFile(outPath);
