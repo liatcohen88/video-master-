@@ -18,7 +18,7 @@
  * exactly as the live preview understands them.
  */
 
-import { AbsoluteFill, Video, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Audio, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
 import { useEffect, useState } from "react";
 import { Lottie } from "@remotion/lottie";
 import { LOTTIE_ICONS } from "../lib/lottieRegistry";
@@ -276,7 +276,13 @@ export function VideoComposition({
       {/* Base video layer — Studio renders without a video while we
           iterate on overlay parity; production renders always supply src. */}
       {videoSrc ? (
-        <Video
+        <OffthreadVideo
+          // OffthreadVideo extracts frames server-side via FFmpeg instead of
+          // relying on Chromium's <video> decoder. The headless-shell
+          // Chromium has NO H.264 codec, so <Video> hung forever at frame 0
+          // ("delayRender Rendering <Html5Video> ... not cleared after
+          // 118000ms"). OffthreadVideo bypasses that entirely and is the
+          // production-recommended component anyway.
           // Wrap relative paths in staticFile() so Remotion resolves them
           // against the bundle's internal http server (publicDir), not the
           // page's window.location which points at the Next.js app (3000).
