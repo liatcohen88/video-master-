@@ -56,6 +56,12 @@ export async function renderViaRemotion({
       chromiumOptions: {
         // Belt-and-suspenders — kept from earlier file:// debugging.
         disableWebSecurity: true,
+        // Force software rendering. Default Chromium tries to use GPU/ANGLE
+        // which doesn't exist in a Docker container without a display
+        // server — the renderer process crashes mid-decode (visible as
+        // <defunct> chrome-headless zombies in ps). swangle = SwiftShader
+        // + ANGLE, pure CPU rasterization.
+        gl: "swangle",
       },
       // CX23 has 2 vCPU + 4GB RAM, and headless Chromium decoding a
       // 1080×1920 video frame-by-frame is slow. The default 28s
