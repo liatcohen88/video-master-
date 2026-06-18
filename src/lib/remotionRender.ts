@@ -30,10 +30,17 @@ export type RemotionRenderArgs = {
 export async function renderViaRemotion({
   inputProps, videoBuffer, videoFileName, outPath,
 }: RemotionRenderArgs): Promise<void> {
-  // Per-request publicDir so the input video is bundled IN.
-  const publicDir = path.join(path.dirname(outPath), "public");
+  // Use the project's REAL public/ dir as the bundle publicDir. It already
+  // holds sfx/, lottie/, custom-logos/ etc., so every staticFile() the
+  // composition references (SFX audio, Lottie JSON, logos) resolves exactly
+  // like the live site. A throwaway tmp publicDir only had the input video,
+  // so SFX 404'd ("Error while downloading .../sfx/sfx_1109.mp3").
+  // We drop the per-render input video INTO public/ with a unique name and
+  // remove just that file afterwards (sfx/lottie stay untouched).
+  const publicDir = path.join(process.cwd(), "public");
+  const stagedVideoPath = path.join(publicDir, videoFileName);
   await mkdir(publicDir, { recursive: true });
-  await writeFile(path.join(publicDir, videoFileName), videoBuffer);
+  await writeFile(stagedVideoPath, videoBuffer);
 
   const entryPoint = path.join(process.cwd(), "src", "remotion", "index.ts");
   const serveUrl = await bundle({ entryPoint, publicDir });
@@ -83,5 +90,8 @@ export async function renderViaRemotion({
   } finally {
     // The bundle directory is under tmp; remove it so /tmp doesn't fill.
     rm(serveUrl, { recursive: true, force: true }).catch(() => {});
+    // Remove ONLY the staged input video from public/ — never the dir
+    // itself (sfx/lottie/logos live there and must persist).
+    rm(stagedVideoPath, { force: true }).catch(() => {});
   }
 }
