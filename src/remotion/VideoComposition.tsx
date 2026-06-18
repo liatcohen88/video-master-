@@ -277,7 +277,10 @@ export function VideoComposition({
           iterate on overlay parity; production renders always supply src. */}
       {videoSrc ? (
         <Video
-          src={videoSrc}
+          // Wrap relative paths in staticFile() so Remotion resolves them
+          // against the bundle's internal http server (publicDir), not the
+          // page's window.location which points at the Next.js app (3000).
+          src={/^[a-z]+:\/\//i.test(videoSrc) ? videoSrc : staticFile(videoSrc)}
           style={{
             width: "100%",
             height: "100%",
