@@ -12,6 +12,7 @@ import { COLOR_FILTERS } from "@/lib/colorFilters";
 import { resolveIntroAnimations } from "@/lib/introAnimations";
 import { useContent } from "@/lib/useContent";
 import { getSfxAsset } from "@/lib/sfxLibrary";
+import { saveCurrentMusic, clearCurrentMusic } from "@/lib/projectStorage";
 import SfxPicker from "./SfxPicker";
 import LottieGallery from "./LottieGallery";
 
@@ -835,11 +836,16 @@ function BgMusicControls({
     const obj = URL.createObjectURL(f);
     setName(f.name);
     onUrl(obj);
+    // Persist the audio BYTES to IndexedDB so the music survives a page
+    // reload (the blob: URL above dies on reload). On restore we rebuild a
+    // fresh blob: URL from these bytes; on export we read them directly.
+    void saveCurrentMusic(f, f.name, f.type);
   }
   function clearMusic() {
     if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }
     setName("");
     onUrl(undefined);
+    void clearCurrentMusic();
     if (inputRef.current) inputRef.current.value = "";
   }
 

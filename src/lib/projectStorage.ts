@@ -20,9 +20,10 @@
 import type { Subtitle, SubtitleStyle, SubtitleSettings, VideoEffects, EditMode, ExportFormat } from "./types";
 
 const DB_NAME    = "vm_editor";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2: + current_music store
 
 const STORE_VIDEO         = "current_video";    // single record under key "current"
+const STORE_MUSIC         = "current_music";    // single record under key "current"
 const STORE_TRANSCRIPTION = "transcriptions";   // keyed by file hash
 const STORE_SNAPSHOTS     = "snapshots";        // keyed by auto-increment id
 
@@ -65,6 +66,8 @@ function openDB(): Promise<IDBDatabase | null> {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_VIDEO))
         db.createObjectStore(STORE_VIDEO);
+      if (!db.objectStoreNames.contains(STORE_MUSIC))
+        db.createObjectStore(STORE_MUSIC);
       if (!db.objectStoreNames.contains(STORE_TRANSCRIPTION))
         db.createObjectStore(STORE_TRANSCRIPTION); // keyed manually by hash
       if (!db.objectStoreNames.contains(STORE_SNAPSHOTS))
@@ -131,6 +134,44 @@ export function storedToFile(v: StoredVideo): File {
   return new File([v.blob], v.name, { type: v.type || "video/mp4" });
 }
 
+/* ──────────────────────────── Background music blob ──────────────────────────── */
+
+/**
+ * Background music is uploaded as a file → kept in memory as a blob: object
+ * URL for live preview. But blob: URLs DIE on page reload, so the music would
+ * vanish (and the export would 404 on a dead blob). We therefore persist the
+ * actual audio BYTES here in IndexedDB (GB quota), exactly like the source
+ * video — NOT as a data: URL in effects.bgMusicUrl, which would bloat the
+ * ~5MB localStorage autosave. On reload we recreate a fresh blob: URL from
+ * these bytes; on export we read these bytes directly.
+ */
+export type StoredMusic = {
+  blob: Blob;
+  name: string;
+  type: string;
+  size: number;
+  storedAt: number;
+};
+
+export async function saveCurrentMusic(file: Blob, name: string, type: string): Promise<void> {
+  const record: StoredMusic = {
+    blob: file,
+    name: name || "bgmusic",
+    type: type || file.type || "audio/mpeg",
+    size: file.size,
+    storedAt: Date.now(),
+  };
+  await tx(STORE_MUSIC, "readwrite", (s) => s.put(record, "current"));
+}
+
+export async function loadCurrentMusic(): Promise<StoredMusic | null> {
+  return (await tx<StoredMusic>(STORE_MUSIC, "readonly", (s) => s.get("current"))) ?? null;
+}
+
+export async function clearCurrentMusic(): Promise<void> {
+  await tx(STORE_MUSIC, "readwrite", (s) => s.delete("current"));
+}
+
 /* ──────────────────────────── Transcription cache ──────────────────────────── */
 
 export async function saveTranscription(hash: string, subtitles: Subtitle[]): Promise<void> {
@@ -192,6 +233,7 @@ export async function clearAllSnapshots(): Promise<void> {
 export async function wipeAllProjectStorage(): Promise<void> {
   await Promise.all([
     clearCurrentVideo(),
+    clearCurrentMusic(),
     clearAllSnapshots(),
     tx(STORE_TRANSCRIPTION, "readwrite", (s) => s.clear()),
   ]);

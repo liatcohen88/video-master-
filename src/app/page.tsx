@@ -60,6 +60,8 @@ import {
   listSnapshots,
   loadCurrentVideo,
   storedToFile,
+  loadCurrentMusic,
+  clearCurrentMusic,
   type ProjectSnapshot,
 } from "@/lib/projectStorage";
 
@@ -309,6 +311,9 @@ export default function HomePage() {
       // Reset effects to clean default — drops any leftover depth/parallax
       // toggles from a previous session that could confuse the export.
       setEffects(MODE_DEFAULT_EFFECTS[mode]);
+      // Fresh project → drop any bg-music bytes saved for the previous video
+      // so they can't re-attach on a later reload.
+      void clearCurrentMusic();
       setDownloadSuccess(null);
       setErrorMessage(null);
       // Persist the blob to IndexedDB so hot-reload/refresh doesn't lose it.
@@ -333,6 +338,31 @@ export default function HomePage() {
       // brand-new video preview off-screen. (Liat: "ישר קופץ למטה ולא לראש".)
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
     }
+  }
+
+  /**
+   * After a reload, the restored effects.bgMusicUrl is a DEAD blob: URL (the
+   * object URL from the prior session no longer exists). The actual audio
+   * bytes were persisted to IndexedDB at upload time, so rebuild a fresh
+   * blob: URL from them. If the bytes are gone, drop the dead reference so
+   * the preview/export don't choke on it. Only acts when the restored project
+   * actually had music (a blob: URL), so stale bytes never re-attach.
+   */
+  async function reconcileBgMusic(restoredUrl?: string) {
+    if (!restoredUrl || !restoredUrl.startsWith("blob:")) return;
+    try {
+      const m = await loadCurrentMusic();
+      if (m?.blob && m.blob.size > 0) {
+        const fresh = URL.createObjectURL(m.blob);
+        setEffects((e) => ({ ...e, bgMusicUrl: fresh }));
+      } else {
+        setEffects((e) =>
+          typeof e.bgMusicUrl === "string" && e.bgMusicUrl.startsWith("blob:")
+            ? { ...e, bgMusicUrl: undefined }
+            : e,
+        );
+      }
+    } catch { /* IDB unavailable — leave as-is */ }
   }
 
   /**
@@ -363,6 +393,9 @@ export default function HomePage() {
         setEffects(p.effects);
         setWhisperModel(p.whisperModel);
         setPhase("editing");
+        // Rebuild the bg-music blob URL from IndexedDB so the music plays
+        // again (the snapshot's bgMusicUrl is a dead blob: from last session).
+        void reconcileBgMusic(p.effects?.bgMusicUrl);
         // Snap to top so the user sees the video preview + first caption,
         // not the bottom of the editor panel where they were before transcription.
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
@@ -378,6 +411,9 @@ export default function HomePage() {
       if (cachedSubs && cachedSubs.length > 0) {
         setSubtitles(cachedSubs);
         setPhase("editing");
+        // effects (incl. bgMusicUrl) were hydrated from localStorage on mount;
+        // rebuild the music blob URL from IndexedDB if it was a dead blob:.
+        void reconcileBgMusic(effects?.bgMusicUrl);
         // Snap to top so the user sees the video preview + first caption,
         // not the bottom of the editor panel where they were before transcription.
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
@@ -398,6 +434,7 @@ export default function HomePage() {
       } catch { /* ignore */ }
       if (lsSubs > 0) {
         setPhase("editing");
+        void reconcileBgMusic(effects?.bgMusicUrl);
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
         toast.success("הפרויקט שוחזר");
         return;
@@ -739,12 +776,20 @@ export default function HomePage() {
       let bgMusicSent = false;
       if (effects.bgMusicUrl) {
         try {
-          const blob = await fetch(effects.bgMusicUrl).then((r) => r.blob());
+          // Prefer the bytes persisted in IndexedDB — they survive reload and
+          // don't depend on the blob: URL still being live. Fall back to
+          // fetching the in-memory blob URL (e.g. brand-new upload before the
+          // IDB write settled, or an http(s) music source).
+          const stored = await loadCurrentMusic();
+          let blob: Blob | null = stored?.blob ?? null;
+          if (!blob || blob.size === 0) {
+            blob = await fetch(effects.bgMusicUrl).then((r) => r.blob());
+          }
           if (blob && blob.size > 0) {
-            fd.append("bgMusic", blob, "bgmusic");
+            fd.append("bgMusic", blob, stored?.name || "bgmusic");
             bgMusicSent = true;
           }
-        } catch { /* dead blob — server treats missing as no music */ }
+        } catch { /* no usable bytes — server treats missing as no music */ }
       }
       // Don't ship a redundant (and possibly multi-MB) data: URL for music
       // when the bytes already go as a file; the server overrides bgMusicUrl
