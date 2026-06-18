@@ -341,20 +341,22 @@ export default function HomePage() {
   }
 
   /**
-   * After a reload, the restored effects.bgMusicUrl is a DEAD blob: URL (the
-   * object URL from the prior session no longer exists). The actual audio
-   * bytes were persisted to IndexedDB at upload time, so rebuild a fresh
-   * blob: URL from them. If the bytes are gone, drop the dead reference so
-   * the preview/export don't choke on it. Only acts when the restored project
-   * actually had music (a blob: URL), so stale bytes never re-attach.
+   * After a reload, restore the background music from IndexedDB. The persisted
+   * audio BYTES are the source of truth (saved at upload time); the snapshot's
+   * effects.bgMusicUrl is unreliable — it's a dead blob: URL at best, and was
+   * often null (a prior session dropped it, or the snapshot fired before the
+   * url propagated). So DON'T gate on what the snapshot says: if music bytes
+   * exist in IndexedDB, rebuild a fresh, playable blob: URL from them. If
+   * there are no bytes (project never had music, or it was removed — clearMusic
+   * + handleVideo both clear the bytes), drop any leftover dead blob ref so the
+   * preview/export don't choke on it.
    */
-  async function reconcileBgMusic(restoredUrl?: string) {
-    if (!restoredUrl || !restoredUrl.startsWith("blob:")) return;
+  async function reconcileBgMusic() {
     try {
       const m = await loadCurrentMusic();
       if (m?.blob && m.blob.size > 0) {
         const fresh = URL.createObjectURL(m.blob);
-        setEffects((e) => ({ ...e, bgMusicUrl: fresh }));
+        setEffects((e) => (e.bgMusicUrl === fresh ? e : { ...e, bgMusicUrl: fresh }));
       } else {
         setEffects((e) =>
           typeof e.bgMusicUrl === "string" && e.bgMusicUrl.startsWith("blob:")
@@ -394,8 +396,8 @@ export default function HomePage() {
         setWhisperModel(p.whisperModel);
         setPhase("editing");
         // Rebuild the bg-music blob URL from IndexedDB so the music plays
-        // again (the snapshot's bgMusicUrl is a dead blob: from last session).
-        void reconcileBgMusic(p.effects?.bgMusicUrl);
+        // again (snapshot's bgMusicUrl is unreliable — bytes are the truth).
+        void reconcileBgMusic();
         // Snap to top so the user sees the video preview + first caption,
         // not the bottom of the editor panel where they were before transcription.
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
@@ -411,9 +413,8 @@ export default function HomePage() {
       if (cachedSubs && cachedSubs.length > 0) {
         setSubtitles(cachedSubs);
         setPhase("editing");
-        // effects (incl. bgMusicUrl) were hydrated from localStorage on mount;
-        // rebuild the music blob URL from IndexedDB if it was a dead blob:.
-        void reconcileBgMusic(effects?.bgMusicUrl);
+        // Rebuild the music blob URL from the persisted bytes in IndexedDB.
+        void reconcileBgMusic();
         // Snap to top so the user sees the video preview + first caption,
         // not the bottom of the editor panel where they were before transcription.
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
@@ -434,7 +435,7 @@ export default function HomePage() {
       } catch { /* ignore */ }
       if (lsSubs > 0) {
         setPhase("editing");
-        void reconcileBgMusic(effects?.bgMusicUrl);
+        void reconcileBgMusic();
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
         toast.success("הפרויקט שוחזר");
         return;
