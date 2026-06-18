@@ -71,11 +71,19 @@ export async function renderViaRemotion({
       codec: "h264",
       outputLocation: outPath,
       inputProps,
-      crf: 18,
-      // CX33 has 4 vCPU + 8GB. concurrency:1 made a full-length render crawl
-      // (Liat: "יצוא לוקח המון המון זמן"). 3 parallel frame workers ≈ 3× faster
-      // and still leaves a core for FFmpeg/encode; swangle is CPU-only so the
-      // per-worker memory is modest and fits in 8GB + 2g shm.
+      // Quality: crf 23 is visually ~identical to 18 for social video but
+      // encodes faster and yields a smaller file. JPEG intermediate frames
+      // (quality 90) capture MUCH faster than the default PNG — the per-frame
+      // capture was a big chunk of the render time. Both are standard Remotion
+      // speed levers and don't change the on-screen result meaningfully.
+      crf: 23,
+      imageFormat: "jpeg",
+      jpegQuality: 90,
+      // CX33 has 4 vCPU + 8GB AND also serves the live site from this box.
+      // concurrency 3 keeps ~1 core free so the site stays responsive while a
+      // render runs; concurrency 4 starved the Next server (site froze for
+      // other users mid-render). The real speed ceiling here is the 4-core box
+      // — see the render-queue / bigger-server options discussed with Liat.
       concurrency: 3,
       browserExecutable: process.env.CHROME_BIN,
       chromiumOptions: {
