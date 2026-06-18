@@ -31,6 +31,21 @@ import { introFrameAt } from "../lib/introAnimations";
 import { detectBrands, brandLogoCdnUrl } from "../lib/brandLogos";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
 
+/**
+ * Resolve a public asset URL for the Remotion renderer. SFX/bg-music URLs
+ * from our libs are root-relative ("/sfx/sfx_888.mp3"). The headless
+ * renderer only serves files that the bundler KNOWS are referenced — and
+ * it learns that from staticFile() calls at build time. A raw "/sfx/..."
+ * string is invisible to the bundler, so the file isn't copied into the
+ * bundle and the render 404s (file not found under the webpack bundle
+ * dir). Wrapping in staticFile() (leading slash stripped) registers it.
+ * Absolute http(s) URLs (CDN bg-music) pass through.
+ */
+function remotionAsset(url: string): string {
+  if (/^[a-z]+:\/\//i.test(url)) return url; // already absolute
+  return staticFile(url.replace(/^\//, ""));
+}
+
 function buildSfxTriggers(
   subtitles: Subtitle[],
   effects: VideoEffects | null,
@@ -318,7 +333,7 @@ export function VideoComposition({
         const maxFrames = Math.round(3.5 * fps);
         return (
           <Sequence key={`sfx-${i}`} from={fromFrame} durationInFrames={maxFrames}>
-            <Audio src={trig.url} volume={trig.gain} />
+            <Audio src={remotionAsset(trig.url)} volume={trig.gain} />
           </Sequence>
         );
       })}
@@ -326,7 +341,7 @@ export function VideoComposition({
       {/* Intro SFX — fires at t=0 alongside the intro animation. */}
       {effects?.introSfxId && effects.introSfxId !== "none" && (() => {
         const url = getSfxAsset(effects.introSfxId)?.url;
-        return url ? <Audio src={url} volume={effects.sfxMasterVolume ?? 1} /> : null;
+        return url ? <Audio src={remotionAsset(url)} volume={effects.sfxMasterVolume ?? 1} /> : null;
       })()}
 
       {/* Background music — mixed UNDER the source video's own audio at
@@ -334,7 +349,7 @@ export function VideoComposition({
           final MP4 so we don't need an FFmpeg pass. */}
       {effects?.bgMusicUrl && (
         <Audio
-          src={effects.bgMusicUrl}
+          src={remotionAsset(effects.bgMusicUrl)}
           volume={effects.bgMusicVolume ?? 0.3}
         />
       )}
