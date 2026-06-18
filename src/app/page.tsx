@@ -233,18 +233,51 @@ export default function HomePage() {
   // change to subtitles/style/effects/settings/template/mode is captured
   // within ~3s so "המשך עריכה" restores the FULL state including effects,
   // SFX, music, color filters, logos, etc.
+  // Keep the latest editor state in a ref so the pagehide flush (below)
+  // always saves the CURRENT values, not a stale closure.
+  const snapshotPayloadRef = useRef({ mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel });
+  snapshotPayloadRef.current = { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel };
+
   useEffect(() => {
     if (phase !== "editing" || !videoHash) return;
+    // 1s debounce (was 3s). The snapshot is what "המשך עריכה"/refresh
+    // restores from; at 3s, adding effects then reloading within 3s meant
+    // the latest snapshot was the post-transcription one (subtitles only,
+    // default effects) → effects appeared "not saved". 1s captures edits
+    // far more reliably.
     const id = window.setTimeout(() => {
       saveSnapshot({
         at: Date.now(),
         label: "שמירה אוטומטית",
         videoHash,
-        payload: { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel },
+        payload: snapshotPayloadRef.current,
       }).catch(() => {});
-    }, 3000);
+    }, 1000);
     return () => window.clearTimeout(id);
   }, [phase, videoHash, mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel]);
+
+  // Belt-and-suspenders: flush a snapshot the instant the tab is hidden or
+  // about to unload (refresh, close, navigate). Guarantees the freshest
+  // effects/style/etc are persisted even if the user reloads sub-second
+  // after a change, before the 1s debounce fires.
+  useEffect(() => {
+    if (phase !== "editing" || !videoHash) return;
+    const flush = () => {
+      saveSnapshot({
+        at: Date.now(),
+        label: "שמירה אוטומטית",
+        videoHash,
+        payload: snapshotPayloadRef.current,
+      }).catch(() => {});
+    };
+    const onVis = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [phase, videoHash]);
 
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [activeReferenceId, setActiveReferenceId] = useState<string | undefined>(undefined);
