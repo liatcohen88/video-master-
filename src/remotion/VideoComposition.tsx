@@ -634,78 +634,83 @@ export function VideoComposition({
           from the SubtitleStyle so they match the live preview exactly.
           Full per-word highlight + animation modes come in iteration 2. */}
       {currentSub && style && (() => {
-        // Mirror VideoPreview's vertical anchoring: `position` picks one of
-        // three bands, `positionOffset` (-50..50) nudges within the band.
-        const offsetPx = (style.positionOffset / 100) * height * 0.4;
-        const anchor = style.position === "top"
-          ? { top: `${Math.round(height * 0.08 + offsetPx)}px` }
-          : style.position === "middle"
-            ? { top: "50%", transform: "translate(-50%, -50%)" as const }
-            : { bottom: `${Math.round(height * 0.08 - offsetPx)}px` };
+        // 1:1 PORT of VideoPreview.SubtitleOverlay. The preview computes
+        // subtitleScale = containerHeight / 1080, so all style values
+        // (fontSize, positionOffset, strokeWidth, paddings) are authored in
+        // a 1080-tall reference space. The export canvas is `height` tall
+        // (1920), so the matching scale is height/1080 (~1.78) — NOT 1.
+        // Using raw values made the export subtitle ~1.78× too small and
+        // mis-positioned vs the live preview.
+        const scale = height / 1080;
+        const fontSizePx = style.fontSize * scale;
+        const strokePx = style.strokeWidth * scale;
+        const offsetPx = style.positionOffset * scale;
+        const bgHex = style.backgroundOpacity > 0
+          ? `${style.backgroundColor}${Math.round(style.backgroundOpacity * 255).toString(16).padStart(2, "0")}`
+          : "transparent";
+
+        const words = currentSub.words ?? currentSub.text.split(/\s+/).map((w, i, arr) => {
+          const dur = currentSub.end - currentSub.start;
+          return {
+            word: w,
+            start: currentSub.start + (i / arr.length) * dur,
+            end: currentSub.start + ((i + 1) / arr.length) * dur,
+          };
+        });
+        const sameColor = style.highlightColor.toLowerCase() === style.color.toLowerCase();
+        let activeIdx = -1;
+        for (let i = 0; i < words.length; i++) {
+          if (t >= words[i].start) activeIdx = i;
+        }
+        if (activeIdx === -1 && words.length > 0) activeIdx = 0;
+
         return (
-          <AbsoluteFill style={{ pointerEvents: "none" }}>
+          <AbsoluteFill
+            style={{
+              pointerEvents: "none",
+              display: "flex",
+              justifyContent: "center",
+              padding: `0 ${24 * scale}px`,
+              top: style.position === "top"
+                ? `${offsetPx}px`
+                : style.position === "middle"
+                  ? `calc(50% + ${offsetPx}px)`
+                  : "auto",
+              bottom: style.position === "bottom" ? `${offsetPx}px` : "auto",
+              height: style.position === "middle" ? undefined : "auto",
+              alignItems: style.position === "bottom" ? "flex-end" : "flex-start",
+              transform: style.position === "middle" ? "translateY(-50%)" : undefined,
+            }}
+          >
             <div
               dir="rtl"
               style={{
-                position: "absolute",
-                left: "50%",
-                ...(style.position === "middle"
-                  ? {}
-                  : { transform: "translateX(-50%)" }),
-                ...anchor,
-                width: `${Math.round(width * 0.92)}px`,
-                textAlign: style.textAlign,
-                whiteSpace: "normal",
-                wordBreak: "keep-all",
                 fontFamily: style.fontFamily,
+                fontSize: `${fontSizePx}px`,
                 fontWeight: style.fontWeight,
-                fontSize: `${style.fontSize}px`,
-                color: style.color,
-                background: style.backgroundOpacity > 0
-                  ? `rgba(0,0,0,${style.backgroundOpacity})`
-                  : "transparent",
-                padding: style.backgroundOpacity > 0 ? "0.3em 0.6em" : 0,
-                borderRadius: 12,
-                WebkitTextStroke: style.strokeWidth > 0
-                  ? `${style.strokeWidth}px ${style.strokeColor}`
-                  : undefined,
                 paintOrder: "stroke fill",
-                textShadow: style.shadow ? "0 4px 14px rgba(0,0,0,0.7)" : "none",
-                lineHeight: 1.2,
+                WebkitTextStroke: strokePx > 0 ? `${strokePx}px ${style.strokeColor}` : undefined,
+                background: bgHex,
+                padding: style.backgroundOpacity > 0 ? `${8 * scale}px ${18 * scale}px` : "0",
+                borderRadius: `${12 * scale}px`,
+                textShadow: style.shadow ? `0 ${4 * scale}px ${16 * scale}px rgba(0,0,0,0.85)` : "none",
+                display: "inline-block",
+                lineHeight: 1.3,
+                maxWidth: "92%",
+                whiteSpace: "normal",
+                textAlign: "center",
+                color: style.color,
+                transformOrigin: "center center",
               }}
             >
-              {(() => {
-                // Per-word highlight — exact same algorithm as
-                // VideoPreview.SubtitleOverlay: the active word is the LAST
-                // word whose start has passed. Auto-split if the AI didn't
-                // give us per-word timings (rare, but mirrors live behavior).
-                const words = currentSub.words ?? currentSub.text.split(/\s+/).map((w, i, arr) => {
-                  const dur = currentSub.end - currentSub.start;
-                  return {
-                    word: w,
-                    start: currentSub.start + (i / arr.length) * dur,
-                    end: currentSub.start + ((i + 1) / arr.length) * dur,
-                  };
-                });
-                const sameColor = style.highlightColor.toLowerCase() === style.color.toLowerCase();
-                let activeIdx = -1;
-                for (let i = 0; i < words.length; i++) {
-                  if (t >= words[i].start) activeIdx = i;
-                }
-                if (activeIdx === -1 && words.length > 0) activeIdx = 0;
-                return words.map((w, i) => (
-                  <span key={i}>
-                    {i > 0 && " "}
-                    <span
-                      style={{
-                        color: i === activeIdx && !sameColor ? style.highlightColor : style.color,
-                      }}
-                    >
-                      {w.word}
-                    </span>
+              {words.map((w, i) => (
+                <span key={i}>
+                  {i > 0 && " "}
+                  <span style={{ color: i === activeIdx && !sameColor ? style.highlightColor : style.color }}>
+                    {w.word}
                   </span>
-                ));
-              })()}
+                </span>
+              ))}
             </div>
           </AbsoluteFill>
         );
