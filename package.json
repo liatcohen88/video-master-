@@ -12,6 +12,7 @@
     "@napi-rs/canvas": "^1.0.0",
     "@remotion/bundler": "^4.0.478",
     "@remotion/cli": "^4.0.478",
+    "@remotion/google-fonts": "^4.0.478",
     "@remotion/lottie": "^4.0.479",
     "@remotion/renderer": "^4.0.478",
     "@supabase/supabase-js": "^2.108.0",

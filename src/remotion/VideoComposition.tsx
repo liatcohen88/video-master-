@@ -30,6 +30,7 @@ import { detectBeatDrops, beatDropZoomAt } from "../lib/wowEffects";
 import { introFrameAt } from "../lib/introAnimations";
 import { detectBrands, brandLogoCdnUrl } from "../lib/brandLogos";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
+import { resolveRemotionFont } from "./remotionFonts";
 
 /**
  * Resolve a public asset URL for the Remotion renderer. SFX/bg-music URLs
@@ -685,7 +686,7 @@ export function VideoComposition({
             <div
               dir="rtl"
               style={{
-                fontFamily: style.fontFamily,
+                fontFamily: resolveRemotionFont(style.fontFamily),
                 fontSize: `${fontSizePx}px`,
                 fontWeight: style.fontWeight,
                 paintOrder: "stroke fill",
