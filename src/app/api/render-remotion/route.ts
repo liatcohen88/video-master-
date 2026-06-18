@@ -63,6 +63,30 @@ export async function POST(req: NextRequest) {
 
   const mode = (formData.get("mode") as EditMode) || "subtitles_only";
   const durationSec = Number(formData.get("durationSec")) || 10;
+
+  // Canvas dimensions = the chosen aspect crop, so the export frame matches
+  // what the preview shows. "original" uses the source video's natural
+  // dimensions (sent by the client), falling back to 9:16. Even-rounded
+  // because H.264 requires even width/height.
+  const evenize = (n: number) => Math.max(2, Math.round(n / 2) * 2);
+  const { ASPECT_RATIO_INFO } = await import("@/lib/types");
+  const aspectInfo = ASPECT_RATIO_INFO[effects.aspectRatio ?? "original"];
+  const natW = Number(formData.get("naturalWidth")) || 0;
+  const natH = Number(formData.get("naturalHeight")) || 0;
+  let canvasW = 1080;
+  let canvasH = 1920;
+  if (aspectInfo?.width && aspectInfo?.height) {
+    canvasW = aspectInfo.width;
+    canvasH = aspectInfo.height;
+  } else if (natW > 0 && natH > 0) {
+    // "original": keep the source aspect, cap the long edge at 1920 so the
+    // render stays a sane size.
+    const longEdge = Math.max(natW, natH);
+    const k = longEdge > 1920 ? 1920 / longEdge : 1;
+    canvasW = evenize(natW * k);
+    canvasH = evenize(natH * k);
+  }
+
   const cost = calcDynamicCost(mode, effects);
   const spent = await spendCredits(user.id, cost.total);
   if (!spent.ok) return NextResponse.json({ error: "אין מספיק מאסטרים" }, { status: 402 });
@@ -83,8 +107,8 @@ export async function POST(req: NextRequest) {
         subtitles,
         style,
         effects,
-        width: 1080,
-        height: 1920,
+        width: canvasW,
+        height: canvasH,
         durationSec,
         fps: 30,
       },

@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { Lottie } from "@remotion/lottie";
 import { LOTTIE_ICONS } from "../lib/lottieRegistry";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "../lib/types";
+import { ASPECT_RATIO_INFO } from "../lib/types";
 import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt } from "../lib/dramaEffects";
 import { colorFilterCss } from "../lib/colorFilters";
 import { detectElements, type ElementEvent } from "../lib/keywordElements";
@@ -31,6 +32,56 @@ import { introFrameAt } from "../lib/introAnimations";
 import { detectBrands, brandLogoCdnUrl } from "../lib/brandLogos";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
 import { resolveRemotionFont } from "./remotionFonts";
+import { resolveAnimation, type SubtitleAnimationType } from "../lib/subtitleAnimations";
+
+/**
+ * Frame-based reimplementation of the subtitle entrance @keyframes (see
+ * globals.css: sub-fade, sub-pop, sub-bounce, sub-slide, sub-zoom-burst,
+ * sub-wave). CSS keyframe
+ * animations are wall-clock and don't capture in Remotion's frame render,
+ * so we reproduce each animation's transform+opacity curve from the time
+ * since the subtitle appeared (localT seconds). Stops/values mirror the
+ * CSS percentages × the cssAnimation duration so the export motion matches
+ * the live preview.
+ */
+function subtitleEntrance(
+  animType: SubtitleAnimationType | undefined,
+  index: number,
+  localT: number,
+): { transform: string; opacity: number } {
+  const id = resolveAnimation(animType ?? "none", index).id;
+  const ms = localT * 1000;
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+  // piecewise-linear interpolation over keyframe stops (ms) → values
+  const seg = (stops: number[], vals: number[]): number => {
+    if (ms <= stops[0]) return vals[0];
+    for (let i = 1; i < stops.length; i++) {
+      if (ms <= stops[i]) {
+        const f = (ms - stops[i - 1]) / (stops[i] - stops[i - 1]);
+        return vals[i - 1] + (vals[i] - vals[i - 1]) * f;
+      }
+    }
+    return vals[vals.length - 1];
+  };
+  switch (id) {
+    case "pop": // 0%→45%→100% over 320ms: scale .8→1.08→1
+      return { transform: `scale(${seg([0, 144, 320], [0.8, 1.08, 1])})`, opacity: seg([0, 144, 320], [0, 1, 1]) };
+    case "bounce": // 0/28/52/80/100% over 500ms: scale .6→1.15→.9→1.05→1
+      return { transform: `scale(${seg([0, 140, 260, 400, 500], [0.6, 1.15, 0.9, 1.05, 1])})`, opacity: seg([0, 140], [0, 1]) };
+    case "slide-up": { const p = clamp01(ms / 350); return { transform: `translateY(${40 * (1 - p)}%) scale(${0.95 + 0.05 * p})`, opacity: p }; }
+    case "slide-left": { const p = clamp01(ms / 350); return { transform: `translateX(${-40 * (1 - p)}%) scale(${0.95 + 0.05 * p})`, opacity: p }; }
+    case "slide-right": { const p = clamp01(ms / 350); return { transform: `translateX(${40 * (1 - p)}%) scale(${0.95 + 0.05 * p})`, opacity: p }; }
+    case "zoom-burst": { const p = clamp01(ms / 400); return { transform: `scale(${1.5 - 0.5 * p})`, opacity: p }; }
+    case "wave": // 0/25/50/75/100% over 600ms: scaleX/Y wiggle
+      return {
+        transform: `scaleX(${seg([0, 150, 300, 450, 600], [0.95, 1.05, 0.98, 1.02, 1])}) scaleY(${seg([0, 150, 300, 450, 600], [1.05, 0.95, 1.02, 0.98, 1])})`,
+        opacity: seg([0, 150], [0, 1]),
+      };
+    case "none":
+    default: // sub-fade: opacity 0→1 over 200ms
+      return { transform: "none", opacity: clamp01(ms / 200) };
+  }
+}
 
 /**
  * Resolve a public asset URL for the Remotion renderer. SFX/bg-music URLs
@@ -209,6 +260,24 @@ export function VideoComposition({
   const t = frame / fps;
   const progress = durationSec > 0 ? t / durationSec : 0;
 
+  // Crop/framing parity with VideoPreview (VideoPreview.tsx:288-311,760-761).
+  // The preview uses object-fit cover only when a specific aspect crop is
+  // chosen (else contain), and positions the crop via cropFocus/faceCenter.
+  // The export canvas is already sized to the chosen aspect by the route,
+  // so we mirror the SAME object-fit + object-position here.
+  const aspectInfo = ASPECT_RATIO_INFO[effects?.aspectRatio ?? "original"];
+  const hasAspect = !!aspectInfo && aspectInfo.width !== null && aspectInfo.height !== null;
+  const videoObjectFit: "cover" | "contain" = hasAspect ? "cover" : "contain";
+  const videoObjectPosition = (() => {
+    if (!hasAspect) return "center";
+    if (effects?.faceCenterX !== undefined && effects?.faceCenterY !== undefined) {
+      return `${Math.round(effects.faceCenterX * 100)}% ${Math.round(effects.faceCenterY * 100)}%`;
+    }
+    if (effects?.cropFocus === "top") return "center top";
+    if (effects?.cropFocus === "bottom") return "center bottom";
+    return "center center";
+  })();
+
   // --- Zoom / Ken Burns / Punch ----------------------------------------
   // Mirrors VideoPreview's zoom logic exactly. Beat-drop pulses always
   // add on top so the wow feature stands alone even when zoomEffect=none.
@@ -306,7 +375,8 @@ export function VideoComposition({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: videoObjectFit,
+            objectPosition: videoObjectPosition,
             filter: [videoFilter, intro.extraFilter].filter(Boolean).join(" ") || undefined,
             transform: videoTransform,
             transformOrigin: "center center",
@@ -669,11 +739,27 @@ export function VideoComposition({
         }
         if (activeIdx === -1 && words.length > 0) activeIdx = 0;
 
+        // Entrance animation (frame-based port of the preview CSS keyframes).
+        const subIndex = subtitles.indexOf(currentSub);
+        const entrance = subtitleEntrance(
+          effects?.subtitleAnimation as SubtitleAnimationType | undefined,
+          subIndex < 0 ? 0 : subIndex,
+          t - currentSub.start,
+        );
+
         return (
           <AbsoluteFill
             style={{
               pointerEvents: "none",
               display: "flex",
+              // CRITICAL: AbsoluteFill injects flexDirection:'column' when no
+              // flex-row className is present. Column makes justifyContent
+              // center on the VERTICAL axis (a no-op here) and leaves
+              // horizontal placement to alignItems — so the block was NOT
+              // horizontally centered like the preview. Force row so
+              // justifyContent:center centers horizontally, exactly like the
+              // preview's `flex` (row) wrapper. Do NOT set alignItems.
+              flexDirection: "row",
               justifyContent: "center",
               padding: `0 ${24 * scale}px`,
               top: style.position === "top"
@@ -683,7 +769,6 @@ export function VideoComposition({
                   : "auto",
               bottom: style.position === "bottom" ? `${offsetPx}px` : "auto",
               height: style.position === "middle" ? undefined : "auto",
-              alignItems: style.position === "bottom" ? "flex-end" : "flex-start",
               transform: style.position === "middle" ? "translateY(-50%)" : undefined,
             }}
           >
@@ -706,6 +791,10 @@ export function VideoComposition({
                 textAlign: "center",
                 color: style.color,
                 transformOrigin: "center center",
+                // Frame-based entrance animation (matches the preview's CSS
+                // keyframe per the selected subtitleAnimation).
+                transform: entrance.transform,
+                opacity: entrance.opacity,
               }}
             >
               {words.map((w, i) => (

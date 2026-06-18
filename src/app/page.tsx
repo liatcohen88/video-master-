@@ -687,6 +687,15 @@ export default function HomePage() {
       fd.append("effects", JSON.stringify(effectsForExport));
       // mode is needed by the server-side credit spend (audit C1).
       fd.append("mode", mode);
+      // Natural video dimensions so the export canvas can match the source
+      // aspect when aspectRatio = "original" (preview shows the full frame).
+      try {
+        const vEl = document.querySelector("video") as HTMLVideoElement | null;
+        if (vEl?.videoWidth && vEl?.videoHeight) {
+          fd.append("naturalWidth", String(vEl.videoWidth));
+          fd.append("naturalHeight", String(vEl.videoHeight));
+        }
+      } catch { /* best effort */ }
       // Background music is stored client-side as a blob: URL, which the
       // server can't fetch. Re-fetch the blob here and attach as a file.
       if (effects.bgMusicUrl) {
