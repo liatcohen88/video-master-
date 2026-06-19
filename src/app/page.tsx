@@ -134,6 +134,10 @@ export default function HomePage() {
   const [progressMessage, setProgressMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  // How the finished file was actually delivered, so the success popup tells
+  // the truth: "share" = OS share-sheet opened (gallery IF the user picked
+  // "Save Video"); "download" = went to the Downloads/Files folder.
+  const [exportSavedVia, setExportSavedVia] = useState<"share" | "download">("download");
   // Background export job — the render runs server-side; this drives a
   // non-blocking "מייצא ברקע" badge so the user can keep working / leave.
   const [exportJob, setExportJob] = useState<{ id: string; filename: string; status: "rendering" | "done" } | null>(null);
@@ -731,8 +735,9 @@ export default function HomePage() {
     if (!exportBlobRef.current) await fetchExportBlob(jobId);
     if (!exportBlobRef.current) { toast.error("ההורדה נכשלה — נסי שוב"); return; }
     const shared = await deliverExportFile(exportBlobRef.current, filename);
+    setExportSavedVia(shared ? "share" : "download");
     setDownloadSuccess(filename);
-    toast.success(shared ? "✓ נשמר! אם בחרת 'שמירה בתמונות' — הסרטון בגלריה 📸" : "✓ הסרטון ירד אלייך!");
+    toast.success(shared ? "✓ בחרי 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
     setTimeout(() => setDownloadSuccess(null), 12000);
   }
 
@@ -755,6 +760,7 @@ export default function HomePage() {
         } else {
           // DESKTOP: just download it (goes to the Downloads folder, expected).
           if (exportBlobRef.current) await deliverExportFile(exportBlobRef.current, filename);
+          setExportSavedVia("download");
           setDownloadSuccess(filename);
           toast.success("✓ הסרטון מוכן וירד אלייך!");
           setTimeout(() => setDownloadSuccess(null), 12000);
@@ -1490,19 +1496,26 @@ export default function HomePage() {
                       </svg>
                     </div>
                     <h3 className="text-2xl font-extrabold mb-2">הסרטון מוכן! 🎉</h3>
-                    {/* On mobile (touch + no hover), the file went via the
-                        share-sheet → most likely Photos/Files. The filename
-                        isn'\''t useful info there, but "ניתן למצוא בגלריה"
-                        is. Desktop still sees the filename (downloads folder). */}
-                    <p className="text-sm text-white/70 mb-4 hidden max-md:block">
-                      ניתן למצוא אותו ב-<strong className="text-emerald-300">גלריה שלך</strong> 📱
-                    </p>
-                    <p className="text-sm text-white/70 mb-4 max-md:hidden">
-                      הסרטון נשמר בתיקיית ההורדות:
-                    </p>
-                    <div className="text-xs text-white/50 font-mono break-all bg-bg-card border border-white/10 rounded-lg p-3 mb-5 max-md:hidden">
-                      {downloadSuccess}
-                    </div>
+                    {/* Tell the truth about WHERE it landed. share = the OS
+                        share-sheet opened → in the gallery ONLY if the user
+                        tapped "Save Video / שמור בתמונות". download = it went
+                        to the Downloads / Files folder. */}
+                    {exportSavedVia === "share" ? (
+                      <p className="text-sm text-white/70 mb-5 leading-relaxed">
+                        בחלון השיתוף שנפתח, בחרי <strong className="text-emerald-300">&quot;שמור וידאו&quot; / &quot;שמירה בתמונות&quot;</strong> — והסרטון יישמר ל<strong className="text-emerald-300">גלריה</strong> 📱
+                        <br />
+                        <span className="text-xs text-white/50">אם סגרת את החלון — הסרטון באפליקציית &quot;קבצים&quot; / ההורדות.</span>
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/70 mb-3">
+                          הסרטון נשמר ב<strong className="text-emerald-300">תיקיית ההורדות</strong> (אפליקציית &quot;קבצים&quot; → הורדות) 📁
+                        </p>
+                        <div className="text-xs text-white/50 font-mono break-all bg-bg-card border border-white/10 rounded-lg p-3 mb-5 max-md:hidden">
+                          {downloadSuccess}
+                        </div>
+                      </>
+                    )}
                     <button
                       onClick={() => setDownloadSuccess(null)}
                       className="w-full bg-gradient-to-r from-brand to-accent-pink hover:opacity-90 text-white font-bold py-3 rounded-xl transition-opacity"
