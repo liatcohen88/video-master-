@@ -138,6 +138,10 @@ export default function HomePage() {
   // non-blocking "מייצא ברקע" badge so the user can keep working / leave.
   const [exportJob, setExportJob] = useState<{ id: string; filename: string; status: "rendering" | "done" } | null>(null);
   const exportPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The finished MP4 is pre-fetched here when the job completes, so the
+  // "save to gallery" tap can call navigator.share() SYNCHRONOUSLY (iOS drops
+  // share permission if you await between the tap and the share call).
+  const exportBlobRef = useRef<Blob | null>(null);
   const [insufficientInfo, setInsufficientInfo] = useState<InsufficientInfo | null>(null);
   const [whisperModel, setWhisperModel] = useAutoSavedState<string>("whisperModel", "ivrit-ai/whisper-large-v3-turbo-ct2");
   const [effects, setEffects] = useAutoSavedState<VideoEffects>("effects", MODE_DEFAULT_EFFECTS.subtitles_only);
@@ -676,13 +680,23 @@ export default function HomePage() {
     } catch { return {}; }
   }
 
+  // Can this device hand a video file to the OS share-sheet (→ "Save to
+  // Photos"/gallery)? True on mobile Safari/Chrome, false on desktop.
+  function canShareVideoFiles(): boolean {
+    try {
+      const navAny = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (typeof navAny.share !== "function" || typeof navAny.canShare !== "function") return false;
+      const probe = new File([new Uint8Array([0])], "probe.mp4", { type: "video/mp4" });
+      return navAny.canShare({ files: [probe] });
+    } catch { return false; }
+  }
+
+  // Hand the (already in-memory) blob to the gallery. MUST run synchronously
+  // from a user tap on iOS — no await before navigator.share().
   async function deliverExportFile(blob: Blob, filename: string): Promise<boolean> {
     const file = new File([blob], filename, { type: "video/mp4" });
     const navAny = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    const canShare = typeof navAny.share === "function"
-      && typeof navAny.canShare === "function"
-      && navAny.canShare({ files: [file] });
-    if (canShare) {
+    if (typeof navAny.share === "function" && typeof navAny.canShare === "function" && navAny.canShare({ files: [file] })) {
       try { await navAny.share({ files: [file], title: filename }); return true; }
       catch (e) { if (!(e instanceof Error) || e.name !== "AbortError") console.warn("[export] share failed", e); }
     }
@@ -695,25 +709,31 @@ export default function HomePage() {
 
   function clearExportJob() {
     if (exportPollRef.current) { clearInterval(exportPollRef.current); exportPollRef.current = null; }
+    exportBlobRef.current = null;
     setExportJob(null);
     try { localStorage.removeItem("vm_export_job"); } catch {}
   }
 
-  // Download the finished MP4. Exposed so the badge's "הורד" button can retry.
-  async function downloadExportResult(jobId: string, filename: string) {
+  // Fetch the finished MP4 bytes into memory (so the gallery-save tap is
+  // instant + keeps the iOS user-gesture). Returns true on success.
+  async function fetchExportBlob(jobId: string): Promise<boolean> {
     try {
       const res = await fetch(`/api/render-result/${jobId}`, { headers: await exportAuthHeader() });
       if (!res.ok) throw new Error(`status ${res.status}`);
-      const blob = await res.blob();
-      const shared = await deliverExportFile(blob, filename);
-      setDownloadSuccess(filename);
-      toast.success(shared ? "✓ הסרטון מוכן ונשמר!" : "✓ הסרטון מוכן וירד אלייך!");
-      setTimeout(() => setDownloadSuccess(null), 12000);
-    } catch {
-      // Keep the badge in "done" state so the user can retry the download.
-      setExportJob((j) => (j ? { ...j, status: "done" } : j));
-      toast.error("הסרטון מוכן — לחצי 'הורד' שוב");
-    }
+      exportBlobRef.current = await res.blob();
+      return true;
+    } catch { return false; }
+  }
+
+  // Called by the badge's "save to gallery / download" tap (a real user
+  // gesture). Uses the pre-fetched blob so share() fires immediately.
+  async function saveExportNow(jobId: string, filename: string) {
+    if (!exportBlobRef.current) await fetchExportBlob(jobId);
+    if (!exportBlobRef.current) { toast.error("ההורדה נכשלה — נסי שוב"); return; }
+    const shared = await deliverExportFile(exportBlobRef.current, filename);
+    setDownloadSuccess(filename);
+    toast.success(shared ? "✓ נשמר! אם בחרת 'שמירה בתמונות' — הסרטון בגלריה 📸" : "✓ הסרטון ירד אלייך!");
+    setTimeout(() => setDownloadSuccess(null), 12000);
   }
 
   async function pollExportStatus(jobId: string, filename: string) {
@@ -724,9 +744,21 @@ export default function HomePage() {
       const { status } = await res.json();
       if (status === "done") {
         if (exportPollRef.current) { clearInterval(exportPollRef.current); exportPollRef.current = null; }
-        setExportJob({ id: jobId, filename, status: "done" });
         try { localStorage.removeItem("vm_export_job"); } catch {}
-        await downloadExportResult(jobId, filename);
+        // Pre-fetch the bytes so the save/download is instant.
+        await fetchExportBlob(jobId);
+        setExportJob({ id: jobId, filename, status: "done" });
+        if (canShareVideoFiles()) {
+          // MOBILE: don't auto-deliver — the "Save to gallery" share-sheet only
+          // works from a user TAP. Prompt the user to tap the badge button.
+          toast.success("🎉 הסרטון מוכן! לחצי 'שמור לגלריה' לשמירה ישירה בטלפון");
+        } else {
+          // DESKTOP: just download it (goes to the Downloads folder, expected).
+          if (exportBlobRef.current) await deliverExportFile(exportBlobRef.current, filename);
+          setDownloadSuccess(filename);
+          toast.success("✓ הסרטון מוכן וירד אלייך!");
+          setTimeout(() => setDownloadSuccess(null), 12000);
+        }
       } else if (status === "failed") {
         clearExportJob();
         toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
@@ -1023,10 +1055,10 @@ export default function HomePage() {
                 <div className="text-[11px] text-white/80">{exportJob.filename}</div>
               </div>
               <button
-                onClick={() => downloadExportResult(exportJob.id, exportJob.filename)}
-                className="px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-sm font-bold hover:bg-white/90"
+                onClick={() => saveExportNow(exportJob.id, exportJob.filename)}
+                className="px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-sm font-bold hover:bg-white/90 whitespace-nowrap"
               >
-                ⬇️ הורד
+                {canShareVideoFiles() ? "📥 שמור לגלריה" : "⬇️ הורד"}
               </button>
               <button
                 onClick={clearExportJob}
