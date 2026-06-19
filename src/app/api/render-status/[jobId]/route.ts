@@ -30,5 +30,6 @@ export async function GET(
     status,
     error: job.error ?? null,
     filename: job.filename,
+    progress: status === "done" ? 100 : (job.progress ?? 0),
   });
 }

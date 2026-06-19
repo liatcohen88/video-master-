@@ -8,6 +8,7 @@ import SfxCustomLoader from "@/components/SfxCustomLoader";
 import ConfirmDialogRoot from "@/components/ConfirmDialog";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
+import ExportJobBadge from "@/components/ExportJobBadge";
 import { pageMetadata, softwareJsonLd, getSiteUrl } from "@/lib/seo";
 import { loadOverridesServer } from "@/lib/contentStoreServer";
 import ContentProvider from "@/lib/ContentProvider";

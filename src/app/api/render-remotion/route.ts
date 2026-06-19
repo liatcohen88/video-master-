@@ -167,11 +167,14 @@ export async function POST(req: NextRequest) {
         bgMusicFileName,
         outPath: jobOutputPath(job.id),
         onProgress: ({ renderedFrames, totalFrames }) => {
-          // Heartbeat ~every 15 frames so a long render isn't flagged stale.
+          // Heartbeat ~every 15 frames (keeps the job from being flagged stale)
+          // and report % so the client badge can show real progress.
           if (renderedFrames % 15 === 0) {
-            updateJob(job.id, { status: "rendering" }).catch(() => {});
+            const progress = totalFrames > 0
+              ? Math.min(99, Math.round((renderedFrames / totalFrames) * 100))
+              : 0;
+            updateJob(job.id, { status: "rendering", progress }).catch(() => {});
           }
-          void totalFrames;
         },
       });
       await updateJob(job.id, { status: "done" });

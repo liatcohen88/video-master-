@@ -206,20 +206,11 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Resume an in-flight background export after a reload/navigation — the
-  // render keeps running on the server, so re-attach the poller and deliver
-  // the file when it's ready (the user doesn't lose the export by leaving).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("vm_export_job");
-      if (raw) {
-        const j = JSON.parse(raw) as { id?: string; filename?: string };
-        if (j?.id && j?.filename) beginExportJob(j.id, j.filename);
-      }
-    } catch { /* ignore */ }
-    return () => { if (exportPollRef.current) clearInterval(exportPollRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Background-export polling + badge now live in the global <ExportJobBadge>
+  // (mounted in the root layout) so the badge survives navigation between
+  // pages — Liat: "כשאני עובר עמודים הייצוא ברקע נעלם". The export button just
+  // fires a `vm-export-started` event + writes localStorage; the global badge
+  // picks it up, polls, shows progress, and delivers the file.
 
   // OAuth welcome detection. /signup and /login set sessionStorage flags
   // before navigating, but Supabase OAuth (Google) redirects back to "/"
@@ -782,6 +773,17 @@ export default function HomePage() {
   }
 
   async function exportProject() {
+    // Block a SECOND concurrent export — renders queue server-side, and a
+    // pile-up makes each one slow. One at a time (Liat: "שיקפוץ פופאפ שאי
+    // אפשר לייצא שני סרטונים במקביל"). The global badge clears this key on
+    // done/fail.
+    try {
+      if (localStorage.getItem("vm_export_job")) {
+        toast.error("אי אפשר לייצא שני סרטונים במקביל 🙏 יש ייצוא שעדיין רץ — רגע שהוא יסתיים והוא יירד אלייך.");
+        return;
+      }
+    } catch { /* ignore */ }
+
     // Guests must sign up before the download starts. SignupGate opens an
     // inline popup with the 25-master gift framing; on success the gate's
     // onSuccess closes the modal and we resume the export automatically.
@@ -994,9 +996,13 @@ export default function HomePage() {
       if (res.status === 202 || contentType.includes("application/json")) {
         const { jobId } = await res.json().catch(() => ({} as { jobId?: string }));
         if (!jobId) throw new Error("לא התקבל מזהה ייצוא מהשרת");
-        beginExportJob(jobId, filename);
+        // Hand off to the GLOBAL <ExportJobBadge> (root layout): persist the
+        // job + fire an event. It polls progress and delivers the file, and
+        // survives navigating between pages.
+        try { localStorage.setItem("vm_export_job", JSON.stringify({ id: jobId, filename })); } catch {}
+        window.dispatchEvent(new CustomEvent("vm-export-started", { detail: { jobId, filename } }));
         toast.success("🎬 הסרטון בעיבוד — אפשר להמשיך לעבוד, נודיע לך כשמוכן");
-        return; // finally{} closes the loader; the badge tracks progress
+        return; // finally{} closes the loader; the global badge tracks progress
       }
 
       const blob = await res.blob();
@@ -1041,42 +1047,8 @@ export default function HomePage() {
         <AILoadingOverlay title={loaderTitle} subtitle={progressMessage || undefined} />
       )}
 
-      {/* Non-blocking background-export badge. The render runs server-side so
-          the user can keep editing / leave; this floats bottom-center and
-          turns into a download button when ready. */}
-      {exportJob && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] max-w-[92vw]">
-          {exportJob.status === "rendering" ? (
-            <div className="flex items-center gap-3 rounded-2xl bg-bg-card/95 backdrop-blur border border-brand/40 shadow-2xl px-4 py-3">
-              <span className="inline-block w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin" />
-              <div className="text-sm">
-                <div className="font-bold text-white">מייצא את הסרטון ברקע…</div>
-                <div className="text-[11px] text-white/50">אפשר להמשיך לעבוד — נודיע לך כשמוכן 🎬</div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl bg-emerald-600/95 backdrop-blur border border-emerald-300/40 shadow-2xl px-4 py-3">
-              <div className="text-sm">
-                <div className="font-bold text-white">✓ הסרטון מוכן!</div>
-                <div className="text-[11px] text-white/80">{exportJob.filename}</div>
-              </div>
-              <button
-                onClick={() => saveExportNow(exportJob.id, exportJob.filename)}
-                className="px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-sm font-bold hover:bg-white/90 whitespace-nowrap"
-              >
-                {canShareVideoFiles() ? "📥 שמור לגלריה" : "⬇️ הורד"}
-              </button>
-              <button
-                onClick={clearExportJob}
-                className="p-1 text-white/70 hover:text-white"
-                title="סגור"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Background-export badge moved to the GLOBAL <ExportJobBadge> in the
+          root layout so it survives navigation between pages. */}
 
       {phase === "setup" && (
         <div className="space-y-8 mt-8">

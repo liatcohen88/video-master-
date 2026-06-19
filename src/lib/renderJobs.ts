@@ -30,6 +30,7 @@ export type RenderJob = {
   userId: string;
   status: RenderJobStatus;
   filename: string;      // suggested download filename
+  progress?: number;     // 0–100, render completion (for the client badge)
   error?: string;
   createdAt: number;
   updatedAt: number;
