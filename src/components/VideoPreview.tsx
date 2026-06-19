@@ -35,8 +35,12 @@ export default function VideoPreview({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const seekTrackRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  // Drives the custom play/seek bar (native <video controls> were unreliable
+  // in the small mobile PiP — Liat: "הטיימליין/סרגל הנגינה לא מופיע במובייל").
+  const [isPlaying, setIsPlaying] = useState(false);
   const [containerHeight, setContainerHeight] = useState(0);
   // Natural aspect of the uploaded video (e.g. "9/16" for a vertical phone clip)
   const [naturalAspect, setNaturalAspect] = useState<string | null>(null);
@@ -660,6 +664,46 @@ export default function VideoPreview({
       }
     : {};
 
+  // Keep the custom play/seek bar in sync with the actual <video> element.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    setIsPlaying(!v.paused);
+    return () => { v.removeEventListener("play", onPlay); v.removeEventListener("pause", onPause); };
+  }, [videoUrl]);
+
+  function togglePlay() {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {}); else v.pause();
+  }
+  function seekToClientX(clientX: number) {
+    const el = seekTrackRef.current, v = videoRef.current;
+    if (!el || !v || !duration) return;
+    const r = el.getBoundingClientRect();
+    const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    try { v.currentTime = f * duration; } catch {/* noop */}
+  }
+  function onSeekDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {/* noop */}
+    seekToClientX(e.clientX);
+  }
+  function onSeekMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!e.currentTarget.hasPointerCapture?.(e.pointerId)) return;
+    seekToClientX(e.clientX);
+  }
+  function fmtTime(s: number) {
+    const t = !isFinite(s) || s < 0 ? 0 : s;
+    const m = Math.floor(t / 60);
+    const sec = Math.floor(t % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  }
+
   return (
     <div className="space-y-3">
       {(effects && (effects.aspectRatio !== "original" || effects.zoomEffect !== "none" || effects.cutSilence)) && (
@@ -735,11 +779,13 @@ export default function VideoPreview({
         <video
           ref={videoRef}
           src={videoUrl}
-          controls
-          // Mobile Safari fullscreens any tap-played video by default, which
-          // hides our overlaid captions/effects. playsInline + disable-PiP +
-          // controlsList="nodownload nofullscreen" keep playback inline so
-          // the user sees the caption preview, exactly like desktop.
+          onClick={togglePlay}
+          // Native <video controls> were unreliable in the small mobile PiP
+          // (the scrubber was cramped/clipped). We render our OWN play+seek bar
+          // below (always visible, works at any size). Tap the video toggles
+          // play/pause. Mobile Safari fullscreens any tap-played video by
+          // default, which hides our overlaid captions/effects — playsInline +
+          // disable-PiP keep playback inline so the caption preview shows.
           playsInline
           // Paused-with-sound default. Liat 2026-06-16: "עדיף שלאחר תמלול
           // ועריכה הסרטון יהיה על עצור אבל עם שמע ולא דף שחור". The
@@ -960,6 +1006,45 @@ export default function VideoPreview({
           enabled={effects?.particleBurst ?? false}
           shake={effects?.punchShake ?? false}
         />
+        </div>
+
+        {/* Custom play + seek bar — always visible. Replaces the native
+            <video controls> which were cramped/clipped in the small mobile
+            PiP (Liat: "סרגל הנגינה לא מופיע במובייל"). Sits at the bottom of
+            the preview, OUTSIDE the intro-scaled wrapper so it's never
+            clipped, above all overlays. */}
+        <div
+          dir="ltr"
+          className="absolute bottom-0 left-0 right-0 z-30 flex items-center gap-2 px-2.5 py-2 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+        >
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={isPlaying ? "השהה" : "נגן"}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-white/90 text-black hover:bg-white transition-colors"
+          >
+            {isPlaying ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden><rect x="2" y="1.5" width="2.5" height="9" rx="0.6" /><rect x="7.5" y="1.5" width="2.5" height="9" rx="0.6" /></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden><path d="M3 1.8v8.4a.6.6 0 0 0 .92.5l6.5-4.2a.6.6 0 0 0 0-1L3.92 1.3A.6.6 0 0 0 3 1.8Z" /></svg>
+            )}
+          </button>
+          <div
+            ref={seekTrackRef}
+            onPointerDown={onSeekDown}
+            onPointerMove={onSeekMove}
+            className="relative flex-1 h-4 flex items-center cursor-pointer touch-none"
+            role="slider"
+            aria-label="מיקום בסרטון"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration)}
+            aria-valuenow={Math.round(currentTime)}
+          >
+            <div className="h-1.5 w-full rounded-full bg-white/25" />
+            <div className="absolute h-1.5 rounded-full bg-brand pointer-events-none" style={{ width: `${Math.round(progress * 100)}%` }} />
+            <div className="absolute w-3 h-3 rounded-full bg-white shadow pointer-events-none" style={{ left: `calc(${Math.round(progress * 100)}% - 6px)` }} />
+          </div>
+          <span className="shrink-0 text-[10px] font-medium text-white/90 tabular-nums">{fmtTime(currentTime)} / {fmtTime(duration)}</span>
         </div>
       </div>
     </div>
