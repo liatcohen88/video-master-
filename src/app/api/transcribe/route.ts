@@ -1,8 +1,9 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { spawn, spawnSync } from "node:child_process";
-import { writeFile, mkdir, unlink } from "node:fs/promises";
+import { writeFile, mkdir, unlink, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
+import ffmpegStatic from "ffmpeg-static";
 import { rateLimit } from "@/lib/rateLimit";
 
 // Nix store paths shift between builds, but PyAV / ctranslate2 / libsndfile
@@ -74,17 +75,49 @@ export async function POST(req: NextRequest) {
   return await transcribeWithLocalPython(file, maxWordsPerLine, model);
 }
 
+// Extract a tiny mono 16kHz MP3 from the uploaded video with ffmpeg, so the
+// OpenAI upload is ~10-20x smaller (much faster transcription) AND even long
+// videos fit under OpenAI's 25MB limit. Whisper wants 16kHz mono anyway.
+// Returns null on any failure → caller falls back to the original file.
+async function extractAudioForWhisper(file: File): Promise<File | null> {
+  const ff = ffmpegStatic as unknown as string | null;
+  if (!ff) return null;
+  const dir = join(tmpdir(), `vm-tx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  try {
+    await mkdir(dir, { recursive: true });
+    const inPath = join(dir, "in");
+    const outPath = join(dir, "audio.mp3");
+    await writeFile(inPath, Buffer.from(await file.arrayBuffer()));
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn(ff, ["-y", "-i", inPath, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k", outPath], { stdio: "ignore" });
+      p.on("error", reject);
+      p.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`))));
+    });
+    const buf = await readFile(outPath);
+    if (!buf.length) return null;
+    return new File([new Uint8Array(buf)], "audio.mp3", { type: "audio/mpeg" });
+  } catch {
+    return null;
+  } finally {
+    rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 // ── OpenAI Whisper API path ──────────────────────────────────────────
 async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
-  if (file.size > OPENAI_MAX_BYTES) {
+  // Shrink to a tiny audio track first (faster upload + bypasses the 25MB
+  // video cliff). On any extraction failure we send the original file.
+  const audio = await extractAudioForWhisper(file);
+  const upload = audio ?? file;
+  if (upload.size > OPENAI_MAX_BYTES) {
     throw new Error(
-      `הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
-      "OpenAI Whisper מוגבל ל-25 MB. אנחנו עובדים על חיתוך אוטומטי לחלקים — בינתיים כדאי לנסות סרטון קצר יותר.",
+      `הקובץ גדול מדי (${(upload.size / 1024 / 1024).toFixed(1)} MB). ` +
+      "OpenAI Whisper מוגבל ל-25 MB. נסי סרטון קצר יותר.",
     );
   }
 
   const form = new FormData();
-  form.append("file", file, file.name);
+  form.append("file", upload, upload.name);
   form.append("model", "whisper-1");
   form.append("language", "he");
   form.append("response_format", "verbose_json");
