@@ -68,8 +68,6 @@ export default function DashboardPage() {
   const cStatMonths     = useContent("dashboard.stat.monthsActive") as string;
   const cStatMember     = useContent("dashboard.stat.memberSince") as string;
   const cQATitle        = useContent("dashboard.quickAction.title") as string;
-  const cQASubtitle     = useContent("dashboard.quickAction.subtitle") as string;
-  const cQAMultiLink    = useContent("dashboard.quickAction.multiLinkLabel") as string;
   const cMyVidsHeading  = useContent("dashboard.myVideos.heading") as string;
   const cMyVidsTotal    = useContent("dashboard.myVideos.totalSuffix") as string;
   const cMyVidsEmpty    = useContent("dashboard.myVideos.empty") as string;
@@ -281,7 +279,6 @@ export default function DashboardPage() {
             </div>
             <div>
               <div className="font-bold text-sm">{cQATitle}</div>
-              <div className="text-xs text-white/40 mt-0.5">{cQASubtitle} <span className="text-brand-light">{cQAMultiLink}</span></div>
             </div>
           </div>
           <ArrowUpRight className="w-4 h-4 text-white/30 group-hover:text-white transition-colors" />
