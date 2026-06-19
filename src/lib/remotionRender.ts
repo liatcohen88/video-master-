@@ -82,6 +82,10 @@ export async function renderViaRemotion({
       crf: 23,
       imageFormat: "jpeg",
       jpegQuality: 90,
+      // Faster H.264 encode preset — the encode phase is pure speed-up with a
+      // negligible size/quality cost for social video (the frame RENDER, not
+      // encode, is the real cost — see the 1280-cap in the route).
+      x264Preset: "faster",
       // CX33 has 4 vCPU + 8GB AND also serves the live site from this box.
       // concurrency 3 keeps ~1 core free so the site stays responsive while a
       // render runs; concurrency 4 starved the Next server (site froze for

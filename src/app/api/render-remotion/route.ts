@@ -120,13 +120,20 @@ export async function POST(req: NextRequest) {
     canvasW = aspectInfo.width;
     canvasH = aspectInfo.height;
   } else if (natW > 0 && natH > 0) {
-    // "original": keep the source aspect, cap the long edge at 1920 so the
-    // render stays a sane size.
-    const longEdge = Math.max(natW, natH);
-    const k = longEdge > 1920 ? 1920 / longEdge : 1;
-    canvasW = evenize(natW * k);
-    canvasH = evenize(natH * k);
+    canvasW = natW;
+    canvasH = natH;
   }
+  // SPEED: render at 720p-class (long edge ≤ 1280) instead of 1080p. This is
+  // the single biggest no-cost lever on a GPU-less box — render time scales
+  // with pixel count, so ~halving the pixels ~halves the render. 1280×720
+  // is standard HD for reels/TikTok/IG (they re-compress anyway), and every
+  // subtitle/emoji/logo size is height-relative so the look is unchanged.
+  // Liat: "תמצא הכל בקוד שיהיה כמה שיותר מהיר" (no paid scaling).
+  const MAX_LONG_EDGE = 1280;
+  const longEdge = Math.max(canvasW, canvasH);
+  const k = longEdge > MAX_LONG_EDGE ? MAX_LONG_EDGE / longEdge : 1;
+  canvasW = evenize(canvasW * k);
+  canvasH = evenize(canvasH * k);
 
   const cost = calcDynamicCost(mode, effects);
   const spent = await spendCredits(user.id, cost.total);

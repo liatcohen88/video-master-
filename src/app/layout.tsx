@@ -67,6 +67,10 @@ export default async function RootLayout({
           {children}
           <SiteFooter />
           <Toaster />
+          {/* Global background-export badge — shows the rendering progress +
+              save/download on EVERY page (was imported but never mounted, so
+              it appeared nowhere — Liat: "הייצוא ברקע נעלם לגמרי במובייל"). */}
+          <ExportJobBadge />
           <OnboardingSplash />
           <ConfirmDialogRoot />
           <SfxCustomLoader />

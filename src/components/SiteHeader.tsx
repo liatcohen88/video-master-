@@ -239,18 +239,18 @@ export default function SiteHeader() {
                 <div className="text-[10px] text-white/40">{credits.toLocaleString()} {currencyName}</div>
               </div>
             </div>
-            <ProfileMenuItem href="/" icon="🏠" label={navHome} />
-            <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} highlight />
-            <ProfileMenuItem href="/help" icon="❓" label={navHelp} />
+            <ProfileMenuItem href="/" icon="🏠" label={navHome} onNavigate={() => setMobileMenuOpen(false)} />
+            <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} highlight onNavigate={() => setMobileMenuOpen(false)} />
+            <ProfileMenuItem href="/help" icon="❓" label={navHelp} onNavigate={() => setMobileMenuOpen(false)} />
             <div className="my-1 border-t border-white/10" />
-            {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} />}
-            {!isGuest && <ProfileMenuItem href="/dashboard#videos" icon="📂" label={navMyVideos} />}
-            <ProfileMenuItem href="/contact" icon="✉️" label={navContact} />
+            {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} onNavigate={() => setMobileMenuOpen(false)} />}
+            {!isGuest && <ProfileMenuItem href="/dashboard#videos" icon="📂" label={navMyVideos} onNavigate={() => setMobileMenuOpen(false)} />}
+            <ProfileMenuItem href="/contact" icon="✉️" label={navContact} onNavigate={() => setMobileMenuOpen(false)} />
             {isGuest ? (
               <>
                 <div className="my-1 border-t border-white/10" />
-                <ProfileMenuItem href="/login" icon="🔓" label={navLogin} />
-                <ProfileMenuItem href="/signup" icon="✨" label={navSignup} highlight />
+                <ProfileMenuItem href="/login" icon="🔓" label={navLogin} onNavigate={() => setMobileMenuOpen(false)} />
+                <ProfileMenuItem href="/signup" icon="✨" label={navSignup} highlight onNavigate={() => setMobileMenuOpen(false)} />
               </>
             ) : (
               <>
@@ -270,19 +270,22 @@ export default function SiteHeader() {
   );
 }
 
-function ProfileMenuItem({ href, icon, label, highlight }: { href: string; icon: string; label: string; highlight?: boolean }) {
-  // "Home" always lands on the real upload screen, never on a rehydrated
-  // editor (Liat: "בית זה ברירת מחדל שלו ולא הדף הבית האמיתי איפה
-  // שמעלים סרטון"). Clearing vm_active_edit + hard reload gives a clean
-  // landing UI; for non-home targets we keep the default behavior.
+function ProfileMenuItem({ href, icon, label, highlight, onNavigate }: { href: string; icon: string; label: string; highlight?: boolean; onNavigate?: () => void }) {
+  // Navigate EXPLICITLY (and close the mobile menu first) so a tap always
+  // works — Liat: "לוחצים על הפרופיל וזה לא עושה כלום". An <a href> alone
+  // could feel dead if the menu overlay stays up. "Home" also clears the
+  // active-edit flag so it lands on the clean upload screen.
   function onClick(e: React.MouseEvent) {
-    if (href !== "/") return;
     e.preventDefault();
-    try { sessionStorage.removeItem("vm_active_edit"); } catch {}
-    if (typeof window !== "undefined") {
+    onNavigate?.();
+    if (typeof window === "undefined") return;
+    if (href === "/") {
+      try { sessionStorage.removeItem("vm_active_edit"); } catch {}
       if (window.location.pathname === "/") window.location.reload();
       else window.location.href = "/";
+      return;
     }
+    window.location.href = href;
   }
   return (
     <a
