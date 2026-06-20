@@ -41,14 +41,40 @@ function canShareVideoFiles(): boolean {
   } catch { return false; }
 }
 
+// Real mobile-device check — NOT "does the browser support sharing files".
+// Desktop Chrome/Edge on Windows 11 ALSO implement navigator.share({files})
+// (it pops the Windows share panel), so canShareVideoFiles() alone wrongly
+// treated Liat's desktop as a phone → showed "שמור לגלריה" instead of just
+// downloading ("עדיין במחשב!!!"). On desktop we always download to the computer.
+function isMobileDevice(): boolean {
+  try {
+    const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+    if (uaData && typeof uaData.mobile === "boolean") return uaData.mobile; // Chromium: authoritative
+    const ua = navigator.userAgent || "";
+    if (/Android|iPhone|iPod/i.test(ua)) return true;
+    if (/iPad/i.test(ua)) return true;
+    // iPadOS 13+ reports as "Macintosh" — distinguish by touch support.
+    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true;
+    return false;
+  } catch { return false; }
+}
+
+// Use the gallery share-sheet ONLY on a real mobile device that supports it.
+// (Not named use* — it's a plain helper, not a React hook.)
+function gallerySaveMode(): boolean {
+  return isMobileDevice() && canShareVideoFiles();
+}
+
 export default function ExportJobBadge() {
   const [job, setJob] = useState<JobState | null>(null);
   const [expanded, setExpanded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blobRef = useRef<Blob | null>(null);
 
   const clearJob = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null; }
     blobRef.current = null;
     setJob(null);
     setExpanded(false);
@@ -61,7 +87,10 @@ export default function ExportJobBadge() {
   const deliver = useCallback(async (blob: Blob, filename: string): Promise<boolean> => {
     const file = new File([blob], filename, { type: "video/mp4" });
     const n = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    if (typeof n.share === "function" && typeof n.canShare === "function" && n.canShare({ files: [file] })) {
+    // Mobile only: hand to the OS share-sheet → "Save Video" lands in the gallery.
+    // On desktop we deliberately skip share() (even though Windows Chrome supports
+    // it) and download straight to the computer.
+    if (isMobileDevice() && typeof n.share === "function" && typeof n.canShare === "function" && n.canShare({ files: [file] })) {
       try { await n.share({ files: [file], title: filename }); return true; }
       catch (e) { if (!(e instanceof Error) || e.name !== "AbortError") console.warn("[export] share failed", e); }
     }
@@ -87,7 +116,8 @@ export default function ExportJobBadge() {
     if (!blobRef.current) { toast.error("ההורדה נכשלה — נסי שוב"); return; }
     const shared = await deliver(blobRef.current, filename);
     toast.success(shared ? "✓ בחרי 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
-  }, [deliver, fetchBlob]);
+    if (!shared) clearJob(); // desktop: downloaded → dismiss the badge
+  }, [deliver, fetchBlob, clearJob]);
 
   const startPolling = useCallback((id: string, filename: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -103,12 +133,16 @@ export default function ExportJobBadge() {
           try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
           await fetchBlob(id);
           setJob({ id, filename, status: "done", progress: 100 });
-          if (canShareVideoFiles()) {
+          if (gallerySaveMode()) {
             // Mobile: wait for the user to tap "save to gallery" (share needs a gesture).
             toast.success("🎉 הסרטון מוכן! לחצי 'שמור לגלריה'");
           } else if (blobRef.current) {
-            await deliver(blobRef.current, filename); // desktop → download now
-            toast.success("✓ הסרטון מוכן וירד אלייך!");
+            await deliver(blobRef.current, filename); // desktop → download straight to the computer
+            toast.success("✓ הסרטון מוכן וירד למחשב 💻");
+            // Keep the badge briefly as a fallback (button "⬇️ הורד שוב") in case the
+            // browser blocked the auto-download, then auto-dismiss. Never "save to gallery".
+            if (dismissRef.current) clearTimeout(dismissRef.current);
+            dismissRef.current = setTimeout(() => clearJob(), 12000);
           }
         } else if (data.status === "failed") {
           clearJob();
@@ -143,6 +177,7 @@ export default function ExportJobBadge() {
     return () => {
       window.removeEventListener("vm-export-started", onStart);
       if (pollRef.current) clearInterval(pollRef.current);
+      if (dismissRef.current) clearTimeout(dismissRef.current);
     };
   }, [startPolling]);
 
@@ -184,7 +219,7 @@ export default function ExportJobBadge() {
             onClick={() => saveNow(job.id, job.filename)}
             className="px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-sm font-bold hover:bg-white/90 whitespace-nowrap"
           >
-            {canShareVideoFiles() ? "📥 שמור לגלריה" : "⬇️ הורד"}
+            {gallerySaveMode() ? "📥 שמור לגלריה" : "⬇️ הורד שוב"}
           </button>
           <button onClick={clearJob} className="p-1 text-white/70 hover:text-white" title="סגור" aria-label="סגור">✕</button>
         </div>
