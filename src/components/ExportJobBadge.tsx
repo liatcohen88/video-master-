@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "@/components/Toaster";
+import { setVideoStatus } from "@/lib/userStore";
 
 const LS_KEY = "vm_export_job";
 
@@ -130,21 +131,30 @@ export default function ExportJobBadge() {
         const data = await res.json() as { status?: string; progress?: number };
         if (data.status === "done") {
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-          try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+          setVideoStatus(id, "done"); // mark it ready in the profile ("הסרטונים שלי")
           await fetchBlob(id);
           setJob({ id, filename, status: "done", progress: 100 });
           if (gallerySaveMode()) {
-            // Mobile: wait for the user to tap "save to gallery" (share needs a gesture).
+            // MOBILE: the share-sheet ("save to gallery") needs a user TAP, so we
+            // CANNOT auto-save. Persist the job as "done" so if she left/closed the
+            // browser before tapping, returning re-shows the save button instead of
+            // losing the video (Liat: "יצאתי מהדפדפן... נעלם לא הופיע שמירה לגלריה,
+            // הסרטון נעלם"). Cleared only on a real save or when she taps ✕.
+            try { localStorage.setItem(LS_KEY, JSON.stringify({ id, filename, status: "done" })); } catch { /* ignore */ }
             toast.success("🎉 הסרטון מוכן! יש ללחוץ 'שמור לגלריה'");
-          } else if (blobRef.current) {
-            await deliver(blobRef.current, filename); // desktop → download straight to the computer
-            toast.success("✓ הסרטון מוכן וירד למחשב 💻");
-            // Keep the badge briefly as a fallback (button "⬇️ הורד שוב") in case the
-            // browser blocked the auto-download, then auto-dismiss. Never "save to gallery".
+          } else {
+            // DESKTOP: already downloaded — drop the saved job so a reload doesn't
+            // re-download. Keep the badge ~12s as a "⬇️ הורד שוב" fallback.
+            try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+            if (blobRef.current) {
+              await deliver(blobRef.current, filename); // desktop → download straight to the computer
+              toast.success("✓ הסרטון מוכן וירד למחשב 💻");
+            }
             if (dismissRef.current) clearTimeout(dismissRef.current);
             dismissRef.current = setTimeout(() => clearJob(), 12000);
           }
         } else if (data.status === "failed") {
+          setVideoStatus(id, "failed"); // reflect the failure in the profile
           clearJob();
           toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
         } else {

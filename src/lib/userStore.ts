@@ -7,7 +7,11 @@
  * UI doesn't change.
  */
 
-const LS_KEY = "vm_user_store_v1";
+// v2: dropped the 7 fake demo videos / notifications / invoices. Real users
+// must see their OWN exported videos, not samples (Liat: "נאפס את נתוני הדמו
+// שאוכל לראות בפרופיל סרטונים שהורדו"). Bumping the key abandons the old
+// demo-seeded store in every existing browser automatically.
+const LS_KEY = "vm_user_store_v2";
 
 export type UserProfile = {
   name: string;
@@ -53,34 +57,14 @@ type Store = {
 };
 
 function seed(): Store {
-  const now = Date.now();
-  const ago = (h: number) => new Date(now - h * 3600 * 1000).toISOString();
+  // No demo content — a real account starts empty and fills with the user's
+  // own exports (addVideo) + real purchases. profile is a fallback only; the
+  // dashboard hydrates name/email from the authenticated Supabase session.
   return {
-    profile: {
-      name: "ליאת",
-      email: "liat@example.com",
-      joinedAt: ago(720), // ~30 days ago
-    },
-    videos: [
-      { id: "v1", title: "פתיחה לסטוריז שישי", thumbnailEmoji: "🎬", durationSec: 28, mode: "advanced_effects", creditsUsed: 40, status: "done",       createdAt: ago(2)   },
-      { id: "v2", title: "טיפ של היום",         thumbnailEmoji: "💡", durationSec: 45, mode: "podcast",          creditsUsed: 20, status: "done",       createdAt: ago(6)   },
-      { id: "v3", title: "סיכום שבוע",          thumbnailEmoji: "📅", durationSec: 120, mode: "advanced_effects", creditsUsed: 40, status: "done",       createdAt: ago(24)  },
-      { id: "v4", title: "הצצה למוצר חדש",      thumbnailEmoji: "✨", durationSec: 18, mode: "basic_effects",    creditsUsed: 20, status: "processing", createdAt: ago(0.2) },
-      { id: "v5", title: "ספרה ראשונה",         thumbnailEmoji: "📖", durationSec: 90, mode: "subtitles_only",   creditsUsed: 10, status: "done",       createdAt: ago(120) },
-      { id: "v6", title: "טיקטוק חורף",         thumbnailEmoji: "❄️", durationSec: 15, mode: "advanced_effects", creditsUsed: 40, status: "done",       createdAt: ago(168) },
-      { id: "v7", title: "הסבר על מוצר",         thumbnailEmoji: "📦", durationSec: 60, mode: "podcast",          creditsUsed: 20, status: "failed",     createdAt: ago(72)  },
-    ],
-    notifications: [
-      { id: "n1", kind: "video_ready",  title: "הסרטון שלך מוכן 🎉", body: "פתיחה לסטוריז שישי — מוכן להורדה",       createdAt: ago(2),    read: false },
-      { id: "n2", kind: "credits_low",  title: "הקרדיט שלך מתחיל להיגמר", body: "נשארו לך 50 קרדיט — כדאי לקנות עוד", createdAt: ago(6),    read: false },
-      { id: "n3", kind: "feature",      title: "פיצ'ר חדש: מולטי-וידאו ✨", body: "ה-AI יחבר לך כמה סרטונים לפי תסריט שתכתבי", createdAt: ago(48),  read: true },
-      { id: "n4", kind: "purchase",     title: "הקנייה אושרה",             body: "100 קרדיט נוספו לחשבונך · חשבונית נשלחה למייל", createdAt: ago(168), read: true },
-    ],
-    invoices: [
-      { id: "i1", date: ago(168), amountIls: 50,  credits: 100, package: "פרו",     url: "#" },
-      { id: "i2", date: ago(360), amountIls: 25,  credits: 50,  package: "פופולרי", url: "#" },
-      { id: "i3", date: ago(720), amountIls: 100, credits: 200, package: "ביזנס",   url: "#" },
-    ],
+    profile: { name: "", email: "", joinedAt: new Date().toISOString() },
+    videos: [],
+    notifications: [],
+    invoices: [],
   };
 }
 
@@ -112,6 +96,48 @@ export function deleteVideo(id: string) {
   const s = read();
   s.videos = s.videos.filter((v) => v.id !== id);
   write(s);
+}
+
+/**
+ * Record a real exported video in the user's profile. Called when an export
+ * job starts (status "processing") so the video shows up in "הסרטונים שלי"
+ * immediately; ExportJobBadge flips it to "done"/"failed" via setVideoStatus.
+ * `id` is the render jobId so the profile can re-download via /api/render-result.
+ */
+export function addVideo(v: {
+  id: string;
+  title: string;
+  durationSec: number;
+  mode: UserVideo["mode"];
+  creditsUsed: number;
+  status?: UserVideo["status"];
+  thumbnailEmoji?: string;
+}) {
+  const s = read();
+  // De-dupe on id (e.g. a retried export with the same jobId).
+  s.videos = s.videos.filter((x) => x.id !== v.id);
+  s.videos.unshift({
+    id: v.id,
+    title: v.title || "סרטון",
+    thumbnailEmoji: v.thumbnailEmoji || "🎬",
+    durationSec: Math.round(v.durationSec || 0),
+    mode: v.mode,
+    creditsUsed: v.creditsUsed || 0,
+    status: v.status || "processing",
+    createdAt: new Date().toISOString(),
+  });
+  write(s);
+}
+
+export function setVideoStatus(id: string, status: UserVideo["status"]) {
+  const s = read();
+  let changed = false;
+  s.videos = s.videos.map((v) => {
+    if (v.id !== id) return v;
+    changed = true;
+    return { ...v, status };
+  });
+  if (changed) write(s);
 }
 export function listNotifications(): UserNotification[] { return read().notifications; }
 export function markNotificationRead(id: string) {

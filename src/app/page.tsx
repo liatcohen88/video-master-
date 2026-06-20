@@ -35,7 +35,7 @@ import LogoMark from "@/components/LogoMark";
 import MasterCoin from "@/components/MasterCoin";
 import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
-import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
+import { listNotifications, markNotificationRead, clearAllNotifications, addVideo } from "@/lib/userStore";
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
@@ -948,6 +948,7 @@ export default function HomePage() {
       // ALSO the real video DURATION — without it the server falls back to a
       // 10s default and the export gets truncated (Liat: "מסרטון של 24 שניות
       // שמר רק 10 שניות"). Pull both from the main <video> element.
+      let exportDurationSec = 0;
       try {
         const vids = Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
         const vEl = vids.find((v) => v.videoWidth && v.duration && isFinite(v.duration)) || vids[0] || null;
@@ -957,6 +958,7 @@ export default function HomePage() {
         }
         if (vEl?.duration && isFinite(vEl.duration) && vEl.duration > 0) {
           fd.append("durationSec", String(vEl.duration));
+          exportDurationSec = vEl.duration;
         }
       } catch { /* best effort */ }
       // Enable per-word highlighting only when highlight differs from main color
@@ -1001,6 +1003,21 @@ export default function HomePage() {
         // survives navigating between pages.
         try { localStorage.setItem("vm_export_job", JSON.stringify({ id: jobId, filename })); } catch {}
         window.dispatchEvent(new CustomEvent("vm-export-started", { detail: { jobId, filename } }));
+        // Record this export in the user's profile ("הסרטונים שלי") so it shows
+        // up there immediately as "בעיבוד"; ExportJobBadge flips it to done/failed.
+        try {
+          let vidTitle = `סרטון ${dateStamp}`;
+          const firstCap = (subtitles?.[0] as { text?: string } | undefined)?.text?.trim();
+          if (firstCap) vidTitle = firstCap.length > 40 ? `${firstCap.slice(0, 40)}…` : firstCap;
+          addVideo({
+            id: jobId,
+            title: vidTitle,
+            durationSec: exportDurationSec,
+            mode,
+            creditsUsed: calcDynamicCost(mode, effects).total,
+            status: "processing",
+          });
+        } catch { /* profile recording is best-effort */ }
         toast.success("🎬 הסרטון בעיבוד — אפשר להמשיך לעבוד, נודיע לך כשמוכן");
         return; // finally{} closes the loader; the global badge tracks progress
       }

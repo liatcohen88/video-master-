@@ -21,6 +21,7 @@ import {
   type UserVideo, type UserNotification,
 } from "@/lib/userStore";
 import { getCredits } from "@/lib/credits";
+import { downloadExportedVideo } from "@/lib/videoDelivery";
 import { confirm } from "@/components/ConfirmDialog";
 import { toast } from "@/components/Toaster";
 import { useAuth } from "@/lib/useAuth";
@@ -475,6 +476,19 @@ function VideoRow({ video, onDelete, modeLabels }: {
   const isFailed = video.status === "failed";
   const dlTooltip = useContent("dashboard.video.downloadTooltip") as string;
   const delTooltip = useContent("dashboard.video.deleteTooltip") as string;
+  const [dling, setDling] = useState(false);
+  async function handleDownload() {
+    if (dling) return;
+    setDling(true);
+    try {
+      const safe = (video.title || "video").replace(/[\\/:*?"<>|]/g, "").trim() || "video";
+      const r = await downloadExportedVideo(video.id, `${safe}.mp4`);
+      if (r === "shared") toast.success("✓ יש לבחור 'שמור וידאו' — והסרטון בגלריה 📸");
+      else if (r === "downloaded") toast.success("✓ הסרטון ירד אלייך");
+      else if (r === "gone") toast.error("הסרטון כבר לא זמין להורדה חוזרת (נשמר עד 24 שעות מהייצוא)");
+      else toast.error("ההורדה נכשלה — אפשר לנסות שוב");
+    } finally { setDling(false); }
+  }
   return (
     <div className="flex items-center gap-3 py-3 group">
       <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-xl shrink-0">
@@ -497,8 +511,9 @@ function VideoRow({ video, onDelete, modeLabels }: {
         </div>
       </div>
       {video.status === "done" && (
-        <button className="p-1.5 text-white/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" title={dlTooltip}>
-          <Download className="w-3.5 h-3.5" />
+        <button onClick={handleDownload} disabled={dling}
+          className="p-1.5 text-white/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-100 disabled:text-brand-light" title={dlTooltip}>
+          <Download className={`w-3.5 h-3.5 ${dling ? "animate-pulse" : ""}`} />
         </button>
       )}
       <button onClick={onDelete}
