@@ -113,9 +113,9 @@ export default function ExportJobBadge() {
   // The badge's tap (a real user gesture) → save to gallery / download.
   const saveNow = useCallback(async (id: string, filename: string) => {
     if (!blobRef.current) await fetchBlob(id);
-    if (!blobRef.current) { toast.error("ההורדה נכשלה — נסי שוב"); return; }
+    if (!blobRef.current) { toast.error("ההורדה נכשלה — אפשר לנסות שוב"); return; }
     const shared = await deliver(blobRef.current, filename);
-    toast.success(shared ? "✓ בחרי 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
+    toast.success(shared ? "✓ יש לבחור 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
     if (!shared) clearJob(); // desktop: downloaded → dismiss the badge
   }, [deliver, fetchBlob, clearJob]);
 
@@ -125,7 +125,7 @@ export default function ExportJobBadge() {
     const tick = async () => {
       try {
         const res = await fetch(`/api/render-status/${id}`, { headers: await authHeader() });
-        if (res.status === 404) { clearJob(); toast.error("הייצוא לא נמצא — נסי שוב"); return; }
+        if (res.status === 404) { clearJob(); toast.error("הייצוא לא נמצא — אפשר לנסות שוב"); return; }
         if (!res.ok) return; // transient — keep polling
         const data = await res.json() as { status?: string; progress?: number };
         if (data.status === "done") {
@@ -135,7 +135,7 @@ export default function ExportJobBadge() {
           setJob({ id, filename, status: "done", progress: 100 });
           if (gallerySaveMode()) {
             // Mobile: wait for the user to tap "save to gallery" (share needs a gesture).
-            toast.success("🎉 הסרטון מוכן! לחצי 'שמור לגלריה'");
+            toast.success("🎉 הסרטון מוכן! יש ללחוץ 'שמור לגלריה'");
           } else if (blobRef.current) {
             await deliver(blobRef.current, filename); // desktop → download straight to the computer
             toast.success("✓ הסרטון מוכן וירד למחשב 💻");
