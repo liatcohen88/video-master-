@@ -629,6 +629,7 @@ export default function VideoPreview({
     effects?.elementOverrides,
     effects?.elementPositionOverrides,
     effects?.disabledElements,
+    effects?.elementSizePx, // ← was missing: AI-element size slider had no live effect
   ]);
 
   // Which elements are currently on-screen?
