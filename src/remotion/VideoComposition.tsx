@@ -214,13 +214,17 @@ function buildEmojiEvents(subtitles: Subtitle[], effects: VideoEffects | null): 
     const disabled = new Set(effects.disabledElements ?? []);
     const overrides = effects.elementOverrides ?? {};
     const posOverrides = effects.elementPositionOverrides ?? {};
+    const sizePx = effects.elementSizePx ?? {};
     for (const ev of detectElements(subtitles)) {
       const key = `${ev.category.id}-${Math.round(ev.time * 10)}`;
       if (disabled.has(key)) continue;
       const cat = { ...ev.category };
       if (overrides[key]) cat.emoji = overrides[key];
       if (posOverrides[key]) cat.position = posOverrides[key];
-      out.push({ ...ev, category: cat });
+      // Size slider (px) → scale vs the 108px base (10% of a 1080-tall frame)
+      // so the auto-element size set in the editor actually applies to export.
+      const px = sizePx[key];
+      out.push({ ...ev, category: cat, scale: typeof px === "number" && px > 0 ? px / 108 : undefined });
     }
   }
   for (const sub of subtitles) {

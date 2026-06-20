@@ -582,6 +582,7 @@ export default function VideoPreview({
       : [];
     const overrides = effects?.elementOverrides ?? {};
     const posOverrides = effects?.elementPositionOverrides ?? {};
+    const sizePx = effects?.elementSizePx ?? {};
     const disabled = new Set(effects?.disabledElements ?? []);
     const autoWithOverrides = auto
       .filter((e) => !disabled.has(`${e.category.id}-${Math.round(e.time * 10)}`))
@@ -590,7 +591,11 @@ export default function VideoPreview({
         const newCat = { ...e.category };
         if (overrides[key]) newCat.emoji = overrides[key];
         if (posOverrides[key]) newCat.position = posOverrides[key];
-        return { ...e, category: newCat };
+        // Size slider (px) → scale vs the 108px base (10% of a 1080-tall frame),
+        // so the auto-element size actually changes in preview + export.
+        const px = sizePx[key];
+        const scale = typeof px === "number" && px > 0 ? px / 108 : undefined;
+        return { ...e, category: newCat, scale };
       });
 
     // Manual emojis added by the user in the subtitle editor.

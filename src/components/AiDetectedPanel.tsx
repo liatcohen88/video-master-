@@ -403,15 +403,15 @@ function ElementEditorPopover({
           so Liat doesn't have to type a number. ✕ on the right resets to auto. */}
       <div className="text-[10px] text-white/40 mb-1 flex items-center justify-between">
         <span>{labels.size}</span>
-        <span className="font-mono text-brand-light">{sizePx ?? 80}px</span>
+        <span className="font-mono text-brand-light">{sizePx ?? 108}px</span>
       </div>
       <div className="flex items-center gap-2 mb-3">
         <input
           type="range" min={16} max={240} step={1}
-          value={sizePx ?? 80}
+          value={sizePx ?? 108}
           onChange={(e) => onSize(Math.max(16, parseInt(e.target.value, 10) || 0))}
           style={{
-            background: `linear-gradient(to left, rgba(124,58,237,0.85) 0%, rgba(124,58,237,0.85) ${((sizePx ?? 80) - 16) / (240 - 16) * 100}%, rgba(255,255,255,0.15) ${((sizePx ?? 80) - 16) / (240 - 16) * 100}%, rgba(255,255,255,0.15) 100%)`,
+            background: `linear-gradient(to left, rgba(124,58,237,0.85) 0%, rgba(124,58,237,0.85) ${((sizePx ?? 108) - 16) / (240 - 16) * 100}%, rgba(255,255,255,0.15) ${((sizePx ?? 108) - 16) / (240 - 16) * 100}%, rgba(255,255,255,0.15) 100%)`,
           }}
           className="flex-1 h-2 appearance-none rounded-full cursor-pointer accent-brand
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
