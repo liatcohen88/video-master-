@@ -232,13 +232,22 @@ export default function SiteHeader() {
         <>
           <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute top-16 right-2 left-2 bg-bg-card border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-3 z-50 md:hidden">
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
-              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-sm font-black text-white">{initial}</span>
-              <div className="flex-1 min-w-0">
+            {/* The user header is itself a tap target → profile (Liat: "לוחצים
+                על המשתמש במובייל ולא קורה כלום, שיעביר לפרופיל"). Explicit nav
+                so the tap always fires; close the menu first. */}
+            <button
+              type="button"
+              onClick={() => { setMobileMenuOpen(false); window.location.href = isGuest ? "/login" : "/dashboard"; }}
+              title={isGuest ? navLogin : navProfile}
+              className="w-full flex items-center gap-2 mb-2 pb-2 border-b border-white/10 text-right rounded-lg -mx-1 px-1 py-1 hover:bg-white/[0.04] transition-colors"
+            >
+              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-sm font-black text-white shrink-0">{initial}</span>
+              <div className="flex-1 min-w-0 text-right">
                 <div className="text-xs font-bold truncate">{userName}</div>
                 <div className="text-[10px] text-white/40">{credits.toLocaleString()} {currencyName}</div>
               </div>
-            </div>
+              <span className="text-white/30 text-base leading-none shrink-0">‹</span>
+            </button>
             <ProfileMenuItem href="/" icon="🏠" label={navHome} onNavigate={() => setMobileMenuOpen(false)} />
             <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} highlight onNavigate={() => setMobileMenuOpen(false)} />
             <ProfileMenuItem href="/help" icon="❓" label={navHelp} onNavigate={() => setMobileMenuOpen(false)} />
