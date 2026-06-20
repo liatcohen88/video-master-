@@ -14,6 +14,7 @@ import ElementPicker, { type PickedElement } from "./ElementPicker";
 import SfxPicker from "./SfxPicker";
 import { useContent } from "@/lib/useContent";
 import { toast } from "@/components/Toaster";
+import EmojiImage from "./EmojiImage";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -33,6 +34,7 @@ type AutoElementOverride = {
   position?: ManualEmojiPos;
   disabled?: boolean;
   sfxId?: string | undefined;       // "none" mutes; undefined resets to default
+  sizePx?: number | undefined;      // emoji size in px (16–240); undefined resets to default
 };
 
 type Props = {
@@ -44,6 +46,7 @@ type Props = {
   positionOverrides?: Record<string, ManualEmojiPos>;
   disabledElements?: string[];
   elementSfxOverrides?: Record<string, string>;
+  elementSizePx?: Record<string, number>;
   onAutoElementChange?: (key: string, override: AutoElementOverride) => void;
   /** When false (e.g. "כתוביות בלבד" mode) emojis/icons are disabled entirely. */
   allowElements?: boolean;
@@ -79,6 +82,7 @@ export default function SubtitleEditor({
   subtitles, onChange, currentTime = 0,
   elementOverrides = {}, positionOverrides = {}, disabledElements = [],
   elementSfxOverrides = {},
+  elementSizePx = {},
   onAutoElementChange,
   allowElements = true,
   dramaSubIds,
@@ -95,9 +99,14 @@ export default function SubtitleEditor({
   const [sfxPickerForSub, setSfxPickerForSub] = useState<string | null>(null);
   const [sfxPickerAnchor, setSfxPickerAnchor] = useState<DOMRect | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
-  // Size-slider popover for a manual emoji — opens when the user taps the emoji
-  // (Liat: "שלוחצים על האמוגי תהיה אפשרות לבחור גודל-צד, לפי קו").
-  const [sizePopFor, setSizePopFor] = useState<{ subId: string; idx: number } | null>(null);
+  // Size-slider popover — opens from a visible ⤢ button on each chip (Liat:
+  // "אין סליידר גודל... גם לא באלמנט הAI"). Manual emoji uses a scale (%) and
+  // auto-detected element uses px, so the popover is told which mode it is.
+  const [sizePopFor, setSizePopFor] = useState<
+    | { kind: "manual"; subId: string; idx: number }
+    | { kind: "auto"; key: string }
+    | null
+  >(null);
   const [sizePopAnchor, setSizePopAnchor] = useState<DOMRect | null>(null);
   const addBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -463,14 +472,25 @@ export default function SubtitleEditor({
                             setPickerForAuto(key);
                             setPickerAnchor(e.currentTarget.getBoundingClientRect());
                           }}
-                          className="text-base px-1 hover:scale-110 transition-transform"
+                          className="px-1 hover:scale-110 transition-transform"
                           title={c.changeEmoji}
                         >
-                          {displayEmoji}
+                          <EmojiImage emoji={displayEmoji} size={16} />
                         </button>
                         <span className="text-[10px] text-cyan-200/50 px-1">
                           {el.matched}
                         </span>
+                        {/* Size — ⤢ opens the same size slider (px) for this AI element. */}
+                        <button
+                          onClick={(e) => {
+                            setSizePopFor({ kind: "auto", key });
+                            setSizePopAnchor(e.currentTarget.getBoundingClientRect());
+                          }}
+                          className="px-1 py-1 border-r border-cyan-400/20 text-cyan-200/70 hover:text-white hover:bg-white/10 leading-none"
+                          title="גודל"
+                        >
+                          <span className="text-[12px]">⤢</span>
+                        </button>
                         <button
                           onClick={(ev) => {
                             setSfxPickerForAuto(key);
@@ -525,18 +545,8 @@ export default function SubtitleEditor({
                               </div>
                             ) : <span className="text-base">✨</span>
                           ) : (
-                            // Tap the emoji → size slider popover (Liat's request).
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                setSizePopFor({ subId: sub.id, idx: mIdx });
-                                setSizePopAnchor(e.currentTarget.getBoundingClientRect());
-                              }}
-                              title="לחיצה: בחירת גודל"
-                              className="text-base leading-none hover:scale-125 transition-transform"
-                            >
-                              {me.emoji}
-                            </button>
+                            // Apple emoji image so the chip matches the preview/export.
+                            <EmojiImage emoji={me.emoji} size={18} />
                           )}
                         </div>
                         {/* Duration */}
@@ -551,8 +561,21 @@ export default function SubtitleEditor({
                           />
                           <span className="text-[9px] text-white/30">{c.secondsAbbr}</span>
                         </div>
-                        {/* Size is chosen via a slider popover that opens when the
-                            emoji itself is tapped (see the emoji button above). */}
+                        {/* Size — visible ⤢ button opens a size slider popover
+                            (emoji only). Liat: "אין סליידר גודל". */}
+                        {!isLottie && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              setSizePopFor({ kind: "manual", subId: sub.id, idx: mIdx });
+                              setSizePopAnchor(e.currentTarget.getBoundingClientRect());
+                            }}
+                            title="גודל האמוג'י"
+                            className="px-1.5 py-1 border-r border-white/10 text-white/60 hover:text-white hover:bg-white/10 leading-none"
+                          >
+                            <span className="text-[12px]">⤢</span>
+                          </button>
+                        )}
                         {/* Color picker — Lottie only (emoji is full-color, can't tint) */}
                         {isLottie && (
                           <label
@@ -618,19 +641,29 @@ export default function SubtitleEditor({
         />
       )}
 
-      {sizePopFor && (() => {
+      {sizePopFor && sizePopFor.kind === "manual" && (() => {
         const sub = subtitles.find((s) => s.id === sizePopFor.subId);
         const me = sub?.manualEmojis?.[sizePopFor.idx];
         if (!me) return null;
         return (
           <SizeSliderPopover
             anchorRect={sizePopAnchor}
-            scale={me.scale ?? 1}
-            onScale={(s) => updateManualElement(sizePopFor.subId, sizePopFor.idx, { scale: s })}
+            value={Math.round((me.scale ?? 1) * 100)} min={50} max={300} step={5} unit="%" defaultVal={100}
+            onChange={(v) => updateManualElement(sizePopFor.subId, sizePopFor.idx, { scale: v / 100 })}
+            onReset={() => updateManualElement(sizePopFor.subId, sizePopFor.idx, { scale: 1 })}
             onClose={() => setSizePopFor(null)}
           />
         );
       })()}
+      {sizePopFor && sizePopFor.kind === "auto" && (
+        <SizeSliderPopover
+          anchorRect={sizePopAnchor}
+          value={elementSizePx[sizePopFor.key] ?? 108} min={16} max={240} step={1} unit="px" defaultVal={108}
+          onChange={(v) => onAutoElementChange?.(sizePopFor.key, { sizePx: v })}
+          onReset={() => onAutoElementChange?.(sizePopFor.key, { sizePx: undefined })}
+          onClose={() => setSizePopFor(null)}
+        />
+      )}
 
       {pickerForAuto && (
         <EmojiPicker
@@ -759,13 +792,14 @@ export default function SubtitleEditor({
   );
 }
 
-/** Size-slider popover for a manual emoji — opens when the emoji is tapped.
- *  Same slider UX as the auto-element / logo size controls (Liat: "לפי קו").
- *  Controls a scale multiplier (50%–300% of the default emoji size). */
-function SizeSliderPopover({ anchorRect, scale, onScale, onClose }: {
+/** Size-slider popover — opens from the ⤢ button on a chip. Generic over the
+ *  unit: manual emoji uses % (scale), auto-detected element uses px. Same
+ *  slider UX as the logo size control (Liat: "לפי קו"). */
+function SizeSliderPopover({ anchorRect, value, min, max, step, unit, defaultVal, onChange, onReset, onClose }: {
   anchorRect: DOMRect | null;
-  scale: number;
-  onScale: (s: number) => void;
+  value: number; min: number; max: number; step: number; unit: string; defaultVal: number;
+  onChange: (v: number) => void;
+  onReset: () => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -775,8 +809,7 @@ function SizeSliderPopover({ anchorRect, scale, onScale, onClose }: {
     return () => { window.clearTimeout(id); document.removeEventListener("mousedown", onClick); };
   }, [onClose]);
 
-  const pct = Math.round(scale * 100);
-  const fill = ((pct - 50) / (300 - 50)) * 100;
+  const fill = ((value - min) / (max - min)) * 100;
   const style: CSSProperties = anchorRect
     ? {
         position: "fixed",
@@ -791,21 +824,21 @@ function SizeSliderPopover({ anchorRect, scale, onScale, onClose }: {
       className="bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3 w-[224px]">
       <div className="text-[10px] text-white/40 mb-1.5 flex items-center justify-between">
         <span>גודל האמוג&apos;י</span>
-        <span className="font-mono text-brand-light">{pct}%</span>
+        <span className="font-mono text-brand-light">{value}{unit}</span>
       </div>
       <div className="flex items-center gap-2">
         <input
-          type="range" min={50} max={300} step={5}
-          value={pct}
-          onChange={(e) => onScale((parseInt(e.target.value, 10) || 100) / 100)}
+          type="range" min={min} max={max} step={step}
+          value={value}
+          onChange={(e) => onChange(parseInt(e.target.value, 10) || defaultVal)}
           style={{ background: `linear-gradient(to left, rgba(124,58,237,0.85) 0%, rgba(124,58,237,0.85) ${fill}%, rgba(255,255,255,0.15) ${fill}%, rgba(255,255,255,0.15) 100%)` }}
           className="flex-1 h-2 appearance-none rounded-full cursor-pointer accent-brand
                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                      [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md
                      [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full"
         />
-        {pct !== 100 && (
-          <button onClick={() => onScale(1)} className="text-[10px] text-white/50 hover:text-white px-1" title="איפוס גודל">✕</button>
+        {value !== defaultVal && (
+          <button onClick={onReset} className="text-[10px] text-white/50 hover:text-white px-1" title="איפוס גודל">✕</button>
         )}
       </div>
     </div>

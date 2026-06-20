@@ -1405,9 +1405,16 @@ export default function HomePage() {
                       else sfx[key] = override.sfxId;
                       next.elementSfxOverrides = sfx;
                     }
+                    if ("sizePx" in override) {
+                      const sz = { ...(prev.elementSizePx ?? {}) };
+                      if (override.sizePx === undefined) delete sz[key];
+                      else sz[key] = override.sizePx;
+                      next.elementSizePx = sz;
+                    }
                     return next;
                   });
                 }}
+                elementSizePx={effects.elementSizePx ?? {}}
               />
             </div>
 

@@ -9,6 +9,7 @@ import { DEFAULT_SFX_FOR_KIND, getSfxAsset } from "@/lib/sfxLibrary";
 import EmojiPicker from "./EmojiPicker";
 import SfxPicker from "./SfxPicker";
 import { useContent } from "@/lib/useContent";
+import EmojiImage from "./EmojiImage";
 
 type PosId = "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center";
 
@@ -258,7 +259,7 @@ export default function AiDetectedPanel({
                     `}
                     title={cmsTooltipChEmo}
                   >
-                    <span className="text-lg leading-none">{displayEmoji}</span>
+                    <EmojiImage emoji={displayEmoji} size={20} />
                     <span className="text-xs font-medium text-white whitespace-nowrap">
                       {e.matchedText}
                     </span>
