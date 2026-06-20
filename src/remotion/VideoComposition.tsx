@@ -19,7 +19,7 @@
  */
 
 import { AbsoluteFill, OffthreadVideo, Audio, Img, Sequence, useCurrentFrame, useVideoConfig, interpolate, delayRender, continueRender, staticFile } from "remotion";
-import { twemojiUrl } from "../lib/twemoji";
+import { appleEmojiUrl, twemojiUrl } from "../lib/twemoji";
 import { useEffect, useState } from "react";
 import { Lottie } from "@remotion/lottie";
 import { LOTTIE_ICONS } from "../lib/lottieRegistry";
@@ -247,6 +247,24 @@ function buildEmojiEvents(subtitles: Subtitle[], effects: VideoEffects | null): 
     }
   }
   return out;
+}
+
+/** Emoji as an Apple image, with a Twemoji fallback if the Apple glyph is
+ *  missing. onError swaps the src instead of cancelling the render. */
+function EmojiImg({ emoji, size }: { emoji: string; size: number }) {
+  const [src, setSrc] = useState(appleEmojiUrl(emoji));
+  return (
+    <Img
+      src={src}
+      onError={() => { const t = twemojiUrl(emoji); setSrc((cur) => (cur === t ? cur : t)); }}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        display: "block",
+        filter: "drop-shadow(0 4px 24px rgba(0,0,0,0.7))",
+      }}
+    />
+  );
 }
 
 export type CompositionProps = {
@@ -715,19 +733,9 @@ export function VideoComposition({
                   lineHeight: 1,
                 }}
               >
-                {/* Twemoji image — identical to the editor preview, regardless
-                    of the host OS emoji font. onError no-ops so a missing
-                    glyph never fails the whole render. */}
-                <Img
-                  src={twemojiUrl(el.category.emoji)}
-                  onError={() => undefined}
-                  style={{
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    display: "block",
-                    filter: "drop-shadow(0 4px 24px rgba(0,0,0,0.7))",
-                  }}
-                />
+                {/* Apple emoji image — identical to the editor preview,
+                    regardless of host OS. Falls back to Twemoji if missing. */}
+                <EmojiImg emoji={el.category.emoji} size={size} />
               </div>
             );
           })}

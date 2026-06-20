@@ -6,7 +6,7 @@ import { ASPECT_RATIO_INFO } from "@/lib/types";
 import { fontClassFor } from "@/lib/fonts";
 import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
-import { twemojiUrl } from "@/lib/twemoji";
+import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
 import { detectBeatDrops, beatDropZoomAt } from "@/lib/wowEffects";
 import { colorFilterCss } from "@/lib/colorFilters";
 import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt } from "@/lib/dramaEffects";
@@ -1251,14 +1251,19 @@ function ElementOverlay({
         willChange: "transform, opacity",
       }}
     >
-      {/* Twemoji IMAGE (not the OS emoji font) so the editor matches the
-          Linux export pixel-for-pixel. eslint-disable-next-line @next/next/no-img-element */}
+      {/* Apple emoji IMAGE (not the OS font) so the editor matches the export
+          exactly. Falls back to Twemoji if a glyph is missing.
+          eslint-disable-next-line @next/next/no-img-element */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={twemojiUrl(element.category.emoji)}
+        src={appleEmojiUrl(element.category.emoji)}
         alt={element.category.emoji}
         width={size}
         height={size}
+        onError={(ev) => {
+          const img = ev.currentTarget;
+          if (img.dataset.fb !== "1") { img.dataset.fb = "1"; img.src = twemojiUrl(element.category.emoji); }
+        }}
         style={{
           width: `${size}px`,
           height: `${size}px`,

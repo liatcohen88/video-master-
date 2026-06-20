@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { twemojiUrl } from "@/lib/twemoji";
+import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
 // Lottie picker hidden from end-users (per Liat 2026-06-11) — animations
 // quality isn't where we want it for the launch. Lottie metadata/admin
 // stays intact in code so we can flip it back on with one line later.
@@ -79,13 +79,17 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
                   onClick={() => { onSelect({ kind: "emoji", emoji: e }); onClose(); }}
                   className="p-1.5 rounded-md hover:bg-white/10 flex items-center justify-center"
                   title={e}>
-                  {/* Twemoji IMAGE so the picker shows EXACTLY what the preview +
-                      export render — not the OS emoji font (Liat: "שיראה ויצא
-                      את האמוגים האלה באמת, כרגע זה שונה לגמרי").
-                      eslint-disable-next-line @next/next/no-img-element */}
+                  {/* Apple emoji IMAGE so the picker shows EXACTLY what the
+                      preview + export render — not the OS font (Liat: "באלי
+                      אמוגים של אפל"). Falls back to Twemoji if a glyph is
+                      missing. eslint-disable-next-line @next/next/no-img-element */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={twemojiUrl(e)} alt={e} width={26} height={26}
-                    loading="lazy" className="w-[26px] h-[26px] block" />
+                  <img src={appleEmojiUrl(e)} alt={e} width={26} height={26}
+                    loading="lazy" className="w-[26px] h-[26px] block"
+                    onError={(ev) => {
+                      const img = ev.currentTarget;
+                      if (img.dataset.fb !== "1") { img.dataset.fb = "1"; img.src = twemojiUrl(e); }
+                    }} />
                 </button>
               ))}
             </div>

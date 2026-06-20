@@ -46,3 +46,16 @@ export function emojiToCodepoint(emoji: string): string {
 export function twemojiUrl(emoji: string): string {
   return `${TWEMOJI_BASE}/${emojiToCodepoint(emoji)}.svg`;
 }
+
+// Apple-style emoji (emoji-datasource-apple) — Liat prefers the Apple look over
+// the flatter Twemoji ("באלי אמוגים של אפל"). Served from jsDelivr (reliable,
+// versioned). Filename = ALL codepoints lowercase, '-'-joined, INCLUDING the
+// FE0F variation selector — verified: `2764-fe0f.png` exists, `2764.png` 404s.
+// (This is the opposite of Twemoji, which strips FE0F.) twemojiUrl stays the
+// onError fallback so a missing glyph still shows a colored emoji.
+const APPLE_BASE = "https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64";
+
+export function appleEmojiUrl(emoji: string): string {
+  const code = Array.from(emoji).map((c) => c.codePointAt(0)!.toString(16)).join("-");
+  return `${APPLE_BASE}/${code}.png`;
+}

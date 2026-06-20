@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import { emojiMatches } from "@/lib/emojiKeywords";
+import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
 
 export const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
   { name: "פופולרי",      emojis: ["💎","🔥","⚡","✨","💥","🌟","💯","🚀","💪","👑","🎯","🎉","🤯","😱","👀","🙌","✅","❤️"] },
@@ -120,11 +121,20 @@ export default function EmojiPicker({
                   onClose();
                 }}
                 className={`
-                  text-2xl p-1.5 rounded-md hover:bg-white/10 transition-colors
+                  p-1.5 rounded-md hover:bg-white/10 transition-colors flex items-center justify-center
                   ${e === currentEmoji ? "bg-brand/30 ring-2 ring-brand" : ""}
                 `}
+                title={e}
               >
-                {e}
+                {/* Apple emoji image (Twemoji fallback) — matches preview+export.
+                    eslint-disable-next-line @next/next/no-img-element */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={appleEmojiUrl(e)} alt={e} width={26} height={26}
+                  loading="lazy" className="w-[26px] h-[26px] block"
+                  onError={(ev) => {
+                    const img = ev.currentTarget;
+                    if (img.dataset.fb !== "1") { img.dataset.fb = "1"; img.src = twemojiUrl(e); }
+                  }} />
               </button>
             ))}
           </div>
