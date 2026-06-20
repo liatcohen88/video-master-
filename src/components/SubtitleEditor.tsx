@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2, Plus, Sparkles, X, Volume2, VolumeX, Clock, Smile } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import type { Subtitle } from "@/lib/types";
 import { detectElements } from "@/lib/keywordElements";
@@ -95,6 +95,10 @@ export default function SubtitleEditor({
   const [sfxPickerForSub, setSfxPickerForSub] = useState<string | null>(null);
   const [sfxPickerAnchor, setSfxPickerAnchor] = useState<DOMRect | null>(null);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
+  // Size-slider popover for a manual emoji — opens when the user taps the emoji
+  // (Liat: "שלוחצים על האמוגי תהיה אפשרות לבחור גודל-צד, לפי קו").
+  const [sizePopFor, setSizePopFor] = useState<{ subId: string; idx: number } | null>(null);
+  const [sizePopAnchor, setSizePopAnchor] = useState<DOMRect | null>(null);
   const addBtnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   // Chip popover state — Liat: "תעשה אולי אפשרות שלוחצים יש מידע שמתעדכן
@@ -521,7 +525,18 @@ export default function SubtitleEditor({
                               </div>
                             ) : <span className="text-base">✨</span>
                           ) : (
-                            <span className="text-base">{me.emoji}</span>
+                            // Tap the emoji → size slider popover (Liat's request).
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                setSizePopFor({ subId: sub.id, idx: mIdx });
+                                setSizePopAnchor(e.currentTarget.getBoundingClientRect());
+                              }}
+                              title="לחיצה: בחירת גודל"
+                              className="text-base leading-none hover:scale-125 transition-transform"
+                            >
+                              {me.emoji}
+                            </button>
                           )}
                         </div>
                         {/* Duration */}
@@ -536,25 +551,8 @@ export default function SubtitleEditor({
                           />
                           <span className="text-[9px] text-white/30">{c.secondsAbbr}</span>
                         </div>
-                        {/* Size — emoji only (Liat: "בנוסף למיקום שיהיה אפשר לשחק
-                            גם בגודל"). Percent of the default size; applied
-                            identically in preview + export. */}
-                        {!isLottie && (
-                          <div className="flex items-center gap-0.5 px-1 border-r border-white/10" title="גודל האמוג'י (%)">
-                            <span className="text-[11px] text-white/40 leading-none">⤢</span>
-                            <input
-                              type="number" min={50} max={300} step={10}
-                              value={Math.round((me.scale ?? 1) * 100)}
-                              onChange={(e) => {
-                                const pct = parseInt(e.target.value, 10);
-                                const s = Number.isNaN(pct) ? 1 : Math.min(300, Math.max(50, pct)) / 100;
-                                updateManualElement(sub.id, mIdx, { scale: s });
-                              }}
-                              className="w-9 bg-transparent text-[10px] text-center text-white/80 focus:outline-none"
-                            />
-                            <span className="text-[9px] text-white/30">%</span>
-                          </div>
-                        )}
+                        {/* Size is chosen via a slider popover that opens when the
+                            emoji itself is tapped (see the emoji button above). */}
                         {/* Color picker — Lottie only (emoji is full-color, can't tint) */}
                         {isLottie && (
                           <label
@@ -619,6 +617,20 @@ export default function SubtitleEditor({
           anchorRect={pickerAnchor}
         />
       )}
+
+      {sizePopFor && (() => {
+        const sub = subtitles.find((s) => s.id === sizePopFor.subId);
+        const me = sub?.manualEmojis?.[sizePopFor.idx];
+        if (!me) return null;
+        return (
+          <SizeSliderPopover
+            anchorRect={sizePopAnchor}
+            scale={me.scale ?? 1}
+            onScale={(s) => updateManualElement(sizePopFor.subId, sizePopFor.idx, { scale: s })}
+            onClose={() => setSizePopFor(null)}
+          />
+        );
+      })()}
 
       {pickerForAuto && (
         <EmojiPicker
@@ -744,5 +756,58 @@ export default function SubtitleEditor({
         );
       })()}
     </details>
+  );
+}
+
+/** Size-slider popover for a manual emoji — opens when the emoji is tapped.
+ *  Same slider UX as the auto-element / logo size controls (Liat: "לפי קו").
+ *  Controls a scale multiplier (50%–300% of the default emoji size). */
+function SizeSliderPopover({ anchorRect, scale, onScale, onClose }: {
+  anchorRect: DOMRect | null;
+  scale: number;
+  onScale: (s: number) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const id = window.setTimeout(() => document.addEventListener("mousedown", onClick), 0);
+    return () => { window.clearTimeout(id); document.removeEventListener("mousedown", onClick); };
+  }, [onClose]);
+
+  const pct = Math.round(scale * 100);
+  const fill = ((pct - 50) / (300 - 50)) * 100;
+  const style: CSSProperties = anchorRect
+    ? {
+        position: "fixed",
+        top: Math.min(anchorRect.bottom + 8, (typeof window !== "undefined" ? window.innerHeight : 800) - 120),
+        left: Math.max(8, Math.min(anchorRect.left - 90, (typeof window !== "undefined" ? window.innerWidth : 400) - 232)),
+        zIndex: 100,
+      }
+    : {};
+
+  return (
+    <div ref={ref} style={style} dir="rtl"
+      className="bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3 w-[224px]">
+      <div className="text-[10px] text-white/40 mb-1.5 flex items-center justify-between">
+        <span>גודל האמוג&apos;י</span>
+        <span className="font-mono text-brand-light">{pct}%</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="range" min={50} max={300} step={5}
+          value={pct}
+          onChange={(e) => onScale((parseInt(e.target.value, 10) || 100) / 100)}
+          style={{ background: `linear-gradient(to left, rgba(124,58,237,0.85) 0%, rgba(124,58,237,0.85) ${fill}%, rgba(255,255,255,0.15) ${fill}%, rgba(255,255,255,0.15) 100%)` }}
+          className="flex-1 h-2 appearance-none rounded-full cursor-pointer accent-brand
+                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                     [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md
+                     [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full"
+        />
+        {pct !== 100 && (
+          <button onClick={() => onScale(1)} className="text-[10px] text-white/50 hover:text-white px-1" title="איפוס גודל">✕</button>
+        )}
+      </div>
+    </div>
   );
 }

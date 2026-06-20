@@ -303,7 +303,7 @@ export default function AiDetectedPanel({
                       }`}
                       title={cmsTooltipSizePos}
                     >
-                      <span className="text-[9px] font-mono">{elementSizePx[key] ?? "px"}</span>
+                      <span className="text-[10px] font-mono leading-none">{elementSizePx[key] ? elementSizePx[key] : "⤢"}</span>
                     </button>
                   )}
                   {customEmoji && (
