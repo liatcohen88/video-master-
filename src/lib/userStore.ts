@@ -18,6 +18,9 @@ export type UserProfile = {
   email: string;
   joinedAt: string;
   avatarUrl?: string;
+  /** Optional phone the user adds in the profile editor (also saved to Supabase
+   *  auth metadata so it appears in the admin users table). */
+  phone?: string;
 };
 
 export type UserVideo = {

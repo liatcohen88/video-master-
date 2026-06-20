@@ -53,13 +53,16 @@ export async function GET(req: NextRequest) {
 
   // Enrich with auth.users (last_sign_in_at, banned_until). Service role
   // can call admin.listUsers; we fold the auth view onto profiles by id.
-  const authByid = new Map<string, { last_sign_in_at: string | null; banned_until: string | null }>();
+  const authByid = new Map<string, { last_sign_in_at: string | null; banned_until: string | null; phone: string | null }>();
   try {
     const { data: u } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     for (const user of u?.users ?? []) {
       authByid.set(user.id, {
         last_sign_in_at: user.last_sign_in_at ?? null,
         banned_until: (user as unknown as { banned_until?: string | null }).banned_until ?? null,
+        // Phone is optional — users add it in their profile editor; it's stored
+        // in auth user_metadata so it shows up here for the admin (Liat).
+        phone: (user.user_metadata as { phone?: string } | undefined)?.phone ?? null,
       });
     }
   } catch { /* non-fatal — profiles alone is enough to render the table */ }
@@ -68,6 +71,7 @@ export async function GET(req: NextRequest) {
     ...p,
     last_sign_in_at: authByid.get(p.id)?.last_sign_in_at ?? null,
     banned_until: authByid.get(p.id)?.banned_until ?? null,
+    phone: authByid.get(p.id)?.phone ?? null,
   }));
 
   return NextResponse.json({ users, configured: true });

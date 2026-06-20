@@ -543,9 +543,9 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   editing: boolean; setEditing: (b: boolean) => void; onChange: () => void;
 }) {
   const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone ?? "");
+  const [busy, setBusy] = useState(false);
   const namePh    = useContent("dashboard.profile.namePlaceholder") as string;
-  const emailPh   = useContent("dashboard.profile.emailPlaceholder") as string;
   const saveBtn   = useContent("dashboard.profile.saveBtn") as string;
   const cancelBtn = useContent("dashboard.profile.cancelBtn") as string;
   const labelName = useContent("dashboard.profile.labelName") as string;
@@ -553,8 +553,19 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   const labelMs   = useContent("dashboard.profile.labelMemberSince") as string;
   const editBtn   = useContent("dashboard.profile.editBtn") as string;
   const updToast  = useContent("dashboard.toast.profileUpdated") as string;
-  function save() {
-    updateProfile({ name, email });
+  async function save() {
+    setBusy(true);
+    const cleanPhone = phone.trim();
+    // Email is intentionally NOT editable — it's the account identity
+    // (Liat: "אל תיתן אפשרות לשנות את המייל"). Save name + optional phone.
+    updateProfile({ name, phone: cleanPhone });
+    // Persist to Supabase auth metadata so name + phone survive across devices
+    // AND show up in the admin users table (Liat: "אראה באדמין את המס").
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      await browserClient()?.auth.updateUser({ data: { display_name: name, phone: cleanPhone } });
+    } catch { /* best-effort — the local copy is already saved */ }
+    setBusy(false);
     setEditing(false);
     onChange();
     toast.success(updToast);
@@ -562,12 +573,28 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   if (editing) {
     return (
       <div className="space-y-2 pt-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh}
-          className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={emailPh}
-          className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
+        <div>
+          <label className="block text-[10px] text-white/40 mb-1">{labelName}</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh}
+            className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
+        </div>
+        {/* Email — read-only. The account identity can't be changed here. */}
+        <div>
+          <label className="block text-[10px] text-white/40 mb-1">{labelEmail}</label>
+          <input value={profile.email} readOnly disabled dir="ltr"
+            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white/40 cursor-not-allowed" />
+          <p className="text-[10px] text-white/30 mt-0.5">לא ניתן לשנות את כתובת המייל</p>
+        </div>
+        {/* Phone — optional; saved to Supabase so it appears in admin. */}
+        <div>
+          <label className="block text-[10px] text-white/40 mb-1">טלפון (אופציונלי)</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" dir="ltr"
+            inputMode="tel" placeholder="050-0000000"
+            className="w-full bg-bg-input border border-white/10 rounded px-2 py-1.5 text-sm" />
+        </div>
         <div className="flex gap-2">
-          <button onClick={save} className="flex-1 py-1.5 bg-brand text-white text-xs font-bold rounded">{saveBtn}</button>
+          <button onClick={save} disabled={busy}
+            className="flex-1 py-1.5 bg-brand text-white text-xs font-bold rounded disabled:opacity-60">{busy ? "שומר…" : saveBtn}</button>
           <button onClick={() => setEditing(false)} className="py-1.5 px-3 bg-white/5 text-xs rounded">{cancelBtn}</button>
         </div>
       </div>
@@ -576,7 +603,10 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   return (
     <div className="space-y-1.5 text-xs pt-3">
       <div className="flex justify-between"><span className="text-white/40">{labelName}</span><span>{profile.name}</span></div>
-      <div className="flex justify-between"><span className="text-white/40">{labelEmail}</span><span className="text-white/70 truncate max-w-[200px]">{profile.email}</span></div>
+      <div className="flex justify-between"><span className="text-white/40">{labelEmail}</span><span className="text-white/70 truncate max-w-[200px]" dir="ltr">{profile.email}</span></div>
+      {profile.phone && (
+        <div className="flex justify-between"><span className="text-white/40">טלפון</span><span className="text-white/70" dir="ltr">{profile.phone}</span></div>
+      )}
       <div className="flex justify-between"><span className="text-white/40">{labelMs}</span><span>{new Date(profile.joinedAt).toLocaleDateString("he-IL")}</span></div>
       <button onClick={() => setEditing(true)}
         className="mt-2 text-[11px] text-brand-light hover:text-white flex items-center gap-1">

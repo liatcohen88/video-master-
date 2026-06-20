@@ -263,6 +263,7 @@ type RegisteredUser = {
   id: string;
   email: string;
   display_name: string | null;
+  phone: string | null;
   credits: number;
   created_at: string;
   last_sign_in_at: string | null;
@@ -301,7 +302,7 @@ function UsersTab(_props: { onChange: () => void }) {
   const filtered = users.filter((u) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
+    return u.email.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q) || (u.phone ?? "").includes(q);
   });
 
   function formatDate(iso: string | null): { date: string; time: string } {
@@ -371,6 +372,7 @@ function UsersTab(_props: { onChange: () => void }) {
             <tr>
               <th className="text-right p-3">שם</th>
               <th className="text-right p-3">אימייל</th>
+              <th className="text-right p-3">טלפון</th>
               <th className="text-right p-3">מאסטרים</th>
               <th className="text-right p-3 whitespace-nowrap">הרשמה</th>
               <th className="text-right p-3 whitespace-nowrap">כניסה אחרונה</th>
@@ -387,6 +389,7 @@ function UsersTab(_props: { onChange: () => void }) {
               <tr key={u.id} className={`border-t border-white/5 ${banned ? "bg-red-500/5" : ""}`}>
                 <td className="p-3 font-medium">{u.display_name ?? "—"}</td>
                 <td className="p-3 text-white/60 text-xs" dir="ltr">{u.email}</td>
+                <td className="p-3 text-white/60 text-xs" dir="ltr">{u.phone || "—"}</td>
                 <td className="p-3">
                   <span className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-300 text-xs px-2 py-0.5 rounded-full">
                     🪙 {u.credits}
