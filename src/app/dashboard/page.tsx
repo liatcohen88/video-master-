@@ -410,7 +410,12 @@ export default function DashboardPage() {
           </div>
         </details>
 
-        {/* Dev reset — small + discrete */}
+        {/* Dev reset tools (wipe storage + demo reset) — HIDDEN for launch per
+            Liat ("תמחק את הטאב הזה — אפילו תסתיר, נוסיף בעתיד"). These are
+            destructive testing tools, not for end users. Re-enable later by
+            removing the `false &&` guard. */}
+        {false && (
+        <>
         {/* ── DANGER ZONE — wipe stored videos + clear auto-saved project state ── */}
         <div className="mt-6 bg-red-500/5 border border-red-500/20 rounded-xl p-4">
           <div className="flex items-start gap-3">
@@ -451,6 +456,8 @@ export default function DashboardPage() {
           className="w-full text-[10px] text-white/20 hover:text-white/50 py-2 transition-colors">
           {cDemoBtn}
         </button>
+        </>
+        )}
       </div>
     </div>
   );
