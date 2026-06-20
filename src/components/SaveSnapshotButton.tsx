@@ -20,10 +20,10 @@ type Props = {
 export default function SaveSnapshotButton({ buildSnapshot, autoSaveMs = 5 * 60 * 1000 }: Props) {
   const [justSaved, setJustSaved] = useState(false);
 
-  async function snapshot(label: string, silent = false) {
+  async function snapshot(label: string, silent = false, auto = false) {
     try {
       const payload = buildSnapshot();
-      await saveSnapshot({ ...payload, at: Date.now(), label });
+      await saveSnapshot({ ...payload, at: Date.now(), label, auto });
       if (!silent) {
         setJustSaved(true);
         toast.success(`גרסה נשמרה: ${label}`);
@@ -39,7 +39,7 @@ export default function SaveSnapshotButton({ buildSnapshot, autoSaveMs = 5 * 60 
     if (!autoSaveMs) return;
     const id = window.setInterval(() => {
       const stamp = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-      snapshot(`אוטומטי ${stamp}`, /* silent */ true);
+      snapshot(`אוטומטי ${stamp}`, /* silent */ true, /* auto */ true);
     }, autoSaveMs);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps

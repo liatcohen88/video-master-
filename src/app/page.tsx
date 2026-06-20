@@ -271,6 +271,7 @@ export default function HomePage() {
       saveSnapshot({
         at: Date.now(),
         label: "שמירה אוטומטית",
+        auto: true,
         videoHash,
         payload: snapshotPayloadRef.current,
       }).catch(() => {});
@@ -288,6 +289,7 @@ export default function HomePage() {
       saveSnapshot({
         at: Date.now(),
         label: "שמירה אוטומטית",
+        auto: true,
         videoHash,
         payload: snapshotPayloadRef.current,
       }).catch(() => {});

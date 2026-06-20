@@ -31,6 +31,9 @@ export type ProjectSnapshot = {
   id?: number;
   at: number;           // unix ms — caller must supply (workflow-safe), or Date.now() at call site
   label: string;        // "אוטומטי" | "ידני" | user-supplied
+  /** True for automatic saves. Auto-saves COALESCE to one-per-video so the
+   *  list isn't flooded with duplicates; manual saves are always kept. */
+  auto?: boolean;
   videoHash: string;    // links to the transcription cache + identifies which video
   payload: {
     mode: EditMode;
@@ -187,7 +190,24 @@ export async function loadTranscription(hash: string): Promise<Subtitle[] | null
 
 const MAX_SNAPSHOTS = 10;
 
+/** An auto-save — by the explicit flag OR the legacy auto labels (so old
+ *  duplicates already in IndexedDB get cleaned up on the next auto-save). */
+function isAutoSnapshot(s: { auto?: boolean; label: string }): boolean {
+  return s.auto === true || s.label === "שמירה אוטומטית" || s.label.startsWith("אוטומטי ");
+}
+
 export async function saveSnapshot(snap: Omit<ProjectSnapshot, "id">): Promise<void> {
+  // Auto-saves COALESCE: keep only ONE auto snapshot per video (the newest),
+  // so the saved-versions list isn't flooded with near-identical entries for
+  // the same video (Liat: "זה אותו סרטון למה הרבה פעמים? שמירה אוטומטית").
+  // Manual snapshots ("ידני…" / user-labeled) are always kept distinct.
+  if (isAutoSnapshot(snap)) {
+    const existing = await listSnapshots();
+    const dupes = existing.filter(
+      (s) => s.videoHash === snap.videoHash && isAutoSnapshot(s) && s.id !== undefined,
+    );
+    await Promise.all(dupes.map((d) => deleteSnapshot(d.id!)));
+  }
   await tx(STORE_SNAPSHOTS, "readwrite", (s) => s.add(snap));
   // Trim to MAX_SNAPSHOTS keeping the newest.
   const all = await listSnapshots();
