@@ -36,6 +36,7 @@ import MasterCoin from "@/components/MasterCoin";
 import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications, addVideo } from "@/lib/userStore";
+import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
@@ -128,6 +129,9 @@ export default function HomePage() {
   const [style, setStyle] = useAutoSavedState<SubtitleStyle>("style", initialTemplate.style);
 
   const [subtitles, setSubtitles] = useAutoSavedState<Subtitle[]>("subtitles", []);
+  // Stable, always-punctuated word stream — the source of truth for re-deriving
+  // subtitles when the user changes words-per-line / commas / stretch settings.
+  const baseWordsRef = useRef<TimedWord[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [phase, setPhase] = useState<"setup" | "editing">("setup");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -260,6 +264,15 @@ export default function HomePage() {
   const snapshotPayloadRef = useRef({ mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel });
   snapshotPayloadRef.current = { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel };
 
+  // Capture the base word stream the first time real subtitles appear (after a
+  // restore/cache-load where handleTranscribe didn't set it), so the live
+  // re-chunk / commas / stretch settings have a stable source to rebuild from.
+  useEffect(() => {
+    if (baseWordsRef.current.length === 0 && subtitles.some((s) => s.words && s.words.length)) {
+      baseWordsRef.current = flattenWords(subtitles);
+    }
+  }, [subtitles]);
+
   useEffect(() => {
     if (phase !== "editing" || !videoHash) return;
     // 1s debounce (was 3s). The snapshot is what "המשך עריכה"/refresh
@@ -335,6 +348,7 @@ export default function HomePage() {
       // הסרטון עצמו"). Reset every per-video editing field to the current
       // mode's defaults; the new video gets transcribed fresh.
       setSubtitles([]);
+      baseWordsRef.current = []; // fresh video → recapture the word stream
       setEffects(MODE_DEFAULT_EFFECTS[mode]);
       setSettings(MODE_DEFAULT_SETTINGS[mode]);
       const freshTpl = TEMPLATES.find((t) => t.id === MODE_DEFAULT_TEMPLATE[mode]);
@@ -571,7 +585,12 @@ export default function HomePage() {
         throw new Error(errNoSpeech);
       }
 
-      setSubtitles(transcribeData.subtitles as Subtitle[]);
+      const freshSubs = transcribeData.subtitles as Subtitle[];
+      // Keep the punctuated word stream as the source of truth, then apply the
+      // current settings (words-per-line / commas / stretch) so the checkboxes
+      // are honored from the first render.
+      baseWordsRef.current = flattenWords(freshSubs);
+      setSubtitles(applySubtitleSettings(freshSubs, settings, baseWordsRef.current));
       // Cache the transcription so next upload of same file is instant.
       if (videoHash) {
         saveTranscription(videoHash, transcribeData.subtitles).catch(() => {});
@@ -1176,7 +1195,20 @@ export default function HomePage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <SubtitleSettingsPanel
                   settings={settings}
-                  onChange={setSettings}
+                  onChange={(next) => {
+                    // Re-derive subtitles live when a setting that affects them
+                    // changes: words-per-line (re-chunk), commas (keep/strip),
+                    // stretch (fill gaps). Only on real change so we don't wipe
+                    // edits on unrelated tweaks. Liat: "רק אם המשתמש מסמן".
+                    const affects =
+                      next.maxWordsPerLine !== settings.maxWordsPerLine ||
+                      next.addPunctuation !== settings.addPunctuation ||
+                      next.stretchSubtitles !== settings.stretchSubtitles;
+                    setSettings(next);
+                    if (affects && subtitles.length > 0) {
+                      setSubtitles(applySubtitleSettings(subtitles, next, baseWordsRef.current));
+                    }
+                  }}
                   modelId={whisperModel}
                   onModelChange={setWhisperModel}
                 />
