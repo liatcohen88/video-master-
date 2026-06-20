@@ -326,9 +326,19 @@ export default function HomePage() {
     try {
       setVideoFile(file);
       setVideoUrl(URL.createObjectURL(file));
-      // Reset effects to clean default — drops any leftover depth/parallax
-      // toggles from a previous session that could confuse the export.
+      // FRESH START for every new upload. A new video must be edited from
+      // scratch — it must NOT inherit the previous video's captions, colors,
+      // design or settings (Liat: "כשאני מעלה סרטון חדש הוא עורך עם אותם
+      // כתוביות אותו עיצוב וצבע כמו הקודם — אני לא רוצה! שיערוך מהתחלה לפי
+      // הסרטון עצמו"). Reset every per-video editing field to the current
+      // mode's defaults; the new video gets transcribed fresh.
+      setSubtitles([]);
       setEffects(MODE_DEFAULT_EFFECTS[mode]);
+      setSettings(MODE_DEFAULT_SETTINGS[mode]);
+      const freshTpl = TEMPLATES.find((t) => t.id === MODE_DEFAULT_TEMPLATE[mode]);
+      if (freshTpl) { setTemplateId(freshTpl.id); setStyle(freshTpl.style); }
+      setAnalysis(null);
+      setActiveReferenceId(undefined);
       // Fresh project → drop any bg-music bytes saved for the previous video
       // so they can't re-attach on a later reload.
       void clearCurrentMusic();
