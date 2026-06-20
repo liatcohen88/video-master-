@@ -12,6 +12,7 @@ import { POWER_WORDS_BASE } from "@/lib/wowEffects";
 import EmojiPicker from "./EmojiPicker";
 import ElementPicker, { type PickedElement } from "./ElementPicker";
 import SfxPicker from "./SfxPicker";
+import { getBrandById, brandLogoCdnUrl } from "@/lib/brandLogos";
 import { useContent } from "@/lib/useContent";
 import { toast } from "@/components/Toaster";
 import EmojiImage from "./EmojiImage";
@@ -248,9 +249,12 @@ export default function SubtitleEditor({
     const sub = subtitles.find((s) => s.id === subId);
     if (!sub) return;
     const current = sub.manualEmojis ?? [];
-    const next = el.kind === "emoji"
-      ? { emoji: el.emoji, position: "top-right" as const, durationSec: 0.9 }
-      : { emoji: "", lottieIconId: el.iconId, color: el.color, position: "top-center" as const, durationSec: 2 };
+    const next =
+      el.kind === "emoji"
+        ? { emoji: el.emoji, position: "top-right" as const, durationSec: 0.9 }
+        : el.kind === "brand"
+        ? { emoji: "", brandId: el.brandId, position: "top-right" as const, durationSec: 1.6 }
+        : { emoji: "", lottieIconId: el.iconId, color: el.color, position: "top-center" as const, durationSec: 2 };
     update(subId, { manualEmojis: [...current, next] });
   };
   const removeManualElement = (subId: string, index: number) => {
@@ -521,6 +525,8 @@ export default function SubtitleEditor({
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {sub.manualEmojis.map((me, mIdx) => {
                     const isLottie = !!me.lottieIconId;
+                    const isBrand = !!me.brandId;
+                    const brand = isBrand ? getBrandById(me.brandId!) : undefined;
                     if (isLottie) ensureLottieLoaded(me.lottieIconId!);
                     const sfxLabel = me.sfxId === "none" ? c.sfxNone
                       : me.sfxId ? (getSfxAsset(me.sfxId)?.label ?? me.sfxId)
@@ -528,7 +534,9 @@ export default function SubtitleEditor({
                     return (
                       <div key={mIdx}
                         className={`flex items-center rounded-md text-[11px] border
-                          ${isLottie ? "bg-violet-500/15 border-violet-400/30" : "bg-fuchsia-500/15 border-fuchsia-400/30"}`}>
+                          ${isBrand ? "bg-sky-500/15 border-sky-400/30"
+                            : isLottie ? "bg-violet-500/15 border-violet-400/30"
+                            : "bg-fuchsia-500/15 border-fuchsia-400/30"}`}>
                         <button
                           onClick={() => cycleManualPos(sub.id, mIdx)}
                           className="px-1.5 py-1 text-white/70 hover:text-white text-sm"
@@ -537,7 +545,17 @@ export default function SubtitleEditor({
                           {POSITION_LABEL[me.position]}
                         </button>
                         <div className="px-1 flex items-center" style={{ minWidth: 22 }}>
-                          {isLottie ? (
+                          {isBrand ? (
+                            brand ? (
+                              // Logo on a light chip so white/black marks stay visible.
+                              <span className="flex items-center justify-center rounded bg-white/95 w-5 h-5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={brandLogoCdnUrl(brand)} alt={brand.name}
+                                  className="w-3.5 h-3.5 object-contain block"
+                                  onError={(ev) => { ev.currentTarget.style.display = "none"; }} />
+                              </span>
+                            ) : <span className="text-base">🏷️</span>
+                          ) : isLottie ? (
                             lottieJsons[me.lottieIconId!] ? (
                               <div className="w-5 h-5">
                                 <Lottie animationData={lottieJsons[me.lottieIconId!] as object} loop
@@ -570,7 +588,7 @@ export default function SubtitleEditor({
                               setSizePopFor({ kind: "manual", subId: sub.id, idx: mIdx });
                               setSizePopAnchor(e.currentTarget.getBoundingClientRect());
                             }}
-                            title="גודל האמוג'י"
+                            title={isBrand ? "גודל הלוגו" : "גודל האמוג'י"}
                             className="px-1.5 py-1 border-r border-white/10 text-white/60 hover:text-white hover:bg-white/10 leading-none"
                           >
                             <span className="text-[12px]">⤢</span>

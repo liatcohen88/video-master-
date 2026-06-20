@@ -30,7 +30,7 @@ import { colorFilterCss } from "../lib/colorFilters";
 import { detectElements, type ElementEvent } from "../lib/keywordElements";
 import { detectBeatDrops, beatDropZoomAt } from "../lib/wowEffects";
 import { introFrameAt } from "../lib/introAnimations";
-import { detectBrands, brandLogoCdnUrl } from "../lib/brandLogos";
+import { detectBrands, brandLogoCdnUrl, getBrandById, type BrandLogo } from "../lib/brandLogos";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
 import { resolveRemotionFont } from "./remotionFonts";
 import { resolveAnimation, type SubtitleAnimationType } from "../lib/subtitleAnimations";
@@ -585,6 +585,97 @@ export function VideoComposition({
                   <img
                     src={brandLogoCdnUrl(b.brand)}
                     alt={b.brand.name}
+                    width={logoSize}
+                    height={logoSize}
+                    style={{ display: "block", width: logoSize, height: logoSize }}
+                  />
+                </div>
+              </div>
+            );
+          });
+      })()}
+
+      {/* Manually-added brand logos (per-subtitle, from the editor's "מותגים"
+          tab). Mirrors the auto-brand block above and adds the pop entrance so
+          the MP4 matches the live preview ("כמו שהיה האנימציה"). Size from
+          me.scale (default ≈ height*0.14), position from me.position. */}
+      {(() => {
+        const margin = 8; // % from edge
+        const transparentBg = effects?.transparentLogoBg ?? false;
+        const items: Array<{ brand: BrandLogo; time: number; durationSec: number; position: string; scale?: number; key: string }> = [];
+        subtitles.forEach((sub) =>
+          (sub.manualEmojis ?? []).forEach((me, mi) => {
+            if (!me.brandId) return;
+            const brand = getBrandById(me.brandId);
+            if (!brand) return;
+            items.push({
+              brand,
+              time: sub.start,
+              durationSec: me.durationSec ?? 1.6,
+              position: me.position,
+              scale: me.scale,
+              key: `${sub.id}-${mi}`,
+            });
+          }),
+        );
+        return items
+          .filter((it) => t >= it.time && t < it.time + it.durationSec)
+          .map((it) => {
+            const logoSize = it.scale && it.scale > 0
+              ? Math.max(16, height * 0.14 * it.scale)
+              : Math.max(64, height * 0.14);
+            const pad = logoSize * 0.18;
+            const isCenter = it.position === "top-center";
+            const corner: React.CSSProperties = (() => {
+              switch (it.position) {
+                case "top-left":      return { top: `${margin}%`, left: `${margin}%` };
+                case "top-center":    return { top: `${margin}%`, left: "50%" };
+                case "bottom-right":  return { bottom: `${margin}%`, right: `${margin}%` };
+                case "bottom-left":   return { bottom: `${margin}%`, left: `${margin}%` };
+                default:              return { top: `${margin}%`, right: `${margin}%` }; // top-right
+              }
+            })();
+            // Pop entrance: scale 0 → 1.15 → 1 in first 320ms, opacity ramp.
+            const localT = t - it.time;
+            const popScale = localT < 0.32
+              ? interpolate(localT, [0, 0.18, 0.32], [0, 1.15, 1], { extrapolateRight: "clamp" })
+              : 1;
+            const opacity = interpolate(localT, [0, 0.18], [0, 1], { extrapolateRight: "clamp" });
+            const containerStyle: React.CSSProperties = transparentBg
+              ? {
+                  padding: 0,
+                  background: "transparent",
+                  filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.7))",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: `${pad * 0.7}px`,
+                }
+              : {
+                  background: "rgba(255,255,255,0.96)",
+                  padding: `${pad}px ${pad * 1.4}px`,
+                  borderRadius: `${pad * 0.7}px`,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: `${pad * 0.7}px`,
+                };
+            return (
+              <div
+                key={`mbrand-${it.key}`}
+                style={{
+                  position: "absolute",
+                  ...corner,
+                  transform: `${isCenter ? "translateX(-50%) " : ""}scale(${popScale})`,
+                  opacity,
+                  zIndex: 9,
+                  pointerEvents: "none",
+                }}
+              >
+                <div style={containerStyle}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={brandLogoCdnUrl(it.brand)}
+                    alt={it.brand.name}
                     width={logoSize}
                     height={logoSize}
                     style={{ display: "block", width: logoSize, height: logoSize }}

@@ -360,6 +360,10 @@ export type Subtitle = {
     emoji: string;
     /** If set → this is a Lottie animation (registry id), emoji is ignored */
     lottieIconId?: string;
+    /** If set → this is a brand logo (brandLogos.ts id), emoji/lottie ignored.
+     *  Rendered as the brand's CDN logo with the same pop animation + size/
+     *  position controls as auto-detected brand logos. */
+    brandId?: string;
     /** Optional tint color for the lottie (#RRGGBB) */
     color?: string;
     position: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center";

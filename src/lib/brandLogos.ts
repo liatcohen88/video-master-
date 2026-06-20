@@ -274,6 +274,15 @@ export function resolveBrandLogos(): BrandLogo[] {
   return [...base, ...extras];
 }
 
+/**
+ * Look up a single brand by id (built-in OR admin-custom). Used by the
+ * per-subtitle "מותגים" picker tab — the user picks a brand and we attach
+ * its id to the subtitle, then resolve it back here at render time.
+ */
+export function getBrandById(id: string): BrandLogo | undefined {
+  return resolveBrandLogos().find((b) => b.id === id);
+}
+
 export type BrandEvent = {
   /** Time in OUTPUT timeline (seconds) */
   time: number;

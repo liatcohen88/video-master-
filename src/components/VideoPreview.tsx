@@ -13,7 +13,7 @@ import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wo
 import { introFrameAt } from "@/lib/introAnimations";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "@/lib/sfxLibrary";
 import { playSfxCapped } from "@/lib/playSfxCapped";
-import { detectBrands, brandLogoCdnUrl, type BrandEvent } from "@/lib/brandLogos";
+import { detectBrands, brandLogoCdnUrl, getBrandById, type BrandEvent } from "@/lib/brandLogos";
 import { DYNAMIC_BG_MAP } from "@/lib/dynamicBackgrounds";
 import LottiePreviewOverlay from "./LottiePreviewOverlay";
 import WowOverlay from "./WowOverlay";
@@ -965,6 +965,32 @@ export default function VideoPreview({
             positionOverride={effects?.brandPosition?.[k]}
           /> );
         })}
+
+        {/* Manually-added brand logos (per-subtitle, from the picker's
+            "מותגים" tab). Reuses BrandOverlay so they look + animate exactly
+            like auto-detected logos. Size via the chip's ⤢ slider (scale →
+            1920-ref px: default brand size ≈ 1920*0.14 = 269px). */}
+        {subtitles.flatMap((sub) =>
+          (sub.manualEmojis ?? []).map((me, mi) => {
+            if (!me.brandId) return null;
+            const brand = getBrandById(me.brandId);
+            if (!brand) return null;
+            const time = sub.start;
+            const durationSec = me.durationSec ?? 1.6;
+            if (!(currentTime >= time && currentTime < time + durationSec)) return null;
+            return (
+              <BrandOverlay
+                key={`mbrand-${sub.id}-${mi}`}
+                brand={{ time, durationSec, brand, matchedText: "" }}
+                containerHeight={containerHeight}
+                slot={0}
+                transparentBg={effects?.transparentLogoBg ?? false}
+                sizePxOverride={me.scale ? Math.round(269 * me.scale) : undefined}
+                positionOverride={me.position}
+              />
+            );
+          }),
+        )}
 
         {/* User-uploaded custom logos. Persistent ones show throughout the
             video; timed ones show only within their window. */}
