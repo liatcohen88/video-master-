@@ -13,6 +13,7 @@ import EmojiPicker from "./EmojiPicker";
 import ElementPicker, { type PickedElement } from "./ElementPicker";
 import SfxPicker from "./SfxPicker";
 import { useContent } from "@/lib/useContent";
+import { toast } from "@/components/Toaster";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -51,6 +52,12 @@ type Props = {
    *  the corresponding on-video effect. Liat: "כשאתה מוסיף את האפקט
    *  שיהיה מידע בעריכת כתוביות שהוא דלוק". */
   dramaSubIds?: Set<string>;
+  /** Whether the "פעימה" power effects (particles/shake/zoom) are globally ON.
+   *  When OFF, the per-line power chip shows a "כבוי" sign + one-click enable
+   *  (Liat: "שיראה סימן שהאפקט כבוי, אפשרות להדליק אותו"). */
+  powerEffectsOn?: boolean;
+  /** Turn the power effects on from the per-line chip. */
+  onEnablePowerEffects?: () => void;
 };
 
 function fmt(t: number) {
@@ -75,6 +82,8 @@ export default function SubtitleEditor({
   onAutoElementChange,
   allowElements = true,
   dramaSubIds,
+  powerEffectsOn = true,
+  onEnablePowerEffects,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickerForSub, setPickerForSub] = useState<string | null>(null);
@@ -331,15 +340,32 @@ export default function SubtitleEditor({
                     "randomly mid-video" — they fire on power words that
                     aren't in the WOW filter list (אש, ענק, חייבים…), so
                     this chip makes that visible per-line. */}
-                {powerSubIds.has(sub.id) && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "power" }); }}
-                    title="לחיצה: רשימת המילים שמפעילות חלקיקים + רעידה"
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 hover:bg-fuchsia-500/25"
-                  >
-                    💥 פעימה
-                  </button>
+                {allowElements && powerSubIds.has(sub.id) && (
+                  powerEffectsOn ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "power" }); }}
+                      title="לחיצה: רשימת המילים שמפעילות חלקיקים + רעידה"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 hover:bg-fuchsia-500/25"
+                    >
+                      💥 פעימה
+                    </button>
+                  ) : (
+                    // Effect is globally OFF → show a clear "כבוי" sign + one-click
+                    // enable (Liat: "שיראה סימן שהאפקט כבוי, אפשרות להדליק אותו").
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEnablePowerEffects?.();
+                        toast.success("✨ אפקט הפעימה הופעל — חלקיקים + רעידה + זום");
+                      }}
+                      title="האפקט כבוי — לחיצה תפעיל אותו (חלקיקים + רעידה + זום)"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-white/40 border border-dashed border-white/20 hover:bg-fuchsia-500/15 hover:text-fuchsia-200 hover:border-fuchsia-400/40 transition-colors"
+                    >
+                      💥 פעימה · כבוי — להפעלה
+                    </button>
+                  )
                 )}
                 <div className="flex-1" />
                 {/* SFX-only button (no Lottie needed) — Liat liked the original

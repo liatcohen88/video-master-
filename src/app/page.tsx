@@ -1367,6 +1367,11 @@ export default function HomePage() {
                   for (const w of detectWowMoments(subtitles))   { const id = inWindow(w.t); if (id) ids.add(`wow:${id}`); }
                   return ids;
                 })()}
+                /* "פעימה" power chip reflects whether the particle/shake/zoom
+                   effects are actually ON. When off, the chip shows "כבוי" and
+                   one click enables them (Liat: "שיראה סימן שהאפקט כבוי + להדליק"). */
+                powerEffectsOn={!!(effects.beatDropZoom || effects.particleBurst || effects.punchShake)}
+                onEnablePowerEffects={() => setEffects((e) => ({ ...e, beatDropZoom: true, particleBurst: true, punchShake: true }))}
                 elementOverrides={effects.elementOverrides ?? {}}
                 positionOverrides={effects.elementPositionOverrides ?? {}}
                 disabledElements={effects.disabledElements ?? []}
