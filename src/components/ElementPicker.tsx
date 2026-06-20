@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
+import { EMOJI_CATEGORIES } from "@/lib/emojiData";
+import { emojiMatches } from "@/lib/emojiKeywords";
 // Lottie picker hidden from end-users (per Liat 2026-06-11) — animations
 // quality isn't where we want it for the launch. Lottie metadata/admin
 // stays intact in code so we can flip it back on with one line later.
@@ -9,18 +12,6 @@ import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
 // import { Sparkles } from "lucide-react";
 // import { LOTTIE_ICONS } from "@/lib/lottieRegistry";
 // const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
-
-const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
-  { name: "פופולרי",     emojis: ["💎","🔥","⚡","✨","💥","🌟","💯","🚀","💪","👑","🎯","🎉","🤯","😱","👀","🙌","✅","❤️"] },
-  { name: "כסף ועסקים", emojis: ["💰","💵","💸","💳","📈","📊","💼","🏦","🤑","💲","🪙","🧾","🏷️","🛍️","💎","📉","🏧","💹"] },
-  { name: "רגשות",       emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","💕","💗","😍","🥰","😎","🤩","😱","🤯","😂","🤣","🥹","😭","🙏","😅","😇","🥳","😮"] },
-  { name: "פנים",        emojis: ["😀","😃","😄","😁","😊","🙂","😉","😏","😬","🙄","😴","🤔","🤨","😐","😶","🤐","🤫","🤭","😜","😝","🤪","😤","😡","🥺"] },
-  { name: "ידיים ופעולה",emojis: ["👆","👇","👈","👉","👍","👎","👏","🙌","✋","🤝","💪","👀","🤙","🤞","✌️","🤟","👌","🫶","👋","🫰","🙏","💅"] },
-  { name: "אוכל",        emojis: ["🍕","🍔","🍟","🌭","🍿","🥤","☕","🍩","🍪","🎂","🍰","🍫","🍦","🍓","🍌","🥑","🍷","🍻","🥗","🍜","🌮","🧋"] },
-  { name: "אובייקטים",  emojis: ["🎁","🛒","📱","💻","⌚","📷","🎬","🎵","🎮","🏆","🥇","💡","📦","✉️","📢","🔑","🛎️","🎤","🎧","📺","⏰","🔋"] },
-  { name: "טבע וזמן",    emojis: ["☀️","🌙","⭐","🌈","⛅","🌧️","❄️","🌊","🌸","🌹","🌺","🍀","🔥","💧","⚡","🎇","🌴","🦋","🐶","🐱","🦄","🌍"] },
-  { name: "סמלים",       emojis: ["❓","❗","‼️","⭕","✅","❌","⚠️","📌","🔔","🔒","🔓","💡","➡️","⬅️","⬆️","⬇️","♾️","🔝","🆕","🆓","💢","🚫"] },
-];
 
 export type PickedElement =
   | { kind: "emoji"; emoji: string }
@@ -35,6 +26,7 @@ type Props = {
 
 export default function ElementPicker({ open, onSelect, onClose, anchorRect }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +41,11 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
   }, [open, onClose]);
 
   if (!open) return null;
+
+  // Hebrew keyword search ("רכב" → 🚗) — empty query shows all categories.
+  const filtered = EMOJI_CATEGORIES
+    .map((cat) => ({ ...cat, emojis: cat.emojis.filter((e) => emojiMatches(e, query)) }))
+    .filter((cat) => cat.emojis.length > 0);
 
   const style: React.CSSProperties = {};
   if (anchorRect) {
@@ -69,8 +66,24 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
         בחירת אמוג'י להוספה לכתובית
       </div>
 
+      {/* Search — Hebrew keywords ("רכב", "כלב", "אש"…) */}
+      <div className="relative px-3 pt-2.5">
+        <Search className="w-3.5 h-3.5 absolute right-5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="חיפוש אמוג'י (רכב, כלב, אהבה…)"
+          className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
+          dir="rtl"
+          autoFocus
+        />
+      </div>
+
       <div className="overflow-y-auto p-3 flex-1">
-        {EMOJI_CATEGORIES.map((cat) => (
+        {filtered.length === 0 && (
+          <div className="text-center text-xs text-white/40 py-6">לא נמצאו אמוג&apos;ים ל-״{query}״</div>
+        )}
+        {filtered.map((cat) => (
           <div key={cat.name} className="mb-3">
             <div className="text-[10px] uppercase tracking-wider text-white/30 mb-1 px-1">{cat.name}</div>
             <div className="grid grid-cols-6 gap-1">
