@@ -363,6 +363,9 @@ export type Subtitle = {
     /** Optional tint color for the lottie (#RRGGBB) */
     color?: string;
     position: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center";
+    /** Size multiplier (1 = default ~10% of frame height). User-adjustable in
+     *  the subtitle editor; applied identically in preview + export. */
+    scale?: number;
     /** How many seconds the element stays on screen. Default 0.9 (emoji) / 2 (lottie) */
     durationSec?: number;
     /** SFX asset id played at the subtitle start. "none" mutes. Unset = no SFX. */

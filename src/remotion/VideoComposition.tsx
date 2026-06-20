@@ -230,6 +230,7 @@ function buildEmojiEvents(subtitles: Subtitle[], effects: VideoEffects | null): 
         time: sub.start,
         durationSec: me.durationSec ?? Math.max(0.6, sub.end - sub.start),
         matchedText: "",
+        scale: me.scale,
         category: {
           id: `manual-${sub.id}-${me.emoji}`,
           emoji: me.emoji,
@@ -691,7 +692,7 @@ export function VideoComposition({
           .filter((el) => t >= el.time && t < el.time + el.durationSec)
           .map((el) => {
             const pos = EMOJI_POS[el.category.position] ?? EMOJI_POS["top-center"];
-            const size = Math.max(40, height * 0.10);
+            const size = Math.max(40, height * 0.10 * (el.scale ?? 1));
             // Entry pop: scale 0 → 1.15 → 1 in first 320ms, then hold.
             const localT = t - el.time;
             const scale = localT < 0.32

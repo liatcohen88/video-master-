@@ -510,6 +510,25 @@ export default function SubtitleEditor({
                           />
                           <span className="text-[9px] text-white/30">{c.secondsAbbr}</span>
                         </div>
+                        {/* Size — emoji only (Liat: "בנוסף למיקום שיהיה אפשר לשחק
+                            גם בגודל"). Percent of the default size; applied
+                            identically in preview + export. */}
+                        {!isLottie && (
+                          <div className="flex items-center gap-0.5 px-1 border-r border-white/10" title="גודל האמוג'י (%)">
+                            <span className="text-[11px] text-white/40 leading-none">⤢</span>
+                            <input
+                              type="number" min={50} max={300} step={10}
+                              value={Math.round((me.scale ?? 1) * 100)}
+                              onChange={(e) => {
+                                const pct = parseInt(e.target.value, 10);
+                                const s = Number.isNaN(pct) ? 1 : Math.min(300, Math.max(50, pct)) / 100;
+                                updateManualElement(sub.id, mIdx, { scale: s });
+                              }}
+                              className="w-9 bg-transparent text-[10px] text-center text-white/80 focus:outline-none"
+                            />
+                            <span className="text-[9px] text-white/30">%</span>
+                          </div>
+                        )}
                         {/* Color picker — Lottie only (emoji is full-color, can't tint) */}
                         {isLottie && (
                           <label

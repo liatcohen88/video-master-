@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { twemojiUrl } from "@/lib/twemoji";
 // Lottie picker hidden from end-users (per Liat 2026-06-11) — animations
 // quality isn't where we want it for the launch. Lottie metadata/admin
 // stays intact in code so we can flip it back on with one line later.
@@ -76,8 +77,15 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
               {cat.emojis.map((e) => (
                 <button key={e}
                   onClick={() => { onSelect({ kind: "emoji", emoji: e }); onClose(); }}
-                  className="text-2xl p-1.5 rounded-md hover:bg-white/10">
-                  {e}
+                  className="p-1.5 rounded-md hover:bg-white/10 flex items-center justify-center"
+                  title={e}>
+                  {/* Twemoji IMAGE so the picker shows EXACTLY what the preview +
+                      export render — not the OS emoji font (Liat: "שיראה ויצא
+                      את האמוגים האלה באמת, כרגע זה שונה לגמרי").
+                      eslint-disable-next-line @next/next/no-img-element */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={twemojiUrl(e)} alt={e} width={26} height={26}
+                    loading="lazy" className="w-[26px] h-[26px] block" />
                 </button>
               ))}
             </div>

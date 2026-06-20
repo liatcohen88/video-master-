@@ -261,6 +261,8 @@ export type ElementEvent = {
   category: KeywordCategory;
   /** The word/text that matched (for debugging) */
   matchedText: string;
+  /** Size multiplier for manual emojis (1 = default). Auto elements omit it. */
+  scale?: number;
 };
 
 /**

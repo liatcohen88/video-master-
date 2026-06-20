@@ -604,6 +604,7 @@ export default function VideoPreview({
           time: sub.start,
           durationSec: me.durationSec ?? Math.max(0.6, sub.end - sub.start),
           matchedText: "",
+          scale: me.scale,
           category: {
             id: `manual-${sub.id}-${me.emoji}`,
             emoji: me.emoji,
@@ -1230,7 +1231,7 @@ function ElementOverlay({
     "top-center":   { left: "50%", top: "15%" },
   } as const;
   const pos = positions[element.category.position];
-  const size = Math.max(40, containerHeight * 0.10);
+  const size = Math.max(40, containerHeight * 0.10 * (element.scale ?? 1));
 
   return (
     <div
