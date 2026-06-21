@@ -88,7 +88,9 @@ export default function SignupGate({
     if (mode === "signup") {
       const { data, error } = await sb.auth.signUp({
         email, password,
-        options: { data: { display_name: name } },
+        // Return the confirmation link to the live site (logged-in) instead of
+        // Supabase's Site URL fallback. Liat #150.
+        options: { data: { display_name: name }, emailRedirectTo: `${window.location.origin}/` },
       });
       setBusy(false);
       if (error) {

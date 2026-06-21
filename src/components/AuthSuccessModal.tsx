@@ -16,8 +16,20 @@ import Link from "next/link";
 import { Sparkles, Upload, User, X } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import { ensureWelcomeNotification } from "@/lib/userStore";
+import { pushNotifRow } from "@/lib/userData";
+import { getContent } from "@/lib/contentStore";
 
 type EventKind = "signup" | "login" | null;
+
+/** Mirror the welcome notification to Supabase so it shows cross-device. */
+async function pushWelcomeCloud() {
+  await pushNotifRow({
+    id: "welcome",
+    title: (getContent("notif.welcome.title") as string) || "ברוך הבא למאסטר וידאו!",
+    body: (getContent("notif.welcome.body") as string)
+      || "לכל שאלה או רעיון אנחנו זמינים עבורך ❤️ עריכה נעימה!",
+  });
+}
 
 export default function AuthSuccessModal() {
   const [event, setEvent] = useState<EventKind>(null);
@@ -48,8 +60,9 @@ export default function AuthSuccessModal() {
       if (v === "signup" || v === "login") {
         setEvent(v);
         sessionStorage.removeItem("vm_auth_event");
-        // New signup → drop a one-time welcome notification in the bell.
-        if (v === "signup") ensureWelcomeNotification();
+        // New signup → drop a one-time welcome notification in the bell
+        // (local + cross-device best-effort).
+        if (v === "signup") { ensureWelcomeNotification(); void pushWelcomeCloud(); }
       }
     } catch {/* sessionStorage unavailable — just don't show */}
 
@@ -57,7 +70,7 @@ export default function AuthSuccessModal() {
       const detail = (e as CustomEvent<{ kind?: EventKind }>).detail;
       if (detail?.kind === "signup" || detail?.kind === "login") {
         setEvent(detail.kind);
-        if (detail.kind === "signup") ensureWelcomeNotification();
+        if (detail.kind === "signup") { ensureWelcomeNotification(); void pushWelcomeCloud(); }
       }
     }
     window.addEventListener("vm-auth-popup", onAuthPopup as EventListener);

@@ -25,6 +25,7 @@ import { downloadExportedVideo } from "@/lib/videoDelivery";
 import { confirm } from "@/components/ConfirmDialog";
 import { toast } from "@/components/Toaster";
 import { useAuth } from "@/lib/useAuth";
+import { fetchVideoRows, fetchNotifRows, markNotifRowRead } from "@/lib/userData";
 
 // Default mode labels. Per-row Hebrew label is now CMS-overridable via
 // dashboard.modeLabel.* — see useModeLabel() below.
@@ -48,6 +49,9 @@ export default function DashboardPage() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
   const [snapshots, setSnapshots] = useState<ProjectSnapshot[]>([]);
+  // Cross-device videos + notifications from Supabase (null = use localStorage).
+  const [cloudVideos, setCloudVideos] = useState<UserVideo[] | null>(null);
+  const [cloudNotifs, setCloudNotifs] = useState<UserNotification[] | null>(null);
   const [hasSavedVideo, setHasSavedVideo] = useState(false);
   const auth = useAuth();
   const currency = (useContent("brand.currencyName") as string) || "קרדיטים";
@@ -128,6 +132,20 @@ export default function DashboardPage() {
     return () => window.removeEventListener("credits-change", refresh);
   }, [tick]);
 
+  // Pull videos + notifications from Supabase (cross-device). Falls back to
+  // localStorage when null (guest / migration not applied / offline).
+  useEffect(() => {
+    if (auth.status !== "user") return;
+    let cancelled = false;
+    (async () => {
+      const [v, n] = await Promise.all([fetchVideoRows(), fetchNotifRows()]);
+      if (cancelled) return;
+      if (v) setCloudVideos(v);
+      if (n) setCloudNotifs(n);
+    })();
+    return () => { cancelled = true; };
+  }, [auth.status, tick]);
+
   async function removeSnapshot(id: number) {
     const ok = await confirm({ title: cDelSnapTitle, body: cDelSnapBody, confirmLabel: cDelSnapBtn, destructive: true });
     if (!ok) return;
@@ -154,8 +172,8 @@ export default function DashboardPage() {
   const realAvatar   = authProfile?.avatar_url || mockProfile.avatarUrl || undefined;
   const profile = { ...mockProfile, name: realName, email: realEmail, joinedAt: realJoinedAt, avatarUrl: realAvatar };
   const stats         = getUserStats();
-  const videos        = listMyVideos();
-  const notifications = listNotifications();
+  const videos        = cloudVideos ?? listMyVideos();
+  const notifications = cloudNotifs ?? listNotifications();
   const invoices      = listInvoices();
   const unread        = notifications.filter((n) => !n.read).length;
 
@@ -199,7 +217,7 @@ export default function DashboardPage() {
                   <div className="space-y-1 max-h-80 overflow-y-auto">
                     {notifications.slice(0, 8).map((n) => (
                       <NotifRow key={n.id} n={n}
-                        onClick={() => { markNotificationRead(n.id); setTick(tick + 1); }} />
+                        onClick={() => { markNotificationRead(n.id); void markNotifRowRead(n.id); setTick(tick + 1); }} />
                     ))}
                     {notifications.length === 0 && (
                       <div className="text-center text-xs text-white/30 py-4">{cNotifEmpty}</div>

@@ -36,6 +36,7 @@ import MasterCoin from "@/components/MasterCoin";
 import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications, addVideo } from "@/lib/userStore";
+import { pushVideoRow } from "@/lib/userData";
 import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
@@ -1040,13 +1041,13 @@ export default function HomePage() {
           let vidTitle = `סרטון ${dateStamp}`;
           const firstCap = (subtitles?.[0] as { text?: string } | undefined)?.text?.trim();
           if (firstCap) vidTitle = firstCap.length > 40 ? `${firstCap.slice(0, 40)}…` : firstCap;
-          addVideo({
-            id: jobId,
-            title: vidTitle,
-            durationSec: exportDurationSec,
-            mode,
-            creditsUsed: calcDynamicCost(mode, effects).total,
-            status: "processing",
+          const creditsUsed = calcDynamicCost(mode, effects).total;
+          addVideo({ id: jobId, title: vidTitle, durationSec: exportDurationSec, mode, creditsUsed, status: "processing" });
+          // Cross-device copy in Supabase (best-effort; falls back to local).
+          void pushVideoRow({
+            id: jobId, title: vidTitle, thumbnailEmoji: "🎬",
+            durationSec: exportDurationSec, mode, creditsUsed,
+            status: "processing", createdAt: new Date().toISOString(),
           });
         } catch { /* profile recording is best-effort */ }
         toast.success("🎬 הסרטון בעיבוד — אפשר להמשיך לעבוד, נודיע לך כשמוכן");

@@ -16,6 +16,17 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+
+  async function resendConfirmation() {
+    const sb = browserClient();
+    if (!sb || !email) return;
+    setResendState("sending");
+    try {
+      await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/` } });
+      setResendState("sent");
+    } catch { setResendState("idle"); }
+  }
 
   // CMS-driven copy
   const heading      = useContent("auth.signup.heading") as string;
@@ -61,7 +72,10 @@ export default function SignupPage() {
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name } },
+      // emailRedirectTo ensures the confirmation link returns the user to the
+      // live site logged-in (else it falls back to Supabase's Site URL, which
+      // can be a dead-end). Liat #150.
+      options: { data: { display_name: name }, emailRedirectTo: `${window.location.origin}/` },
     });
     setBusy(false);
 
@@ -127,6 +141,20 @@ export default function SignupPage() {
           >
             {confirmCta}
           </Link>
+          {/* Resend confirmation — recovery path if the email didn't arrive. */}
+          <div className="mt-4">
+            {resendState === "sent" ? (
+              <p className="text-xs text-green-300">מייל אישור נשלח שוב ✓</p>
+            ) : (
+              <button
+                onClick={resendConfirmation}
+                disabled={resendState === "sending"}
+                className="text-xs text-white/50 hover:text-white underline underline-offset-2 disabled:opacity-50"
+              >
+                {resendState === "sending" ? "שולח…" : "לא קיבלת מייל? שליחה שוב"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

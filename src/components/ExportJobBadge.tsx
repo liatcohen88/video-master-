@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "@/components/Toaster";
 import { setVideoStatus } from "@/lib/userStore";
+import { setVideoRowStatus } from "@/lib/userData";
 
 const LS_KEY = "vm_export_job";
 
@@ -132,6 +133,7 @@ export default function ExportJobBadge() {
         if (data.status === "done") {
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
           setVideoStatus(id, "done"); // mark it ready in the profile ("הסרטונים שלי")
+          void setVideoRowStatus(id, "done"); // cross-device copy (best-effort)
           await fetchBlob(id);
           setJob({ id, filename, status: "done", progress: 100 });
           if (gallerySaveMode()) {
@@ -155,6 +157,7 @@ export default function ExportJobBadge() {
           }
         } else if (data.status === "failed") {
           setVideoStatus(id, "failed"); // reflect the failure in the profile
+          void setVideoRowStatus(id, "failed"); // cross-device copy (best-effort)
           clearJob();
           toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
         } else {
