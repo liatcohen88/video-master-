@@ -161,7 +161,7 @@ export default function CreditsPage() {
             <h3 className="text-2xl font-black">{calcTitle}</h3>
             <p className="text-xs text-white/40 mt-1">{calcSubtitle}</p>
           </div>
-          <div className={`grid grid-cols-2 gap-4 ${multiEnabled ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${multiEnabled ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             {[
               { icon: Subtitles, name: modeSubName, cost: costSubtitles, costMax: undefined as number | undefined, desc: modeSubDesc, iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
               { icon: Mic,       name: modePodName, cost: costPodcast,   costMax: undefined as number | undefined, desc: modePodDesc, iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
