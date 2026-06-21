@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ShoppingBag, Wand2, Check } from "lucide-react";
@@ -59,6 +59,21 @@ function SuccessInner() {
   }, [failed, auth.status, auth.profile, tick]);
 
   const liveBalance = polledBalance ?? (auth.status === "user" && auth.profile ? auth.profile.credits : null);
+
+  // Show the balance INCLUDING the credits just purchased (Liat: "יתרה עם
+  // ה-25 שקנה" — the bare balance looked like the PRE-purchase number). We
+  // anchor on the balance at mount (pre-credit) and add the purchased amount
+  // optimistically; once the webhook lands and the polled balance rises above
+  // that anchor, we switch to the real total (which equals it anyway).
+  const baseRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (baseRef.current === null && liveBalance !== null) baseRef.current = liveBalance;
+  }, [liveBalance]);
+  const purchased = Number.isFinite(credits) && credits > 0 ? credits : 0;
+  const webhookLanded = liveBalance !== null && baseRef.current !== null && liveBalance > baseRef.current;
+  const displayBalance = webhookLanded
+    ? liveBalance
+    : (baseRef.current !== null ? baseRef.current + purchased : liveBalance);
 
   const title       = useContent("purchase.title") as string;
   const body        = useContent("purchase.body") as string;
@@ -138,15 +153,16 @@ function SuccessInner() {
             </div>
           )}
 
-          {/* Live balance card — updates as the webhook lands */}
-          {liveBalance !== null && (
+          {/* Balance card — shows the NEW total (incl. the credits just bought),
+              self-correcting to the real number once the webhook lands. */}
+          {displayBalance !== null && (
             <div className="bg-bg-card/70 border border-white/10 rounded-2xl px-4 py-3 mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2 text-white/70 text-sm">
                 <MasterCoin size={20} />
                 <span>{balanceLabel}</span>
               </div>
-              <div className="text-2xl font-black bg-gradient-to-r from-brand-light to-accent-pink bg-clip-text text-transparent" key={liveBalance}>
-                {liveBalance.toLocaleString()}{" "}
+              <div className="text-2xl font-black bg-gradient-to-r from-brand-light to-accent-pink bg-clip-text text-transparent" key={displayBalance}>
+                {displayBalance.toLocaleString()}{" "}
                 <span className="text-[11px] text-white/40 font-normal">{currency}</span>
               </div>
             </div>
