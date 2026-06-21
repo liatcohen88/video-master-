@@ -13,6 +13,8 @@
 // demo-seeded store in every existing browser automatically.
 const LS_KEY = "vm_user_store_v2";
 
+import { getContent } from "./contentStore";
+
 export type UserProfile = {
   name: string;
   email: string;
@@ -148,6 +150,40 @@ export function markNotificationRead(id: string) {
   s.notifications = s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
   write(s);
 }
+/** Add a notification. When an explicit `id` is given it's idempotent —
+ *  calling twice with the same id won't duplicate (used for the welcome note). */
+export function addNotification(n: {
+  id?: string;
+  kind?: UserNotification["kind"];
+  title: string;
+  body?: string;
+}) {
+  const s = read();
+  const id = n.id ?? `n-${Date.now()}`;
+  if (n.id && s.notifications.some((x) => x.id === n.id)) return;
+  s.notifications.unshift({
+    id,
+    kind: n.kind ?? "feature",
+    title: n.title,
+    body: n.body ?? "",
+    createdAt: new Date().toISOString(),
+    read: false,
+  });
+  write(s);
+}
+
+/** Welcome notification shown once after signup. Idempotent (fixed id), and
+ *  CMS-editable via notif.welcome.* so Liat can rephrase it from /admin. */
+export function ensureWelcomeNotification() {
+  addNotification({
+    id: "welcome",
+    kind: "feature",
+    title: (getContent("notif.welcome.title") as string) || "ברוך הבא למאסטר וידאו!",
+    body: (getContent("notif.welcome.body") as string)
+      || "לכל שאלה או רעיון אנחנו זמינים עבורך ❤️ עריכה נעימה!",
+  });
+}
+
 export function clearAllNotifications() {
   const s = read();
   s.notifications = s.notifications.map((n) => ({ ...n, read: true }));

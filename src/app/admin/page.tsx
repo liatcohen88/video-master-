@@ -462,6 +462,25 @@ function UserEditModal({ user, onClose, onSaved }: { user: RegisteredUser; onClo
     }
   }
 
+  async function del() {
+    setBusy(true); setErr(null);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const r = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "שגיאה");
+      onSaved();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
   function fmtDateTime(iso: string | null) {
     if (!iso) return "—";
     return new Date(iso).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -538,6 +557,20 @@ function UserEditModal({ user, onClose, onSaved }: { user: RegisteredUser; onClo
                 : "bg-red-500/20 hover:bg-red-500/40 text-red-200"
             }`}>
             {banned ? "✓ בטלי השעיה" : "🚫 השעי חשבון"}
+          </button>
+        </div>
+
+        {/* Danger zone — permanent delete (frees the email to re-register) */}
+        <div className="mt-2 pt-3 border-t border-red-500/20">
+          <label className="text-xs font-bold mb-2 block text-red-300">🗑️ מחיקה לצמיתות</label>
+          <p className="text-[11px] text-white/50 mb-2">
+            מחיקה מלאה של החשבון — המשתמש והמייל ישוחררו והוא יוכל להירשם מחדש. פעולה בלתי הפיכה.
+          </p>
+          <button type="button" disabled={busy} onClick={() => {
+              if (confirm(`למחוק לצמיתות את ${user.email}?\n\nכל הנתונים יימחקו והמייל ישוחרר להרשמה מחדש. פעולה בלתי הפיכה.`)) del();
+            }}
+            className="w-full text-xs font-bold px-3 py-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-100 border border-red-500/30 disabled:opacity-50">
+            🗑️ מחק משתמש לצמיתות
           </button>
         </div>
       </div>

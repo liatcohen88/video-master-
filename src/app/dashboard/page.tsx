@@ -566,11 +566,20 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
     // Email is intentionally NOT editable — it's the account identity
     // (Liat: "אל תיתן אפשרות לשנות את המייל"). Save name + optional phone.
     updateProfile({ name, phone: cleanPhone });
-    // Persist to Supabase auth metadata so name + phone survive across devices
-    // AND show up in the admin users table (Liat: "אראה באדמין את המס").
+    // Persist to Supabase so name + phone survive across devices AND show up in
+    // the admin users table (Liat: "אראה באדמין את המס").
     try {
       const { browserClient } = await import("@/lib/supabase");
-      await browserClient()?.auth.updateUser({ data: { display_name: name, phone: cleanPhone } });
+      const sb = browserClient();
+      if (sb) {
+        const { data: { user } } = await sb.auth.getUser();
+        // 1) profiles table — THIS is what useAuth reads for display_name, so
+        //    the rename actually sticks (auth metadata alone wasn't reflected →
+        //    Liat: "שיניתי את השם וזה לא באמת נשמר").
+        if (user) await sb.from("profiles").update({ display_name: name }).eq("id", user.id);
+        // 2) auth metadata — phone (admin reads it here) + display_name mirror.
+        await sb.auth.updateUser({ data: { display_name: name, phone: cleanPhone } });
+      }
     } catch { /* best-effort — the local copy is already saved */ }
     setBusy(false);
     setEditing(false);

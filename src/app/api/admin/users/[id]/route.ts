@@ -83,3 +83,37 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * DELETE /api/admin/users/[id]
+ *
+ * Permanently removes a user — auth record + profile row — so the email is
+ * freed and the person can sign up again from scratch (Liat: "אפשרות למחוק
+ * משתמש לגמרי שיכול להירשם שוב").
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPA_URL || !SERVICE) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+  }
+  const adminEmail = await requireAdmin(req);
+  if (!adminEmail) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: "Missing user id" }, { status: 400 });
+
+  const admin = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false } });
+
+  // Remove the profile row first (in case there's no ON DELETE CASCADE), then
+  // the auth user. Profile-delete errors are non-fatal — the auth delete is
+  // what frees the email.
+  await admin.from("profiles").delete().eq("id", id);
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}

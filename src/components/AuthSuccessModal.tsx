@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Upload, User, X } from "lucide-react";
 import { useContent } from "@/lib/useContent";
+import { ensureWelcomeNotification } from "@/lib/userStore";
 
 type EventKind = "signup" | "login" | null;
 
@@ -47,6 +48,8 @@ export default function AuthSuccessModal() {
       if (v === "signup" || v === "login") {
         setEvent(v);
         sessionStorage.removeItem("vm_auth_event");
+        // New signup → drop a one-time welcome notification in the bell.
+        if (v === "signup") ensureWelcomeNotification();
       }
     } catch {/* sessionStorage unavailable — just don't show */}
 
@@ -54,6 +57,7 @@ export default function AuthSuccessModal() {
       const detail = (e as CustomEvent<{ kind?: EventKind }>).detail;
       if (detail?.kind === "signup" || detail?.kind === "login") {
         setEvent(detail.kind);
+        if (detail.kind === "signup") ensureWelcomeNotification();
       }
     }
     window.addEventListener("vm-auth-popup", onAuthPopup as EventListener);

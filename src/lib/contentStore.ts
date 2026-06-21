@@ -923,11 +923,15 @@ export const CONTENT_DEFAULTS = {
   "nav.contact":          "יצירת קשר",
   "nav.profile":          "פרופיל ודאשבורד",
   "nav.myVideos":         "הסרטונים שלי",
-  "nav.buyCredits":       "קניית מאסטרים",
+  "nav.buyCredits":       "חבילות ומאסטרים",
   "nav.login":            "התחברות",
   "nav.signup":           "הרשמה",
   "nav.logout":           "התנתקות",
-  "nav.mobile.buy":       "חבילות וקניה",
+  "nav.mobile.buy":       "חבילות ומאסטרים",
+
+  // Welcome notification (bell) — dropped once after signup. Editable here.
+  "notif.welcome.title":  "ברוך הבא למאסטר וידאו!",
+  "notif.welcome.body":   "לכל שאלה או רעיון אנחנו זמינים עבורך ❤️ עריכה נעימה!",
   "header.tooltip.home":   "לדף הבית",
   "header.tooltip.balance":"היתרה — ללחיצה לקניית חבילה",
   "header.tooltip.menu":   "התפריט שלך",
