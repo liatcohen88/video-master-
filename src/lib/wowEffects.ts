@@ -65,6 +65,10 @@ export type BeatDrop = {
    *  to look up the rendered subtitle word in the DOM so the sparkles
    *  emit FROM the actual word, not from a fixed lower-third point. */
   word?: string;
+  /** True when this drop came from a user's manual "WOW" tag (not word
+   *  detection). Manual drops render particles + shake + zoom even when the
+   *  global power toggles are off. */
+  manual?: boolean;
 };
 
 const RAMP_IN  = 0.06;  // very fast ramp up — sells the punch
@@ -109,6 +113,22 @@ export function detectBeatDrops(
   }
 
   return drops.sort((a, b) => a.t - b.t);
+}
+
+/** Manual beat-drops — one per subtitle the user tagged with `forceWow` in
+ *  the picker's "WOW" tab. Fires the full power effect (particles + shake +
+ *  zoom) at the subtitle start regardless of detected power-words or the
+ *  global toggles. A touch stronger than auto (0.04) so the manual punch reads. */
+export function manualBeatDrops(subtitles: Subtitle[], intensity = 0.04): BeatDrop[] {
+  return subtitles
+    .filter((s) => s.forceWow)
+    .map((s) => ({
+      t: s.start,
+      intensity,
+      duration: RAMP_IN + 0.03 + RAMP_OUT,
+      word: undefined,
+      manual: true,
+    }));
 }
 
 /**

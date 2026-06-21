@@ -248,6 +248,10 @@ export default function SubtitleEditor({
   const addManualElement = (subId: string, el: PickedElement) => {
     const sub = subtitles.find((s) => s.id === subId);
     if (!sub) return;
+    // Drama / WOW aren't positioned overlays — they're per-subtitle effect
+    // flags. Set them straight on the subtitle (removed via the chip's ✕).
+    if (el.kind === "drama") { update(subId, { forceDrama: true }); toast.success("🎬 דרמה נוספה לכתובית"); return; }
+    if (el.kind === "wow")   { update(subId, { forceWow: true });   toast.success("✨ WOW נוסף לכתובית"); return; }
     const current = sub.manualEmojis ?? [];
     const next =
       el.kind === "emoji"
@@ -635,6 +639,32 @@ export default function SubtitleEditor({
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Manual drama / WOW effect tags (from the picker's דרמה/WOW
+                  tabs). Removable. These fire the effect on this line in BOTH
+                  preview + export regardless of word detection. */}
+              {(sub.forceDrama || sub.forceWow) && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {sub.forceDrama && (
+                    <span className="flex items-center gap-1 rounded-md text-[11px] border bg-white/10 border-white/25 px-1.5 py-1 text-white/85">
+                      🎬 דרמה
+                      <button onClick={() => update(sub.id, { forceDrama: false })}
+                        className="text-white/50 hover:text-red-300" title={c.removeBtn}>
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {sub.forceWow && (
+                    <span className="flex items-center gap-1 rounded-md text-[11px] border bg-fuchsia-500/15 border-fuchsia-400/30 px-1.5 py-1 text-fuchsia-200">
+                      ✨ WOW
+                      <button onClick={() => update(sub.id, { forceWow: false })}
+                        className="text-fuchsia-200/60 hover:text-red-300" title={c.removeBtn}>
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
                 </div>
               )}
 

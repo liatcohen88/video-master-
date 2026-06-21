@@ -7,9 +7,9 @@ import { fontClassFor } from "@/lib/fonts";
 import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
 import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
-import { detectBeatDrops, beatDropZoomAt } from "@/lib/wowEffects";
+import { detectBeatDrops, beatDropZoomAt, manualBeatDrops } from "@/lib/wowEffects";
 import { colorFilterCss } from "@/lib/colorFilters";
-import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt } from "@/lib/dramaEffects";
+import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt, manualDramaMoments } from "@/lib/dramaEffects";
 import { introFrameAt } from "@/lib/introAnimations";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "@/lib/sfxLibrary";
 import { playSfxCapped } from "@/lib/playSfxCapped";
@@ -318,17 +318,25 @@ export default function VideoPreview({
   const smartFramingOrigin = "center center";
 
   // --- Beat-Drop Zoom (wow) — detected once per subtitle change ---------
+  // Auto drops gated on the toggle; manual "WOW" tags always contribute.
   const beatDrops = useMemo(
-    () => effects?.beatDropZoom ? detectBeatDrops(subtitles) : [],
+    () => [
+      ...(effects?.beatDropZoom ? detectBeatDrops(subtitles) : []),
+      ...manualBeatDrops(subtitles),
+    ],
     [effects?.beatDropZoom, subtitles],
   );
 
-  // --- Drama Mode — B&W flash + sting on "אני לא מאמין" lines ----------
+  // --- Drama Mode — B&W flash on "אני לא מאמין" lines (+ manual tags) ----
+  // Auto moments gated on dramaMode; manual "דרמה" tags always fire.
   const dramaMoments = useMemo(
-    () => effects?.dramaMode ? detectDramaMoments(subtitles) : [],
+    () => [
+      ...(effects?.dramaMode ? detectDramaMoments(subtitles) : []),
+      ...manualDramaMoments(subtitles),
+    ],
     [effects?.dramaMode, subtitles],
   );
-  const activeDrama = effects?.dramaMode ? dramaActiveAt(currentTime, dramaMoments) : null;
+  const activeDrama = dramaActiveAt(currentTime, dramaMoments);
 
   // --- WOW words — warm saturation pop on "מטורף / וואו / מדהים" ---------
   // Same trigger model as drama, very different vibe. Liat 2026-06-16: "מה

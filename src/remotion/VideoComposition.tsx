@@ -25,10 +25,10 @@ import { Lottie } from "@remotion/lottie";
 import { LOTTIE_ICONS } from "../lib/lottieRegistry";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "../lib/types";
 import { ASPECT_RATIO_INFO } from "../lib/types";
-import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt } from "../lib/dramaEffects";
+import { detectDramaMoments, dramaActiveAt, detectWowMoments, wowActiveAt, manualDramaMoments } from "../lib/dramaEffects";
 import { colorFilterCss } from "../lib/colorFilters";
 import { detectElements, type ElementEvent } from "../lib/keywordElements";
-import { detectBeatDrops, beatDropZoomAt } from "../lib/wowEffects";
+import { detectBeatDrops, beatDropZoomAt, manualBeatDrops } from "../lib/wowEffects";
 import { introFrameAt } from "../lib/introAnimations";
 import { detectBrands, brandLogoCdnUrl, getBrandById, type BrandLogo } from "../lib/brandLogos";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
@@ -311,11 +311,16 @@ export function VideoComposition({
   // Beat drops are shared between zoom pulse, particle burst, and shake —
   // detect once when any of them is on.
   const wantsDrops = !!(effects?.beatDropZoom || effects?.particleBurst || effects?.punchShake);
-  const beatDrops = wantsDrops ? detectBeatDrops(subtitles) : [];
+  // Auto drops gated on the toggles; manual "WOW" tags always fire the full
+  // effect (zoom + shake + particles) regardless — matches the live preview.
+  const beatDrops = [
+    ...(wantsDrops ? detectBeatDrops(subtitles) : []),
+    ...manualBeatDrops(subtitles),
+  ];
   const activeDrop = beatDrops.find((d) => t >= d.t && t < d.t + 0.7);
   // Tiny screen-shake when a drop is active. Frame-driven: damped sine over
   // 220ms so the wiggle decays even if multiple drops chain together.
-  const shakeT = (activeDrop && effects?.punchShake) ? t - activeDrop.t : -1;
+  const shakeT = (activeDrop && (effects?.punchShake || activeDrop.manual)) ? t - activeDrop.t : -1;
   const shakeX = shakeT >= 0 && shakeT < 0.22
     ? Math.sin(shakeT * 80) * 2 * (1 - shakeT / 0.22)
     : 0;
@@ -354,9 +359,12 @@ export function VideoComposition({
 
   // Same drama/wow detection the live preview uses — re-running it here is
   // cheap (just regex over subtitle text) and guarantees identical hits.
-  const dramaMoments = effects?.dramaMode ? detectDramaMoments(subtitles) : [];
+  const dramaMoments = [
+    ...(effects?.dramaMode ? detectDramaMoments(subtitles) : []),
+    ...manualDramaMoments(subtitles),
+  ];
   const wowMoments   = effects?.dramaMode ? detectWowMoments(subtitles)   : [];
-  const activeDrama  = effects?.dramaMode ? dramaActiveAt(t, dramaMoments) : null;
+  const activeDrama  = dramaActiveAt(t, dramaMoments);
   const activeWow    = effects?.dramaMode ? wowActiveAt(t, wowMoments)     : null;
 
   // Filter chain mirrors VideoPreview line-for-line. Drama beats wow beats
@@ -473,7 +481,7 @@ export function VideoComposition({
           band when a beat drop is active. Frame-driven (no CSS keyframes
           needed) so it works identically in Studio preview and headless
           Chromium export. Mirrors WowOverlay.Burst from VideoPreview. */}
-      {effects?.particleBurst && activeDrop && (() => {
+      {(effects?.particleBurst || activeDrop?.manual) && activeDrop && (() => {
         const local = t - activeDrop.t;
         const phase = Math.min(1, local / 0.62);
         const N = 10;

@@ -133,6 +133,19 @@ export function dramaActiveAt(t: number, moments: DramaMoment[]): DramaMoment | 
   return null;
 }
 
+/** Manual drama beats — one per subtitle the user tagged with `forceDrama`
+ *  in the picker's "דרמה" tab. Fires regardless of word detection or the
+ *  global dramaMode toggle. Lasts the subtitle (clamped 0.8–1.5s). */
+export function manualDramaMoments(subtitles: Subtitle[]): DramaMoment[] {
+  return subtitles
+    .filter((s) => s.forceDrama)
+    .map((s) => ({
+      t: s.start,
+      duration: Math.min(1.5, Math.max(0.8, s.end - s.start)),
+      word: "[ידני]",
+    }));
+}
+
 // ── WOW words ───────────────────────────────────────────────────────────
 // Same engine as drama, separate list + lighter visual. Triggers a brief
 // warm color pop + soft zoom pulse (rendered in VideoPreview) instead of

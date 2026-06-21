@@ -354,6 +354,11 @@ export type Subtitle = {
   /** Sound effect to play at this subtitle's start — without needing an
    *  emoji or Lottie attached. "none" mutes, undefined = no SFX. */
   sfxId?: string;
+  /** Manual effect triggers — set from the picker's דרמה / WOW tabs. Fire the
+   *  effect on THIS subtitle regardless of word-detection or the global
+   *  dramaMode / power toggles. Render identically in preview + export. */
+  forceDrama?: boolean; // B&W dramatic flash on this line
+  forceWow?: boolean;   // particle burst + punch-shake + beat-drop zoom
   /** Manually-added emojis attached to this subtitle by the user */
   manualEmojis?: Array<{
     /** Emoji character (for emoji-type) OR empty for lottie-type */

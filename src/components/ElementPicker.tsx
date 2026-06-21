@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, Smile, Tag } from "lucide-react";
+import { Search, Smile, Tag, Clapperboard, Sparkles } from "lucide-react";
 import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
 import { EMOJI_CATEGORIES } from "@/lib/emojiData";
 import { emojiMatches } from "@/lib/emojiKeywords";
@@ -17,7 +17,9 @@ import { resolveBrandLogos, brandLogoCdnUrl, type BrandLogo } from "@/lib/brandL
 export type PickedElement =
   | { kind: "emoji"; emoji: string }
   | { kind: "lottie"; iconId: string; color?: string }
-  | { kind: "brand"; brandId: string; color?: string };
+  | { kind: "brand"; brandId: string; color?: string }
+  | { kind: "drama" }
+  | { kind: "wow" };
 
 type Props = {
   open: boolean;
@@ -26,7 +28,7 @@ type Props = {
   anchorRect?: DOMRect | null;
 };
 
-type Tab = "emoji" | "brand";
+type Tab = "emoji" | "brand" | "drama" | "wow";
 
 // Hebrew query → brand match. Reuses the brand's own detection patterns so
 // typing "אינסטגרם" / "טסלה" finds Instagram / Tesla, plus name/slug match.
@@ -89,36 +91,39 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
       className="bg-bg-card border border-white/15 rounded-2xl shadow-2xl shadow-black/60 w-[340px] max-h-[460px] flex flex-col"
       dir="rtl"
     >
-      {/* Tabs — אמוג'ים | לוגו מותגים */}
-      <div className="flex gap-1 p-2 border-b border-white/10">
-        <button
-          onClick={() => setTab("emoji")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors
-            ${tab === "emoji" ? "bg-brand/25 text-white ring-1 ring-brand/40" : "text-white/60 hover:bg-white/5"}`}
-        >
-          <Smile className="w-3.5 h-3.5" /> אמוג&apos;ים
-        </button>
-        <button
-          onClick={() => setTab("brand")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors
-            ${tab === "brand" ? "bg-brand/25 text-white ring-1 ring-brand/40" : "text-white/60 hover:bg-white/5"}`}
-        >
-          <Tag className="w-3.5 h-3.5" /> לוגו מותגים
-        </button>
+      {/* Tabs — אמוג'ים | מותגים | דרמה | WOW */}
+      <div className="flex gap-0.5 p-1.5 border-b border-white/10">
+        {([
+          { id: "emoji", label: "אמוג׳ים", Icon: Smile },
+          { id: "brand", label: "מותגים", Icon: Tag },
+          { id: "drama", label: "דרמה", Icon: Clapperboard },
+          { id: "wow",   label: "WOW",   Icon: Sparkles },
+        ] as const).map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-[10px] font-medium transition-colors
+              ${tab === id ? "bg-brand/25 text-white ring-1 ring-brand/40" : "text-white/60 hover:bg-white/5"}`}
+          >
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
       </div>
 
-      {/* Search */}
-      <div className="relative px-3 pt-2.5">
-        <Search className="w-3.5 h-3.5 absolute right-5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={tab === "emoji" ? "חיפוש אמוג'י (רכב, כלב, אהבה…)" : "חיפוש מותג (אינסטגרם, טסלה…)"}
-          className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
-          dir="rtl"
-          autoFocus
-        />
-      </div>
+      {/* Search — only on the grid tabs (emoji / brand) */}
+      {(tab === "emoji" || tab === "brand") && (
+        <div className="relative px-3 pt-2.5">
+          <Search className="w-3.5 h-3.5 absolute right-5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={tab === "emoji" ? "חיפוש אמוג'י (רכב, כלב, אהבה…)" : "חיפוש מותג (אינסטגרם, טסלה…)"}
+            className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
+            dir="rtl"
+            autoFocus
+          />
+        </div>
+      )}
 
       <div className="overflow-y-auto p-3 flex-1">
         {tab === "emoji" && (
@@ -178,6 +183,44 @@ export default function ElementPicker({ open, onSelect, onClose, anchorRect }: P
               ))}
             </div>
           </>
+        )}
+
+        {tab === "drama" && (
+          <div className="flex flex-col items-center text-center px-4 py-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-200 to-zinc-500 flex items-center justify-center mb-3 shadow-lg">
+              <Clapperboard className="w-8 h-8 text-zinc-900" />
+            </div>
+            <div className="text-sm font-bold text-white mb-1.5">דרמה — הבזק שחור-לבן</div>
+            <p className="text-xs text-white/50 leading-relaxed mb-4">
+              הכתובית הזו תהבהב לשחור-לבן דרמטי לרגע, בדיוק כמו ברילסים.
+              מושלם לרגעי הפתעה / הלם (&quot;אין מצב&quot;, &quot;אני לא מאמין&quot;).
+            </p>
+            <button
+              onClick={() => { onSelect({ kind: "drama" }); onClose(); }}
+              className="w-full bg-white text-zinc-900 font-bold text-sm py-2.5 rounded-xl hover:bg-white/90 transition-colors"
+            >
+              הוספת דרמה לכתובית
+            </button>
+          </div>
+        )}
+
+        {tab === "wow" && (
+          <div className="flex flex-col items-center text-center px-4 py-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-amber-400 flex items-center justify-center mb-3 shadow-lg shadow-fuchsia-500/30">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <div className="text-sm font-bold text-white mb-1.5">WOW — פעימה אנרגטית</div>
+            <p className="text-xs text-white/50 leading-relaxed mb-4">
+              פיצוץ חלקיקים + רעידה קלה + זום פנימה על הכתובית. נותן פאנץ&apos;
+              ויראלי לרגעי שיא (&quot;מטורף&quot;, &quot;וואו&quot;, &quot;חייבים&quot;).
+            </p>
+            <button
+              onClick={() => { onSelect({ kind: "wow" }); onClose(); }}
+              className="w-full bg-gradient-to-r from-fuchsia-500 to-amber-400 text-white font-bold text-sm py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              הוספת WOW לכתובית
+            </button>
+          </div>
         )}
       </div>
     </div>

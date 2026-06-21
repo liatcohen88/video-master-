@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useEffect, useState } from "react";
 import type { Subtitle } from "@/lib/types";
-import { detectBeatDrops, type BeatDrop } from "@/lib/wowEffects";
+import { detectBeatDrops, manualBeatDrops, type BeatDrop } from "@/lib/wowEffects";
 
 /**
  * WowOverlay — pure CSS particle bursts on power-words. Sits ABOVE the
@@ -24,9 +24,16 @@ export default function WowOverlay({
   /** Micro screen-shake at the same beat-drops. Independent toggle. */
   shake?: boolean;
 }) {
+  // Auto drops fire only when the global power toggles are on. Manual WOW
+  // tags (forceWow per subtitle) ALWAYS fire — particles + shake — even when
+  // those toggles are off, because the user explicitly asked for them.
+  const forcedDrops = useMemo(() => manualBeatDrops(subtitles), [subtitles]);
   const drops = useMemo(
-    () => (enabled || shake) ? detectBeatDrops(subtitles) : [],
-    [enabled, shake, subtitles],
+    () => [
+      ...((enabled || shake) ? detectBeatDrops(subtitles) : []),
+      ...forcedDrops,
+    ],
+    [enabled, shake, subtitles, forcedDrops],
   );
 
   // Which drop is "active" right now? A drop is considered firing for ~0.7s
@@ -36,10 +43,16 @@ export default function WowOverlay({
     [drops, currentTime],
   );
 
+  // Particles render when the global particle toggle is on OR this is a
+  // manual WOW; shake the same with its own toggle. So a manual tag shows
+  // the full effect on its own.
+  const showBurst = !!active && (enabled || !!active.manual);
+  const showShake = !!active && (shake || !!active.manual);
+
   // Trigger a fresh DOM animation each time a NEW drop becomes active.
   // We do this by keying the particles container on the drop's timestamp,
   // forcing React to remount → CSS animation re-runs.
-  const burstKey = active ? active.t : null;
+  const burstKey = showBurst ? active!.t : null;
 
   // Apply a tiny CSS shake to the OUTER preview frame when a drop is active.
   // We do that by setting a data attribute on the document so the existing
@@ -48,12 +61,12 @@ export default function WowOverlay({
   useEffect(() => {
     const el = shakeRef.current;
     if (!el) return;
-    if (shake && active) el.classList.add("wow-shake");
+    if (showShake) el.classList.add("wow-shake");
     const id = window.setTimeout(() => el?.classList.remove("wow-shake"), 250);
     return () => window.clearTimeout(id);
-  }, [shake, active]);
+  }, [showShake]);
 
-  if (!enabled && !shake) return null;
+  if (!enabled && !shake && forcedDrops.length === 0) return null;
 
   return (
     <div
@@ -61,7 +74,7 @@ export default function WowOverlay({
       className="pointer-events-none absolute inset-0 z-[8] overflow-visible"
       aria-hidden
     >
-      {enabled && burstKey !== null && (
+      {burstKey !== null && (
         <Burst key={burstKey} drop={active!} containerRef={shakeRef} />
       )}
 
