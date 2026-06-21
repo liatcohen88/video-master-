@@ -5,7 +5,7 @@ import {
   Sparkles, AlertTriangle, Shield, RefreshCw,
   Subtitles, Wand2, Mic, Layers, ArrowRight,
 } from "lucide-react";
-import { getCredits } from "@/lib/credits";
+import { getCredits, ADVANCED_EFFECTS_CAP } from "@/lib/credits";
 import { getProfile } from "@/lib/userStore";
 import { useAuth } from "@/lib/useAuth";
 import { useContent } from "@/lib/useContent";
@@ -163,10 +163,10 @@ export default function CreditsPage() {
           </div>
           <div className={`grid grid-cols-2 gap-4 ${multiEnabled ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             {[
-              { icon: Subtitles, name: modeSubName, cost: costSubtitles, desc: modeSubDesc, iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
-              { icon: Mic,       name: modePodName, cost: costPodcast,   desc: modePodDesc, iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
-              { icon: Sparkles,  name: modeAdvName, cost: costAdvanced,  desc: modeAdvDesc, iconColor: "text-fuchsia-200",iconBg: "bg-fuchsia-500/30", grad: "from-fuchsia-500/25 to-pink-700/5",    border: "border-fuchsia-400/30", num: "text-fuchsia-200" },
-              ...(multiEnabled ? [{ icon: Layers, name: modeMulName, cost: costMulti, desc: modeMulDesc, iconColor: "text-amber-200", iconBg: "bg-amber-500/30", grad: "from-amber-400/20 to-orange-700/5", border: "border-amber-400/30", num: "text-amber-200" }] : []),
+              { icon: Subtitles, name: modeSubName, cost: costSubtitles, costMax: undefined as number | undefined, desc: modeSubDesc, iconColor: "text-violet-200", iconBg: "bg-violet-500/30",  grad: "from-violet-500/20 to-violet-700/5",   border: "border-violet-400/30",  num: "text-violet-200" },
+              { icon: Mic,       name: modePodName, cost: costPodcast,   costMax: undefined as number | undefined, desc: modePodDesc, iconColor: "text-emerald-200",iconBg: "bg-emerald-500/30", grad: "from-emerald-500/20 to-teal-700/5",    border: "border-emerald-400/30", num: "text-emerald-200" },
+              { icon: Sparkles,  name: modeAdvName, cost: costAdvanced,  costMax: ADVANCED_EFFECTS_CAP as number | undefined, desc: modeAdvDesc, iconColor: "text-fuchsia-200",iconBg: "bg-fuchsia-500/30", grad: "from-fuchsia-500/25 to-pink-700/5",    border: "border-fuchsia-400/30", num: "text-fuchsia-200" },
+              ...(multiEnabled ? [{ icon: Layers, name: modeMulName, cost: costMulti, costMax: undefined as number | undefined, desc: modeMulDesc, iconColor: "text-amber-200", iconBg: "bg-amber-500/30", grad: "from-amber-400/20 to-orange-700/5", border: "border-amber-400/30", num: "text-amber-200" }] : []),
             ].map((m) => (
               <div key={m.name}
                 className={`group relative overflow-hidden rounded-2xl border ${m.border} bg-bg-card p-6 text-center transition-all hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/40 h-full flex flex-col items-center`}>
@@ -180,10 +180,12 @@ export default function CreditsPage() {
                 {/* Hero credit number — matches package-card hierarchy: big credits */}
                 <div className="relative w-full pt-4 border-t border-white/10">
                   <div className="flex items-baseline justify-center gap-1.5">
-                    <span className={`text-4xl font-black tracking-tight ${m.num}`}>{m.cost}</span>
+                    <span className={`text-4xl font-black tracking-tight ${m.num}`}>
+                      {m.costMax ? `${m.cost}-${m.costMax}` : m.cost}
+                    </span>
                     <span className="text-[11px] text-white/50 font-bold">{currency}</span>
                   </div>
-                  <div className="text-[10px] text-white/30 mt-1">לסרטון</div>
+                  <div className="text-[10px] text-white/30 mt-1">{m.costMax ? "לפי אפקטים" : "לסרטון"}</div>
                 </div>
               </div>
             ))}
