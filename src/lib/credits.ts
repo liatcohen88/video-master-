@@ -24,9 +24,9 @@ export const CREDIT_PACKAGES: ReadonlyArray<{
   payUrl?: string;
 }> = [
   { id: "mini",     credits: 25,  priceIls: 10,  label: "התחלה",   payUrl: "https://pay.grow.link/NDMzNTA~a85f87a80f781ac09fb2bac7f7ef655f-MzU2MjI3OQ" },
-  { id: "starter",  credits: 50,  priceIls: 25,  label: "פופולרי", highlight: "הכי נמכר" },
-  { id: "pro",      credits: 100, priceIls: 50,  label: "פרו" },
-  { id: "business", credits: 200, priceIls: 100, label: "ביזנס",   highlight: "הכי משתלם" },
+  { id: "starter",  credits: 50,  priceIls: 25,  label: "פופולרי", highlight: "הכי נמכר",  payUrl: "https://pay.grow.link/NDMzNTA~58bbbdbdfe504b761313d10f4e1a76ee-MzU4MzMxMQ" },
+  { id: "pro",      credits: 100, priceIls: 50,  label: "פרו",                            payUrl: "https://pay.grow.link/NDMzNTA~a20825dc617477fd3e758f97c76bda12-MzU4MzM0Ng" },
+  { id: "business", credits: 200, priceIls: 100, label: "ביזנס",   highlight: "הכי משתלם", payUrl: "https://pay.grow.link/NDMzNTA~80015bb5753fa7b97f67cd7724559821-MzU4MzM1OA" },
 ];
 
 /** Base price per mode. For `advanced_effects` this is the starting price —
