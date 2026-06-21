@@ -169,16 +169,21 @@ export default function CreditsPage() {
               ...(multiEnabled ? [{ icon: Layers, name: modeMulName, cost: costMulti, desc: modeMulDesc, iconColor: "text-amber-200", iconBg: "bg-amber-500/30", grad: "from-amber-400/20 to-orange-700/5", border: "border-amber-400/30", num: "text-amber-200" }] : []),
             ].map((m) => (
               <div key={m.name}
-                className={`bg-gradient-to-br ${m.grad} border ${m.border} hover:brightness-110 rounded-2xl p-5 text-center transition-all hover:-translate-y-1 hover:shadow-xl group h-full flex flex-col`}>
-                <div className={`inline-flex p-2.5 rounded-xl ${m.iconBg} ${m.iconColor} mx-auto mb-3`}>
-                  <m.icon className="w-5 h-5" />
+                className={`group relative overflow-hidden rounded-2xl border ${m.border} bg-bg-card p-6 text-center transition-all hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/40 h-full flex flex-col items-center`}>
+                {/* Soft accent glow — premium look matching the package cards */}
+                <div className={`pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-44 h-44 rounded-full bg-gradient-to-br ${m.grad} blur-3xl opacity-70 group-hover:opacity-100 transition-opacity`} />
+                <div className={`relative inline-flex p-3.5 rounded-2xl ${m.iconBg} ${m.iconColor} mb-4 ring-1 ring-white/10 shadow-lg`}>
+                  <m.icon className="w-6 h-6" />
                 </div>
-                <div className="text-sm font-bold mb-1">{m.name}</div>
-                <div className="text-[10px] text-white/50 mb-4 leading-tight flex-1">{m.desc}</div>
+                <div className="relative text-base font-black mb-1.5">{m.name}</div>
+                <div className="relative text-[11px] text-white/45 leading-snug mb-5 flex-1">{m.desc}</div>
                 {/* Hero credit number — matches package-card hierarchy: big credits */}
-                <div className="flex items-baseline justify-center gap-1.5 pt-3 border-t border-white/10">
-                  <span className={`text-4xl font-black tracking-tight ${m.num}`}>{m.cost}</span>
-                  <span className="text-[11px] text-white/50 font-bold">{currency}</span>
+                <div className="relative w-full pt-4 border-t border-white/10">
+                  <div className="flex items-baseline justify-center gap-1.5">
+                    <span className={`text-4xl font-black tracking-tight ${m.num}`}>{m.cost}</span>
+                    <span className="text-[11px] text-white/50 font-bold">{currency}</span>
+                  </div>
+                  <div className="text-[10px] text-white/30 mt-1">לסרטון</div>
                 </div>
               </div>
             ))}
