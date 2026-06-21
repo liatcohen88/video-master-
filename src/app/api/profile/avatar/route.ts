@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
       contentType: file.type,
       upsert: true, // one avatar per user — overwrite the old one
     });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[profile/avatar] storage error:", error.message);
+    return NextResponse.json({ error: "העלאת התמונה נכשלה. אפשר לנסות שוב." }, { status: 500 });
+  }
 
   // Cache-bust so the new image shows immediately (same path on re-upload).
   const url = `${uploadsPublicUrl(admin, path)}?v=${Date.now()}`;

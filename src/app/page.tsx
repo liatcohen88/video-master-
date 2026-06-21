@@ -755,18 +755,18 @@ export default function HomePage() {
   // gesture). Uses the pre-fetched blob so share() fires immediately.
   async function saveExportNow(jobId: string, filename: string) {
     if (!exportBlobRef.current) await fetchExportBlob(jobId);
-    if (!exportBlobRef.current) { toast.error("ההורדה נכשלה — נסי שוב"); return; }
+    if (!exportBlobRef.current) { toast.error("ההורדה נכשלה — אפשר לנסות שוב"); return; }
     const shared = await deliverExportFile(exportBlobRef.current, filename);
     setExportSavedVia(shared ? "share" : "download");
     setDownloadSuccess(filename);
-    toast.success(shared ? "✓ בחרי 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
+    toast.success(shared ? "✓ יש לבחור 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד לתיקיית ההורדות");
     setTimeout(() => setDownloadSuccess(null), 12000);
   }
 
   async function pollExportStatus(jobId: string, filename: string) {
     try {
       const res = await fetch(`/api/render-status/${jobId}`, { headers: await exportAuthHeader() });
-      if (res.status === 404) { clearExportJob(); toast.error("הייצוא לא נמצא — נסי שוב"); return; }
+      if (res.status === 404) { clearExportJob(); toast.error("הייצוא לא נמצא — אפשר לנסות שוב"); return; }
       if (!res.ok) return; // transient — keep polling
       const { status } = await res.json();
       if (status === "done") {
@@ -778,7 +778,7 @@ export default function HomePage() {
         if (canShareVideoFiles()) {
           // MOBILE: don't auto-deliver — the "Save to gallery" share-sheet only
           // works from a user TAP. Prompt the user to tap the badge button.
-          toast.success("🎉 הסרטון מוכן! לחצי 'שמור לגלריה' לשמירה ישירה בטלפון");
+          toast.success("🎉 הסרטון מוכן! יש ללחוץ 'שמור לגלריה' לשמירה ישירה בטלפון");
         } else {
           // DESKTOP: just download it (goes to the Downloads folder, expected).
           if (exportBlobRef.current) await deliverExportFile(exportBlobRef.current, filename);
@@ -1547,7 +1547,7 @@ export default function HomePage() {
                         to the Downloads / Files folder. */}
                     {exportSavedVia === "share" ? (
                       <p className="text-sm text-white/70 mb-5 leading-relaxed">
-                        בחלון השיתוף שנפתח, בחרי <strong className="text-emerald-300">&quot;שמור וידאו&quot; / &quot;שמירה בתמונות&quot;</strong> — והסרטון יישמר ל<strong className="text-emerald-300">גלריה</strong> 📱
+                        בחלון השיתוף שנפתח, יש לבחור <strong className="text-emerald-300">&quot;שמור וידאו&quot; / &quot;שמירה בתמונות&quot;</strong> — והסרטון יישמר ל<strong className="text-emerald-300">גלריה</strong> 📱
                         <br />
                         <span className="text-xs text-white/50">אם סגרת את החלון — הסרטון באפליקציית &quot;קבצים&quot; / ההורדות.</span>
                       </p>

@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   const model = (formData.get("model") as string) || "small";
 
   if (!file) {
-    return NextResponse.json({ error: "No video file" }, { status: 400 });
+    return NextResponse.json({ error: "לא נמצא קובץ וידאו" }, { status: 400 });
   }
 
   // Preferred path: OpenAI Whisper API. Costs ~$0.006/minute, no infra to run.
@@ -66,7 +66,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ error: msg }, { status: 500 });
+      console.error("[transcribe] OpenAI error:", msg);
+      // Pass through our own Hebrew messages (e.g. the 25MB notice); hide raw
+      // English/SDK errors behind a friendly generic line.
+      const userMsg = /[֐-׿]/.test(msg)
+        ? msg
+        : "התמלול נכשל. אפשר לנסות שוב או עם סרטון אחר.";
+      return NextResponse.json({ error: userMsg }, { status: 500 });
     }
   }
 
@@ -112,7 +118,7 @@ async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
   if (upload.size > OPENAI_MAX_BYTES) {
     throw new Error(
       `הקובץ גדול מדי (${(upload.size / 1024 / 1024).toFixed(1)} MB). ` +
-      "OpenAI Whisper מוגבל ל-25 MB. נסי סרטון קצר יותר.",
+      "התמלול מוגבל ל-25 MB. אפשר לנסות סרטון קצר יותר.",
     );
   }
 
@@ -264,7 +270,9 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
     );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[transcribe] error:", msg);
+    const userMsg = /[֐-׿]/.test(msg) ? msg : "התמלול נכשל. אפשר לנסות שוב.";
+    return NextResponse.json({ error: userMsg }, { status: 500 });
   } finally {
     await unlink(tempPath).catch(() => {});
   }

@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
       contentType: file.type || "audio/mpeg",
       upsert: false,
     });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[sfx/upload] storage error:", error.message);
+    return NextResponse.json({ error: "העלאת הצליל נכשלה. אפשר לנסות שוב." }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,

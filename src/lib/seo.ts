@@ -9,7 +9,7 @@
 import type { Metadata } from "next";
 
 export const SITE = {
-  url:        "https://video-master.vercel.app", // override after deploy with NEXT_PUBLIC_SITE_URL
+  url:        "https://master-video.co.il", // override with NEXT_PUBLIC_SITE_URL if needed
   name:       "Master Video — מאסטר וידאו",
   tagline:    "עריכת וידאו חכמה מבוססת AI · פיתוח ישראלי",
   description:
@@ -57,13 +57,13 @@ export function pageMetadata(opts: {
       title: fullTitle,
       description: desc,
       locale: SITE.locale,
-      images: [{ url: `${url}${SITE.ogImagePath}`, width: 1200, height: 630, alt: SITE.name }],
+      // OG image comes from src/app/opengraph-image.tsx (generated 1200×630
+      // card) via Next's file convention — no static /og-image.png needed.
     },
     twitter: {
       card: "summary_large_image",
       title: fullTitle,
       description: desc,
-      images: [`${url}${SITE.ogImagePath}`],
     },
     formatDetection: { telephone: false, email: false, address: false },
     // No explicit icons override — Next.js auto-discovers src/app/icon.png
@@ -92,14 +92,9 @@ export function softwareJsonLd() {
       priceCurrency: "ILS",
       description: "25 קרדיט מתנה למשתמש חדש",
     },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "127",
-    },
     featureList: [
       "תמלול עברית אוטומטי",
-      "23 אנימציות Lottie וקטוריות",
+      "אמוג'ים, לוגו מותגים ואפקטים ויראליים",
       "65 SFX מקצועיים",
       "מולטי-וידאו AI editor",
       "ייצוא MP4 או SRT לפרמייר",

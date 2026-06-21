@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
-  if (!file) return NextResponse.json({ error: "Missing video" }, { status: 400 });
+  if (!file) return NextResponse.json({ error: "לא נמצא קובץ וידאו" }, { status: 400 });
   if (file.size > MAX_VIDEO_BYTES) {
     return NextResponse.json({ error: "קובץ גדול מדי (מקס׳ 200MB)" }, { status: 413 });
   }
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   const styleJson = formData.get("style") as string | null;
   const effectsJson = formData.get("effects") as string | null;
   if (!subtitlesJson || !styleJson) {
-    return NextResponse.json({ error: "Missing subtitles/style" }, { status: 400 });
+    return NextResponse.json({ error: "חסרים נתוני כתוביות/עיצוב" }, { status: 400 });
   }
 
   let subtitles: Subtitle[];
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     style = JSON.parse(styleJson);
     effects = effectsJson ? JSON.parse(effectsJson) : DEFAULT_EFFECTS;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
   }
 
   const mode = (formData.get("mode") as EditMode) || "subtitles_only";
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       console.error("[render-remotion] job failed", job.id, err);
       // Refund credits so a server-side failure doesn't cost the user.
       await refundCredits(user.id, cost.total).catch(() => {});
-      await updateJob(job.id, { status: "failed", error: "render failed" });
+      await updateJob(job.id, { status: "failed", error: "הייצוא נכשל" });
     }
   });
   runningJobs.add(task);
