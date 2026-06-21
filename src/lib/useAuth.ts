@@ -62,7 +62,15 @@ export function useAuth(): AuthState & {
         .single();
 
       if (!cancelled && profile) {
-        setState({ status: "user", profile: profile as Profile });
+        // Avatar lives in auth metadata (no profiles-table column needed), so
+        // fall back to it when the row doesn't carry an avatar_url.
+        const withAvatar = {
+          ...(profile as Profile),
+          avatar_url: (profile as Profile).avatar_url
+            ?? (session.user.user_metadata?.avatar_url as string | undefined)
+            ?? null,
+        };
+        setState({ status: "user", profile: withAvatar });
       } else if (!cancelled) {
         // Session exists but profile not yet (trigger lag) — treat as user
         // with bare data so the UI doesn't flash logged-out.

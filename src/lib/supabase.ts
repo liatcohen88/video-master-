@@ -55,4 +55,7 @@ export type Profile = {
   display_name: string | null;
   credits: number;
   created_at: string;
+  /** Profile picture URL (Supabase Storage). Sourced from the profiles row
+   *  if present, else from auth user_metadata.avatar_url. */
+  avatar_url?: string | null;
 };

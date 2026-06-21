@@ -151,7 +151,8 @@ export default function DashboardPage() {
   const realEmail    = authProfile?.email ?? mockProfile.email;
   const realCredits  = authProfile?.credits ?? credits;
   const realJoinedAt = authProfile?.created_at ?? mockProfile.joinedAt;
-  const profile = { ...mockProfile, name: realName, email: realEmail, joinedAt: realJoinedAt };
+  const realAvatar   = authProfile?.avatar_url || mockProfile.avatarUrl || undefined;
+  const profile = { ...mockProfile, name: realName, email: realEmail, joinedAt: realJoinedAt, avatarUrl: realAvatar };
   const stats         = getUserStats();
   const videos        = listMyVideos();
   const notifications = listNotifications();
@@ -216,8 +217,13 @@ export default function DashboardPage() {
 
           <div className="px-5 pb-5 -mt-10 relative">
             <div className="flex items-end gap-3 mb-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-3xl font-black border-4 border-bg-card shadow-xl">
-                {profile.name.charAt(0)}
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-3xl font-black border-4 border-bg-card shadow-xl">
+                {profile.avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
+                ) : (
+                  profile.name.charAt(0)
+                )}
               </div>
               <div className="flex-1 pb-1">
                 <div className="text-2xl font-black leading-tight">{dashGreeting.replace("{{name}}", profile.name)}</div>
@@ -552,6 +558,33 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone ?? "");
   const [busy, setBusy] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? "");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  async function uploadAvatar(file: File) {
+    setAvatarBusy(true);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const sb = browserClient();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      const fd = new FormData(); fd.append("file", file);
+      const r = await fetch("/api/profile/avatar", {
+        method: "POST",
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "העלאה נכשלה");
+      setAvatarUrl(j.url);
+      updateProfile({ avatarUrl: j.url });        // instant local display
+      await sb?.auth.updateUser({ data: { avatar_url: j.url } }); // cross-device
+      onChange();
+      toast.success("התמונה עודכנה");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "העלאה נכשלה");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
   const namePh    = useContent("dashboard.profile.namePlaceholder") as string;
   const saveBtn   = useContent("dashboard.profile.saveBtn") as string;
   const cancelBtn = useContent("dashboard.profile.cancelBtn") as string;
@@ -589,6 +622,23 @@ function ProfileEditor({ profile, editing, setEditing, onChange }: {
   if (editing) {
     return (
       <div className="space-y-2 pt-3">
+        {/* Profile picture */}
+        <div className="flex items-center gap-3 pb-1">
+          <div className="w-14 h-14 rounded-xl overflow-hidden bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-xl font-black shrink-0">
+            {avatarUrl
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              : (name.charAt(0) || "🙂")}
+          </div>
+          <div>
+            <label className={`text-xs bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded-lg cursor-pointer inline-block ${avatarBusy ? "opacity-50 pointer-events-none" : ""}`}>
+              {avatarBusy ? "מעלה…" : "החלפת תמונה"}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ""; }} />
+            </label>
+            <p className="text-[10px] text-white/30 mt-1">JPG / PNG / WEBP עד 2MB</p>
+          </div>
+        </div>
         <div>
           <label className="block text-[10px] text-white/40 mb-1">{labelName}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={namePh}
