@@ -16,7 +16,7 @@ import LogoMark from "@/components/LogoMark";
 import SiteHeader from "@/components/SiteHeader";
 
 export default function CreditsPage() {
-  const [credits, setCreditsLocal] = useState(0);
+  const [localCredits, setLocalCredits] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -70,10 +70,15 @@ export default function CreditsPage() {
   // /credits read from localStorage). The auth profile is the source of
   // truth when authenticated; fall back to localStorage only for guests.
   const auth = useAuth();
+  // Server profile is the source of truth (matches the header pill). Local
+  // storage is only a guest/offline fallback — it can drift (Liat saw the
+  // header show 0 while /credits showed a stale local number).
+  const isGuest = auth.status === "guest";
+  const credits = isGuest ? 0 : (auth.profile?.credits ?? localCredits);
   useEffect(() => {
-    setCreditsLocal(getCredits());
+    setLocalCredits(getCredits());
     setHydrated(true);
-    const refresh = () => setCreditsLocal(getCredits());
+    const refresh = () => setLocalCredits(getCredits());
     window.addEventListener("credits-change", refresh);
     return () => window.removeEventListener("credits-change", refresh);
   }, []);
