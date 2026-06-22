@@ -206,6 +206,11 @@ export type VideoAnalysis = {
   recommended_aspect: AspectRatio;
   recommended_mode: EditMode;
   recommended_template: string;
+  // Color/vibe sampled from the actual footage → drives auto subtitle color +
+  // style so captions match the clip instead of looking identical every time.
+  accent_color?: string | null;   // vivid hex borrowed from the video
+  avg_brightness?: number | null;  // 0=dark, 1=bright
+  colorfulness?: number | null;    // 0=grayscale, 1=very saturated
   emphasis_moments?: number[];
 };
 

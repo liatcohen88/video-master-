@@ -18,7 +18,10 @@ Output JSON to stdout:
     "video_aspect": "horizontal",  // horizontal | vertical | square
     "recommended_aspect": "9:16",
     "recommended_mode": "podcast",
-    "recommended_template": "ali"
+    "recommended_template": "ali",
+    "accent_color": "#1FA8FF",      // vivid color borrowed from the video
+    "avg_brightness": 0.42,         // 0=dark, 1=bright
+    "colorfulness": 0.31            // 0=grayscale, 1=very saturated
   }
 """
 
@@ -35,6 +38,17 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
+
+
+def _accent_hex(hue_opencv: int) -> str:
+    """Turn an OpenCV hue (0..179) into a punchy, READABLE accent color.
+    We force high saturation + value so the highlighted word always pops
+    over the footage (the subtitle stroke handles contrast), while the HUE
+    is borrowed from the video so the color *matches* the clip."""
+    import colorsys
+    h = (hue_opencv * 2.0) / 360.0  # OpenCV hue is 0..179 → map to 0..1
+    r, g, b = colorsys.hsv_to_rgb(h, 0.85, 0.98)
+    return "#%02X%02X%02X" % (int(r * 255), int(g * 255), int(b * 255))
 
 
 def detect_emphasis_moments(video_path: str, duration_sec: float) -> list:
@@ -106,6 +120,7 @@ def detect_emphasis_moments(video_path: str, duration_sec: float) -> list:
 
 def analyze(video_path: str) -> dict:
     import cv2
+    import numpy as np
     import mediapipe as mp
 
     cap = cv2.VideoCapture(video_path)
@@ -131,6 +146,15 @@ def analyze(video_path: str) -> dict:
 
     samples = []
     sampled = 0
+    # Color stats — accumulated from the SAME sampled frames we use for face
+    # detection (free: the frame is already decoded). We build a saturation-
+    # weighted hue histogram to find the video's dominant vivid color, plus
+    # mean brightness + colorfulness. These drive the AUTO subtitle color +
+    # style so the captions match the clip instead of always looking the same.
+    hue_hist = np.zeros(180, dtype=np.float64)
+    brightness_acc = 0.0
+    sat_acc = 0.0
+    color_frames = 0
     with face_detector as det:
         idx = 0
         while idx < total_frames and sampled < sample_count:
@@ -139,6 +163,22 @@ def analyze(video_path: str) -> dict:
             if not ret:
                 break
             sampled += 1
+            # --- color sampling (downscale for speed) ---
+            try:
+                small = cv2.resize(frame, (64, 64), interpolation=cv2.INTER_AREA)
+                hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+                hh = hsv[:, :, 0].astype(np.float64)
+                ss = hsv[:, :, 1].astype(np.float64)
+                vv = hsv[:, :, 2].astype(np.float64)
+                brightness_acc += float(vv.mean()) / 255.0
+                sat_acc += float(ss.mean()) / 255.0
+                vivid = (ss > 60) & (vv > 50)  # ignore washed-out / dark pixels
+                if vivid.any():
+                    weight = (ss[vivid] / 255.0) * (vv[vivid] / 255.0)
+                    np.add.at(hue_hist, hh[vivid].astype(np.int32), weight)
+                color_frames += 1
+            except Exception:
+                pass
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = det.process(rgb)
             if results.detections:
@@ -158,6 +198,24 @@ def analyze(video_path: str) -> dict:
             idx += step
 
     cap.release()
+
+    # Resolve the dominant vivid hue → a punchy accent color for the captions.
+    accent_color = None
+    avg_brightness = None
+    colorfulness = None
+    if color_frames > 0:
+        avg_brightness = round(brightness_acc / color_frames, 4)
+        colorfulness = round(sat_acc / color_frames, 4)
+        if hue_hist.sum() > 0:
+            # Circular smoothing so a hue spread over neighboring buckets
+            # (e.g. a range of blues) wins over a single razor-thin spike.
+            kernel = [0.25, 0.5, 1.0, 0.5, 0.25]
+            smoothed = np.zeros_like(hue_hist)
+            for i, k in enumerate(kernel):
+                smoothed += np.roll(hue_hist, i - 2) * k
+            dom_hue = int(np.argmax(smoothed))
+            accent_color = _accent_hex(dom_hue)
+    log(f"Color: accent={accent_color} brightness={avg_brightness} colorfulness={colorfulness}")
 
     face_detected = len(samples) > 0
     detection_rate = len(samples) / max(sampled, 1)
@@ -218,6 +276,9 @@ def analyze(video_path: str) -> dict:
         "recommended_aspect": recommended_aspect,
         "recommended_mode": recommended_mode,
         "recommended_template": recommended_template,
+        "accent_color": accent_color,
+        "avg_brightness": avg_brightness,
+        "colorfulness": colorfulness,
         "emphasis_moments": emphasis_moments,
         "frames_sampled": sampled,
         "frames_with_face": len(samples),

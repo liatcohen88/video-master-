@@ -67,6 +67,57 @@ import {
   type ProjectSnapshot,
 } from "@/lib/projectStorage";
 
+// ── Auto subtitle STYLE + COLOR matched to the video ──────────────────────
+// Liat: "the AI always puts the same subtitle style; I need the style and
+// color to match the video itself." We pick a template by the clip's ENERGY
+// (loud emphasis peaks per 10s) + COLORFULNESS, and recolor the highlighted
+// word with the vivid ACCENT color sampled from the footage. Deterministic
+// per video (same clip → same look), but different clips look different.
+function pickAutoSubtitleStyle(
+  ana: VideoAnalysis,
+  mode: EditMode,
+): { templateId: string; style: SubtitleStyle } {
+  const dur = ana.duration_sec || 0;
+  const peaks = ana.emphasis_moments?.length ?? 0;
+  const emphDensity = dur > 0 ? peaks / (dur / 10) : 0; // loud moments per 10s
+  const colorful = ana.colorfulness ?? 0;
+
+  const energetic = emphDensity >= 2.2 || colorful >= 0.45;
+  const calm = !energetic && (ana.is_talking_head || emphDensity < 1.0);
+
+  // Candidate template per mode, split by vibe. Each pick is a genuinely
+  // different look so two clips rarely land on the same one.
+  let templateId: string;
+  switch (mode) {
+    case "subtitles_only":
+      templateId = energetic ? "ali" : "minimal"; // clean family, still varies
+      break;
+    case "podcast":
+      templateId = energetic ? "tiktok" : "ali";
+      break;
+    case "advanced_effects":
+      templateId = energetic ? "hormozi" : calm ? "tiktok" : "bold-pop";
+      break;
+    case "basic_effects":
+    default:
+      templateId = energetic ? "instagram" : calm ? "ali" : "tiktok";
+      break;
+  }
+
+  const base = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
+  const style: SubtitleStyle = { ...base.style };
+
+  // Recolor the highlighted word with the video's own accent color so the
+  // captions feel "on brand" with the clip. Main text stays light + the
+  // template's stroke keeps it readable over any footage.
+  const accent = ana.accent_color;
+  if (accent && /^#[0-9A-Fa-f]{6}$/.test(accent)) {
+    style.highlightColor = accent.toUpperCase();
+  }
+
+  return { templateId, style };
+}
+
 export default function HomePage() {
   // Credit cost per mode — pulled from CMS so admin edits take effect instantly.
   const costSubtitles = useContent("pricing.cost.subtitles_only");
@@ -715,15 +766,14 @@ export default function HomePage() {
 
     setEffects(newEffects);
 
-    // 4. Apply recommended template only when user is in a mode that allows
-    // styling beyond subtitle defaults. subtitles_only keeps its picked tpl.
-    if (userPickedMode !== "subtitles_only") {
-      const tpl = TEMPLATES.find((t) => t.id === ana.recommended_template);
-      if (tpl) {
-        setTemplateId(tpl.id);
-        setStyle(tpl.style);
-      }
-    }
+    // 4. Auto subtitle STYLE + COLOR matched to THIS video. Previously the AI
+    // re-used the same template every time (and skipped subtitles_only
+    // entirely), so every clip looked identical. Now we pick a template by the
+    // clip's energy/colorfulness and recolor the highlighted word with the
+    // accent color sampled from the footage — in every mode.
+    const auto = pickAutoSubtitleStyle(ana, userPickedMode);
+    setTemplateId(auto.templateId);
+    setStyle(auto.style);
   }
 
   // ───────────────── Background export job (poll + deliver) ─────────────────
