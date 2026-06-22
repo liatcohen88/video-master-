@@ -23,7 +23,7 @@ import { stripLottieBg } from "@/lib/lottieBgStrip";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 import {
-  listUsers, listVideos, listRevenue, updateUserCredits, setUserStatus, getStats, resetStore,
+  listUsers, listVideos, listRevenue, updateUserCredits, setUserStatus, getStats, resetStore, clearStoreEmpty,
   type AdminUser, type VideoJob, type RevenueTxn,
 } from "@/lib/adminStore";
 import {
@@ -128,9 +128,10 @@ export default function AdminPage() {
       <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex items-center gap-2 justify-center">
         <AlertTriangle className="w-3.5 h-3.5" />
         סביבת פיתוח · אין auth · נתונים ב-localStorage · מתחבר ל-Supabase אחרי המעבר ל-Lovable
-        <button onClick={() => { resetStore(); resetAllContent(); setTick((t) => t + 1); }}
-          className="ml-2 text-amber-100 hover:text-white underline flex items-center gap-1">
-          <RefreshCw className="w-3 h-3" /> איפוס דמו + תוכן
+        <button onClick={() => { clearStoreEmpty(); setTick((t) => t + 1); }}
+          className="ml-2 text-amber-100 hover:text-white underline flex items-center gap-1"
+          title="מאפס רק נתוני דמו מקומיים (סטטיסטיקות) — לא נוגע בתוכן/CMS">
+          <RefreshCw className="w-3 h-3" /> איפוס נתוני דמו
         </button>
       </div>
 
@@ -199,38 +200,64 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 function OverviewTab() {
-  const stats = getStats();
-  const recent = listVideos().slice(0, 5);
+  const demo = getStats();
+  const demoRecent = listVideos().slice(0, 5);
+  // Real numbers from Supabase (revenue_txns / profiles / user_videos). Falls
+  // back to the local demo only if the API isn't reachable/configured — so the
+  // dashboard shows what ACTUALLY came in, not the ₪325 seed.
+  const [real, setReal] = useState<{
+    totalRevenue: number; activeUsers: number; videosLast24h: number; successRate: number;
+    recent: { title: string; status: string; creditsUsed: number; mode: string; at: string }[];
+  } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/stats", { headers: await adminAuthHeaders() });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (d?.configured) setReal(d);
+      } catch { /* keep demo fallback */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const isReal = !!real;
+  const totalRevenue = real?.totalRevenue ?? demo.totalRevenue;
+  const activeUsers  = real?.activeUsers ?? demo.activeUsers;
+  const videos24h    = real?.videosLast24h ?? demo.videosLast24h;
+  const successRate  = real?.successRate ?? demo.successRate;
+
   return (
     <div className="space-y-4">
       <LiveAndSignups />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="הכנסות סה״כ"      value={`₪${stats.totalRevenue.toLocaleString()}`} hint="כל הזמנים" />
-        <StatCard label="משתמשים פעילים"   value={String(stats.activeUsers)} />
-        <StatCard label="סרטונים ב-24 שעות" value={String(stats.videosLast24h)} />
-        <StatCard label="אחוז הצלחה"        value={`${stats.successRate}%`} hint="ייצוא תקין מתוך כלל הניסיונות" />
+        <StatCard label="הכנסות סה״כ"      value={`₪${totalRevenue.toLocaleString()}`} hint={isReal ? "נתונים אמיתיים ✓" : "כל הזמנים"} />
+        <StatCard label="משתמשים פעילים"   value={String(activeUsers)} />
+        <StatCard label="סרטונים ב-24 שעות" value={String(videos24h)} />
+        <StatCard label="אחוז הצלחה"        value={`${successRate}%`} hint="ייצוא תקין מתוך כלל הניסיונות" />
       </div>
 
       {/* ── Site traffic ─────────────────────────────────────── */}
       <div className="bg-bg-card border border-white/10 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-bold">תנועת אתר · 7 ימים אחרונים</div>
-          {!stats.traffic.isReal && (
+          {!demo.traffic.isReal && (
             <span className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5">
               נתוני דמו — יתחבר לאנליטיקה אמיתית אחרי העלייה
             </span>
           )}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <StatCard label="כניסות לאתר"     value={stats.traffic.visitors7d.toLocaleString()} />
-          <StatCard label="צפיות בעמודים"   value={stats.traffic.pageViews7d.toLocaleString()} />
-          <StatCard label="הרשמות חדשות"    value={String(stats.traffic.signups7d)} />
-          <StatCard label="אחוז המרה"       value={`${stats.traffic.conversionRate}%`} hint="כניסות → משתמשים" />
+          <StatCard label="כניסות לאתר"     value={demo.traffic.visitors7d.toLocaleString()} />
+          <StatCard label="צפיות בעמודים"   value={demo.traffic.pageViews7d.toLocaleString()} />
+          <StatCard label="הרשמות חדשות"    value={String(demo.traffic.signups7d)} />
+          <StatCard label="אחוז המרה"       value={`${demo.traffic.conversionRate}%`} hint="כניסות → משתמשים" />
         </div>
         {/* mini bar chart */}
         <div className="flex items-end gap-1.5 h-16">
-          {stats.traffic.trend7d.map((v, i) => {
-            const max = Math.max(...stats.traffic.trend7d, 1);
+          {demo.traffic.trend7d.map((v, i) => {
+            const max = Math.max(...demo.traffic.trend7d, 1);
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full rounded-t bg-gradient-to-t from-brand/40 to-brand"
@@ -244,7 +271,19 @@ function OverviewTab() {
       <div className="bg-bg-card border border-white/10 rounded-xl p-4">
         <div className="text-sm font-bold mb-3">פעילות אחרונה</div>
         <ul className="space-y-2">
-          {recent.map((v) => (
+          {isReal ? (
+            real!.recent.length === 0 ? (
+              <li className="text-xs text-white/40 px-1">אין עדיין פעילות</li>
+            ) : real!.recent.map((v, i) => (
+              <li key={i} className="flex items-center gap-3 text-xs bg-bg-input rounded-md p-2">
+                <span className="w-2 h-2 rounded-full"
+                  style={{ background: v.status === "done" ? "#22C55E" : v.status === "failed" ? "#EF4444" : "#F59E0B" }} />
+                <span className="text-white/70 flex-1 truncate">{v.title}</span>
+                <span className="text-white/40">{MODE_LABELS[v.mode as VideoJob["mode"]] ?? v.mode}</span>
+                <span className="text-white/40">{v.creditsUsed} מאסטרים</span>
+              </li>
+            ))
+          ) : demoRecent.map((v) => (
             <li key={v.id} className="flex items-center gap-3 text-xs bg-bg-input rounded-md p-2">
               <span className="w-2 h-2 rounded-full"
                 style={{ background: v.status === "done" ? "#22C55E" : v.status === "failed" ? "#EF4444" : "#F59E0B" }} />
