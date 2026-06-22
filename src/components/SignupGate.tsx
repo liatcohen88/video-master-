@@ -23,6 +23,7 @@ export default function SignupGate({
   const [password, setPass]   = useState("");
   const [busy, setBusy]       = useState(false);
   const [err, setErr]         = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   const title       = useContent("signupGate.title") as string;
   const subtitle    = useContent("signupGate.subtitle") as string;
@@ -43,8 +44,26 @@ export default function SignupGate({
   const confirmEmail= useContent("signupGate.notice.confirmEmail") as string;
   const googleLabel = useContent("auth.oauth.google") as string;
   const dividerText = useContent("auth.divider") as string;
+  const forgotLabel = (useContent("auth.login.forgot") as string) || "שכחתי סיסמא?";
 
   if (!open) return null;
+
+  // Send a Hebrew password-reset email (template lives in Supabase). The link
+  // lands on /account?reset=1 where the user sets a new password.
+  async function sendReset() {
+    setErr(null);
+    if (!email) { setErr("יש להזין אימייל קודם ואז ללחוץ 'שכחתי סיסמא'."); return; }
+    if (!isSupabaseConfigured()) { setErr("מערכת ההרשמה לא מוגדרת. יש לפנות לתמיכה."); return; }
+    const sb = browserClient();
+    if (!sb) return;
+    setBusy(true);
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/account?reset=1` : undefined,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setResetSent(true);
+  }
 
   async function googleSignIn() {
     setErr(null);
@@ -232,6 +251,26 @@ export default function SignupGate({
               {termsAgree}{" "}
               <Link href="/policy" className="underline">{termsLink}</Link>
             </p>
+          )}
+
+          {/* Forgot password — login mode only. Sends a Hebrew reset email. */}
+          {mode === "login" && (
+            resetSent ? (
+              <p className="text-[12px] text-green-300 text-center pt-1">
+                ✅ נשלח אימייל לאיפוס סיסמא ל-{email}. יש לבדוק את התיבה (כולל ספאם).
+              </p>
+            ) : (
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={sendReset}
+                  disabled={busy}
+                  className="text-[12px] text-white/50 hover:text-white underline disabled:opacity-50"
+                >
+                  {forgotLabel}
+                </button>
+              </div>
+            )
           )}
         </form>
 

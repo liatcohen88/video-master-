@@ -62,6 +62,12 @@ type Props = {
   powerEffectsOn?: boolean;
   /** Turn the power effects on from the per-line chip. */
   onEnablePowerEffects?: () => void;
+  /** Whether the drama/WOW global toggle (dramaMode) is on. When OFF, matching
+   *  lines show a "כבוי — להפעלה" chip + one-click enable, like the power chip
+   *  (Liat: drama should offer enable-when-off just like WOW). */
+  dramaOn?: boolean;
+  /** Turn the drama/WOW effect on from the per-line chip. */
+  onEnableDrama?: () => void;
 };
 
 function fmt(t: number) {
@@ -89,6 +95,8 @@ export default function SubtitleEditor({
   dramaSubIds,
   powerEffectsOn = true,
   onEnablePowerEffects,
+  dramaOn = true,
+  onEnableDrama,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickerForSub, setPickerForSub] = useState<string | null>(null);
@@ -335,25 +343,57 @@ export default function SubtitleEditor({
                     toggle is on AND this specific line matches a trigger
                     word. Lets the user see at a glance which lines will
                     pop a B&W flash vs a warm pop on the video. */}
-                {dramaSubIds?.has(`drama:${sub.id}`) && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "drama" }); }}
-                    title="לחיצה: רשימת המילים שמפעילות שחור-לבן"
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/20 hover:bg-white/15"
-                  >
-                    🎬 דרמה
-                  </button>
+                {allowElements && dramaSubIds?.has(`drama:${sub.id}`) && (
+                  dramaOn ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "drama" }); }}
+                      title="לחיצה: רשימת המילים שמפעילות שחור-לבן"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/20 hover:bg-white/15"
+                    >
+                      🎬 דרמה
+                    </button>
+                  ) : (
+                    // Effect globally OFF → show "כבוי" + one-click enable, like
+                    // the power chip (Liat: drama should offer enable like WOW).
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEnableDrama?.();
+                        toast.success("🎬 אפקט הדרמה הופעל — הבזק שחור-לבן ברגעים דרמטיים");
+                      }}
+                      title="האפקט כבוי — לחיצה תפעיל אותו (הבזק שחור-לבן)"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-white/40 border border-dashed border-white/20 hover:bg-white/10 hover:text-white/80 hover:border-white/40 transition-colors"
+                    >
+                      🎬 דרמה · כבוי — להפעלה
+                    </button>
+                  )
                 )}
-                {dramaSubIds?.has(`wow:${sub.id}`) && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "wow" }); }}
-                    title="לחיצה: רשימת המילים שמפעילות פילטר חם נמרץ"
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/30 hover:bg-amber-500/25"
-                  >
-                    ✨ WOW
-                  </button>
+                {allowElements && dramaSubIds?.has(`wow:${sub.id}`) && (
+                  dramaOn ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setChipPop({ subId: sub.id, type: "wow" }); }}
+                      title="לחיצה: רשימת המילים שמפעילות פילטר חם נמרץ"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/30 hover:bg-amber-500/25"
+                    >
+                      ✨ WOW
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEnableDrama?.();
+                        toast.success("✨ אפקט ה-WOW הופעל — פילטר חם נמרץ");
+                      }}
+                      title="האפקט כבוי — לחיצה תפעיל אותו (פילטר חם נמרץ)"
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/5 text-amber-200/50 border border-dashed border-amber-400/25 hover:bg-amber-500/15 hover:text-amber-200 hover:border-amber-400/40 transition-colors"
+                    >
+                      ✨ WOW · כבוי — להפעלה
+                    </button>
+                  )
                 )}
                 {/* Power-words chip — drives particle burst, punch shake,
                     and beat-drop zoom. SEPARATE word list from WOW filter

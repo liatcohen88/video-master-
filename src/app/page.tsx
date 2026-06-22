@@ -1484,13 +1484,20 @@ export default function HomePage() {
                    Liat 2026-06-16: "כשאתה מוסיף את האפקט שיהיה מידע ב
                    עריכת כתוביות שהוא דלוק". */
                 dramaSubIds={(() => {
-                  if (!effects.dramaMode) return new Set();
+                  // Detect drama/wow lines ALWAYS (not only when the toggle is
+                  // on) so we can show a "כבוי — להפעלה" chip on matching lines
+                  // even when the effect is off — matching the power chip's
+                  // pattern. Liat: drama should offer one-click enable like WOW.
                   const ids = new Set<string>();
                   const inWindow = (t: number) => subtitles.find((s) => t >= s.start && t <= s.end + 0.05)?.id;
                   for (const d of detectDramaMoments(subtitles)) { const id = inWindow(d.t); if (id) ids.add(`drama:${id}`); }
                   for (const w of detectWowMoments(subtitles))   { const id = inWindow(w.t); if (id) ids.add(`wow:${id}`); }
                   return ids;
                 })()}
+                /* Drama (B&W flash) global state + one-click enable, mirroring
+                   the power chip. When off, matching lines show "כבוי — להפעלה". */
+                dramaOn={!!effects.dramaMode}
+                onEnableDrama={() => setEffects((e) => ({ ...e, dramaMode: true }))}
                 /* "פעימה" power chip reflects whether the particle/shake/zoom
                    effects are actually ON. When off, the chip shows "כבוי" and
                    one click enables them (Liat: "שיראה סימן שהאפקט כבוי + להדליק"). */
