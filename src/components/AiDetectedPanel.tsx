@@ -401,7 +401,10 @@ function ElementEditorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full mt-2 right-0 z-40 bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3 min-w-[220px]"
+      /* Mobile: a fixed bottom-sheet so the size/position controls are ALWAYS
+         visible (an absolute popover got clipped / pushed off-screen on phones —
+         Liat: "במובייל לא נפתח אפשרות הגדלה"). Desktop: the floating popover. */
+      className="fixed inset-x-3 bottom-3 z-50 md:absolute md:inset-x-auto md:bottom-auto md:top-full md:right-0 md:mt-2 md:min-w-[220px] bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3"
       dir="rtl"
     >
       {/* Visual size slider — same UX as the custom-logo slider in EffectsPanel

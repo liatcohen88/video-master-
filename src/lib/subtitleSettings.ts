@@ -43,11 +43,21 @@ export function flattenWords(subs: Subtitle[]): TimedWord[] {
 export function buildSubtitles(baseWords: TimedWord[], settings: SubtitleSettings): Subtitle[] {
   if (!baseWords.length) return [];
   const size = Math.max(1, Math.floor(settings.maxWordsPerLine) || 1);
+  const minW = Math.max(1, Math.floor(settings.minWordsPerLine) || 1);
   const keepPunct = settings.addPunctuation;
 
+  // Split into chunks of up to `size` words. minWordsPerLine: if the LAST chunk
+  // is shorter than the minimum (an orphan tail like a single word on its own
+  // line), merge it back into the previous chunk so no line falls below min.
+  const chunks: TimedWord[][] = [];
+  for (let i = 0; i < baseWords.length; i += size) chunks.push(baseWords.slice(i, i + size));
+  if (chunks.length >= 2 && chunks[chunks.length - 1].length < minW) {
+    const tail = chunks.pop()!;
+    chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(tail);
+  }
+
   const subs: Subtitle[] = [];
-  for (let i = 0; i < baseWords.length; i += size) {
-    const chunk = baseWords.slice(i, i + size);
+  for (const chunk of chunks) {
     const words = chunk
       .map((w) => ({ word: keepPunct ? w.word : stripPunct(w.word), start: w.start, end: w.end }))
       .filter((w) => w.word.length > 0);

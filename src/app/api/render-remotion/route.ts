@@ -16,7 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimit } from "@/lib/rateLimit";
-import { spendCredits, refundCredits } from "@/lib/serverCredits";
+import { spendCredits } from "@/lib/serverCredits";
+import { recordSpend, settleSpend, reconcileSpend, sweepStaleSpends } from "@/lib/renderSpends";
 import { calcDynamicCost } from "@/lib/credits";
 import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
@@ -152,7 +153,11 @@ export async function POST(req: NextRequest) {
   // writes straight into the job folder; the client polls /api/render-status
   // and downloads from /api/render-result when done.
   const job = await createJob(user.id, filename);
+  // Persistent spend ledger: refund survives even a container restart mid-render
+  // (the in-process catch below can't run then). Idempotent with settle/reconcile.
+  await recordSpend(job.id, user.id, cost.total);
   cleanupOldJobs().catch(() => {});
+  sweepStaleSpends().catch(() => {}); // refund earlier renders that died unnoticed
 
   const task = enqueueRender(async () => {
     await updateJob(job.id, { status: "rendering" });
@@ -185,10 +190,13 @@ export async function POST(req: NextRequest) {
         },
       });
       await updateJob(job.id, { status: "done" });
+      await settleSpend(job.id); // render OK → mark settled (no refund owed)
     } catch (err) {
       console.error("[render-remotion] job failed", job.id, err);
-      // Refund credits so a server-side failure doesn't cost the user.
-      await refundCredits(user.id, cost.total).catch(() => {});
+      // Refund exactly once via the persistent ledger (idempotent with the
+      // status-poll + stale-sweep reconcile paths) so a failure never costs
+      // the user — even if THIS process dies before the refund.
+      await reconcileSpend(job.id, user.id).catch(() => {});
       await updateJob(job.id, { status: "failed", error: "הייצוא נכשל" });
     }
   });
