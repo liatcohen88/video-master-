@@ -118,6 +118,104 @@ function pickAutoSubtitleStyle(
   return { templateId, style };
 }
 
+function hslToHex(h: number, s: number, l: number): string {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+}
+
+// CLIENT-SIDE color sampling. The server analysis (cv2/mediapipe) isn't
+// installed in prod, so /api/analyze 500s and never colored anything — which
+// is why every clip looked identical. We instead grab a few frames from the
+// already-loaded video in the browser, find the dominant vivid hue → a punchy
+// accent color, plus brightness/colorfulness. Pure canvas, no server.
+async function extractVideoAccent(
+  file: File,
+): Promise<{ accent: string; brightness: number; colorfulness: number } | null> {
+  try {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+    await new Promise<void>((res, rej) => {
+      v.onloadeddata = () => res();
+      v.onerror = () => rej(new Error("load"));
+      setTimeout(() => rej(new Error("timeout")), 8000);
+    });
+    const dur = v.duration || 0;
+    const W = 64, H = 36;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) { URL.revokeObjectURL(url); return null; }
+    const times = dur > 0.2 ? [dur * 0.2, dur * 0.5, dur * 0.8] : [0];
+    const hue = new Array(360).fill(0);
+    let brightAcc = 0, satAcc = 0, frames = 0;
+    for (const tt of times) {
+      await new Promise<void>((res) => {
+        const done = () => { v.removeEventListener("seeked", done); res(); };
+        v.addEventListener("seeked", done);
+        try { v.currentTime = Math.max(0, Math.min(tt, Math.max(0, dur - 0.05))); } catch { res(); }
+        setTimeout(res, 1500);
+      });
+      try {
+        ctx.drawImage(v, 0, 0, W, H);
+        const { data } = ctx.getImageData(0, 0, W, H);
+        let fb = 0, fs = 0, n = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
+          const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+          const val = max, sat = max === 0 ? 0 : d / max;
+          fb += val; fs += sat; n++;
+          if (sat > 0.25 && val > 0.2 && d > 0) {
+            let h: number;
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60; if (h < 0) h += 360;
+            hue[Math.floor(h) % 360] += sat * val;
+          }
+        }
+        if (n > 0) { brightAcc += fb / n; satAcc += fs / n; frames++; }
+      } catch { /* tainted/black frame — skip */ }
+    }
+    URL.revokeObjectURL(url);
+    if (frames === 0) return null;
+    const brightness = brightAcc / frames, colorfulness = satAcc / frames;
+    let bestH = -1, bestV = 0;
+    for (let h = 0; h < 360; h++) {
+      let sum = 0;
+      for (let k = -10; k <= 10; k++) sum += hue[(h + k + 360) % 360];
+      if (sum > bestV) { bestV = sum; bestH = h; }
+    }
+    // Readable punchy accent at the video's dominant hue (or a safe yellow).
+    const accent = bestH >= 0 ? hslToHex(bestH, 0.85, 0.62) : "#FACC15";
+    return { accent, brightness, colorfulness };
+  } catch { return null; }
+}
+
+// Build the auto STYLE+COLOR for a video entirely client-side, then hand it to
+// pickAutoSubtitleStyle (emphasis_moments empty → energy is driven by the
+// sampled colorfulness). Returns null if sampling failed.
+async function autoStyleFromVideo(
+  file: File, mode: EditMode, durationSec: number,
+): Promise<{ templateId: string; style: SubtitleStyle } | null> {
+  const acc = await extractVideoAccent(file);
+  if (!acc) return null;
+  const fakeAna = {
+    duration_sec: durationSec,
+    emphasis_moments: [],
+    colorfulness: acc.colorfulness,
+    accent_color: acc.accent,
+    avg_brightness: acc.brightness,
+    is_talking_head: false,
+  } as unknown as VideoAnalysis;
+  return pickAutoSubtitleStyle(fakeAna, mode);
+}
+
 export default function HomePage() {
   // Credit cost per mode — pulled from CMS so admin edits take effect instantly.
   const costSubtitles = useContent("pricing.cost.subtitles_only");
@@ -625,6 +723,12 @@ export default function HomePage() {
       const cached = await loadTranscription(videoHash);
       if (cached && cached.length > 0) {
         setSubtitles(cached);
+        // Match subtitle style+color to THIS video (client-side, since server
+        // analysis is unavailable) — even on a cache hit, which used to skip it.
+        try {
+          const auto = await autoStyleFromVideo(videoFile, mode, cached[cached.length - 1]?.end ?? 0);
+          if (auto) { setTemplateId(auto.templateId); setStyle(auto.style); }
+        } catch {}
         setPhase("editing");
         // Snap to top so the user sees the video preview + first caption,
         // not the bottom of the editor panel where they were before transcription.
@@ -674,6 +778,13 @@ export default function HomePage() {
       // are honored from the first render.
       baseWordsRef.current = flattenWords(freshSubs);
       setSubtitles(applySubtitleSettings(freshSubs, settings, baseWordsRef.current));
+      // Match subtitle style+color to THIS video, client-side. The server
+      // analyze route (cv2/mediapipe) isn't installed in prod, so we can't
+      // rely on it — sample the video's accent color in the browser instead.
+      try {
+        const auto = await autoStyleFromVideo(videoFile, mode, freshSubs[freshSubs.length - 1]?.end ?? 0);
+        if (auto) { setTemplateId(auto.templateId); setStyle(auto.style); }
+      } catch {}
       // Cache the transcription so next upload of same file is instant.
       if (videoHash) {
         saveTranscription(videoHash, transcribeData.subtitles).catch(() => {});
