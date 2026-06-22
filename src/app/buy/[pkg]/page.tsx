@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Lock, AlertCircle, ArrowRight } from "lucide-react";
 import { CREDIT_PACKAGES } from "@/lib/credits";
@@ -10,6 +9,7 @@ import { browserClient } from "@/lib/supabase";
 import { useContent } from "@/lib/useContent";
 import MasterCoin from "@/components/MasterCoin";
 import SiteHeader from "@/components/SiteHeader";
+import SignupGate from "@/components/SignupGate";
 
 /**
  * /buy/[pkg] — pre-checkout landing.
@@ -31,11 +31,13 @@ import SiteHeader from "@/components/SiteHeader";
 export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }) {
   const { pkg: pkgId } = use(params);
   const pkg = CREDIT_PACKAGES.find((p) => p.id === pkgId);
-  const router = useRouter();
   const auth = useAuth();
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Guests get an inline signup/login popup (instead of a redirect to /login)
+  // so a new customer can register in-place and continue straight to payment.
+  const [showGate, setShowGate] = useState(false);
 
   const currency       = (useContent("brand.currencyName") as string) || "מאסטרים";
 
@@ -69,16 +71,20 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
     );
   }
 
-  async function onCheckout() {
+  function onCheckout() {
     if (submitting) return;
     setErr(null);
 
     if (auth.status !== "user") {
-      // Guest — bounce to login and come back here.
-      router.push(`/login?next=${encodeURIComponent(`/buy/${pkgId}`)}`);
+      // Guest — open the inline signup/login popup. On success we continue
+      // straight to checkout (proceedToCheckout) without leaving the page.
+      setShowGate(true);
       return;
     }
+    proceedToCheckout();
+  }
 
+  async function proceedToCheckout() {
     setSubmitting(true);
     try {
       const sb = browserClient();
@@ -221,6 +227,14 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
           </Link>
         </div>
       </div>
+
+      {/* Inline signup/login popup for guests — on success, continue straight
+          to payment without leaving the checkout page. */}
+      <SignupGate
+        open={showGate}
+        onClose={() => setShowGate(false)}
+        onSuccess={() => { setShowGate(false); proceedToCheckout(); }}
+      />
 
       <style jsx global>{`
         @keyframes coin-tilt {
