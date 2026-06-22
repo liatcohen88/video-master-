@@ -417,6 +417,15 @@ export default function HomePage() {
    * and if a snapshot was selected, hydrate all editor state from it and
    * jump straight to the editing phase.
    */
+  // Tag the autosaved subtitles with the current video hash, so a later "שחזר"
+  // can tell whether the localStorage subtitles are THIS video's real edits
+  // (vs a previous/other project) and restore them race-free.
+  useEffect(() => {
+    if (typeof window !== "undefined" && videoHash) {
+      try { localStorage.setItem("vm_project_v1.subtitlesHash", videoHash); } catch { /* ignore */ }
+    }
+  }, [videoHash]);
+
   async function handleResume(file: File, snap?: ProjectSnapshot) {
     setVideoFile(file);
     setVideoUrl(URL.createObjectURL(file));
@@ -454,6 +463,28 @@ export default function HomePage() {
       // auto-snapshot fired 5 minutes in), but the transcription itself was
       // cached when it originally completed. Use it + the auto-saved subtitle
       // styling/effects from localStorage to skip straight into editing.
+      // Prefer the user's OWN edits when localStorage holds subtitles tagged for
+      // THIS exact video (the autosave-flush keeps them fresh on close). This
+      // must win over the ORIGINAL cached transcription below — otherwise a
+      // resume after editing-without-a-snapshot reverts their edits. Read
+      // straight from localStorage so it's race-free (React state may not have
+      // hydrated yet). Liat: "שחזר לפעמים עובד לפעמים לא".
+      try {
+        const lsHash = localStorage.getItem("vm_project_v1.subtitlesHash");
+        const lsRaw  = localStorage.getItem("vm_project_v1.subtitles");
+        if (lsHash === hash && lsRaw) {
+          const edited = JSON.parse(lsRaw) as Subtitle[];
+          if (edited?.length) {
+            setSubtitles(edited);
+            setPhase("editing");
+            void reconcileBgMusic();
+            if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+            toast.success(`שוחזרה העריכה האחרונה (${edited.length} כתוביות)`);
+            return;
+          }
+        }
+      } catch { /* fall through to the cached transcription */ }
+
       const cachedSubs = await loadTranscription(hash);
       if (cachedSubs && cachedSubs.length > 0) {
         setSubtitles(cachedSubs);
