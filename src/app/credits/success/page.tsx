@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ShoppingBag, Wand2, Check } from "lucide-react";
@@ -60,20 +60,13 @@ function SuccessInner() {
 
   const liveBalance = polledBalance ?? (auth.status === "user" && auth.profile ? auth.profile.credits : null);
 
-  // Show the balance INCLUDING the credits just purchased (Liat: "יתרה עם
-  // ה-25 שקנה" — the bare balance looked like the PRE-purchase number). We
-  // anchor on the balance at mount (pre-credit) and add the purchased amount
-  // optimistically; once the webhook lands and the polled balance rises above
-  // that anchor, we switch to the real total (which equals it anyway).
-  const baseRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (baseRef.current === null && liveBalance !== null) baseRef.current = liveBalance;
-  }, [liveBalance]);
-  const purchased = Number.isFinite(credits) && credits > 0 ? credits : 0;
-  const webhookLanded = liveBalance !== null && baseRef.current !== null && liveBalance > baseRef.current;
-  const displayBalance = webhookLanded
-    ? liveBalance
-    : (baseRef.current !== null ? baseRef.current + purchased : liveBalance);
+  // Show the REAL server balance — it already INCLUDES the credits just
+  // purchased (the webhook credits within ~2-3s; we poll for it above). The
+  // old code optimistically added the purchased amount to a "base" captured at
+  // mount, but the webhook usually lands BEFORE the page mounts, so the base
+  // was already post-purchase → double-count (Liat had 25+25=50 but the page
+  // showed 75). The "+N" badge already communicates what was just bought.
+  const displayBalance = liveBalance;
 
   const title       = useContent("purchase.title") as string;
   const body        = useContent("purchase.body") as string;
