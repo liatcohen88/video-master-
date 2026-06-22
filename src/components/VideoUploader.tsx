@@ -9,10 +9,11 @@ type Props = {
   onVideoSelected: (file: File) => void;
 };
 
-// Launch-window cap: keeps each export under the Vercel Pro 60s function
-// timeout. Bump (or remove the check entirely) once render moves to a
-// dedicated queue post-launch — see task #135 / #136.
-const MAX_VIDEO_SECONDS = 60;
+// Upload duration cap. The old 60s value dated to the Vercel 60s function
+// timeout; render now runs as a background Remotion job on Hetzner, so the
+// timeout no longer applies. Raised to 90s per Liat ("60 קצת מדי") — bump
+// further later as the box/render budget allows.
+const MAX_VIDEO_SECONDS = 90;
 
 function probeDuration(file: File): Promise<number> {
   return new Promise((resolve) => {

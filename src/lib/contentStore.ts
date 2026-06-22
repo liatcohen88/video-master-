@@ -791,7 +791,7 @@ export const CONTENT_DEFAULTS = {
   "effects.autoLogos.extraHint": "💡 ה-AI מזהה לוגואים…",
 
   // ── VideoUploader (validation + busy overlay) ──────────
-  "uploader.error.tooLongTpl":   "הסרטון ארוך מ-{{max}} שניות ({{dur}} שנ׳). כרגע מעלים סרטונים עד דקה — צריך לחתוך או לקצר ולנסות שוב.",
+  "uploader.error.tooLongTpl":   "הסרטון ארוך מ-{{max}} שניות ({{dur}} שנ׳). כרגע מעלים סרטונים עד דקה וחצי — צריך לחתוך או לקצר ולנסות שוב.",
   "uploader.checkingSubtitle":   "רגע אחד — בודקים את הסרטון",
 
   // ── ModeSelector (price-per-video + advanced-mode dynamic hint) ─
@@ -1021,7 +1021,7 @@ export const CONTENT_DEFAULTS = {
   "uploader.dragingTitle": "לשחרר כאן",
   "uploader.checkingTitle":"בודק...",
   "uploader.formatsLine":  "תומך ב-MP4, MOV, AVI, MKV",
-  "uploader.durationNote": "תמיכה בסרטונים עד 60 שניות (בינתיים 😉)",
+  "uploader.durationNote": "תמיכה בסרטונים עד 90 שניות (בינתיים 😉)",
 
   // Feature flags — toggle to hide pre-launch features without removing code.
   // multi.enabled = false → hides every visible reference to "חיבור סרטונים AI"
