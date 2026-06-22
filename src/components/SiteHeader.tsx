@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bell } from "lucide-react";
 import LogoMark from "./LogoMark";
 import MasterCoin from "./MasterCoin";
@@ -197,7 +198,7 @@ export default function SiteHeader() {
               <div className="absolute left-0 top-12 w-52 bg-bg-card border border-white/10 rounded-xl shadow-2xl shadow-black/60 p-1.5 z-50">
                 <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} />
                 <ProfileMenuItem href="/dashboard#videos" icon="📂" label={navMyVideos} />
-                <ProfileMenuItem href="/credits" icon="💎" label={navBuyCredits} highlight />
+                <ProfileMenuItem href="/credits" icon="💎" label={navBuyCredits} />
                 <ProfileMenuItem href="/help" icon="❓" label={navHelp} />
                 <div className="my-1 border-t border-white/10" />
                 <ProfileMenuItem href="/contact" icon="✉️" label={navContact} />
@@ -249,7 +250,7 @@ export default function SiteHeader() {
               <span className="text-white/30 text-base leading-none shrink-0">‹</span>
             </button>
             <ProfileMenuItem href="/" icon="🏠" label={navHome} onNavigate={() => setMobileMenuOpen(false)} />
-            <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} highlight onNavigate={() => setMobileMenuOpen(false)} />
+            <ProfileMenuItem href="/credits" icon="💎" label={navMobileBuy} onNavigate={() => setMobileMenuOpen(false)} />
             <ProfileMenuItem href="/help" icon="❓" label={navHelp} onNavigate={() => setMobileMenuOpen(false)} />
             <div className="my-1 border-t border-white/10" />
             {!isGuest && <ProfileMenuItem href="/dashboard" icon="👤" label={navProfile} onNavigate={() => setMobileMenuOpen(false)} />}
@@ -259,7 +260,7 @@ export default function SiteHeader() {
               <>
                 <div className="my-1 border-t border-white/10" />
                 <ProfileMenuItem href="/login" icon="🔓" label={navLogin} onNavigate={() => setMobileMenuOpen(false)} />
-                <ProfileMenuItem href="/signup" icon="✨" label={navSignup} highlight onNavigate={() => setMobileMenuOpen(false)} />
+                <ProfileMenuItem href="/signup" icon="✨" label={navSignup} onNavigate={() => setMobileMenuOpen(false)} />
               </>
             ) : (
               <>
@@ -279,7 +280,13 @@ export default function SiteHeader() {
   );
 }
 
-function ProfileMenuItem({ href, icon, label, highlight, onNavigate }: { href: string; icon: string; label: string; highlight?: boolean; onNavigate?: () => void }) {
+function ProfileMenuItem({ href, icon, label, onNavigate }: { href: string; icon: string; label: string; onNavigate?: () => void }) {
+  // "You are here" — highlight the item matching the current route so the menu
+  // reflects the real page (Liat: "תעשה שבאמת יראה איפה אני"; was hardcoded on
+  // חבילות so it looked active everywhere). Exact match → /dashboard#videos
+  // doesn't false-match the plain /dashboard item.
+  const pathname = usePathname();
+  const active = pathname === href;
   // Navigate EXPLICITLY (and close the mobile menu first) so a tap always
   // works — Liat: "לוחצים על הפרופיל וזה לא עושה כלום". An <a href> alone
   // could feel dead if the menu overlay stays up. "Home" also clears the
@@ -301,7 +308,7 @@ function ProfileMenuItem({ href, icon, label, highlight, onNavigate }: { href: s
       href={href}
       onClick={onClick}
       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-        highlight
+        active
           ? "bg-brand/20 text-white font-bold hover:bg-brand/30"
           : "text-white/80 hover:bg-white/10 hover:text-white"
       }`}
