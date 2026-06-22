@@ -9,6 +9,7 @@ import ConfirmDialogRoot from "@/components/ConfirmDialog";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
 import ExportJobBadge from "@/components/ExportJobBadge";
+import PresenceBeacon from "@/components/PresenceBeacon";
 import { pageMetadata, softwareJsonLd, getSiteUrl } from "@/lib/seo";
 import { loadOverridesServer } from "@/lib/contentStoreServer";
 import ContentProvider from "@/lib/ContentProvider";
@@ -71,6 +72,7 @@ export default async function RootLayout({
               save/download on EVERY page (was imported but never mounted, so
               it appeared nowhere — Liat: "הייצוא ברקע נעלם לגמרי במובייל"). */}
           <ExportJobBadge />
+          <PresenceBeacon />
           <OnboardingSplash />
           <ConfirmDialogRoot />
           <SfxCustomLoader />

@@ -12,9 +12,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Server-side admin allowlist. Falls back to the SAME hardcoded default as the
+// client gate (src/app/admin/page.tsx) so the two can't drift: if ADMIN_EMAILS
+// isn't set in the server env, a logged-in admin still passes requireAdmin
+// instead of getting a confusing 403. Override via env for new admins.
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS
   ?? process.env.NEXT_PUBLIC_ADMIN_EMAILS
-  ?? "")
+  ?? "liatcohen88@gmail.com,loliat8891@gmail.com")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);

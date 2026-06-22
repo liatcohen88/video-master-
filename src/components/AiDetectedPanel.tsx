@@ -242,13 +242,16 @@ export default function AiDetectedPanel({
               const displayEmoji = customEmoji ?? e.category.emoji;
 
               return (
-                <div
-                  key={`${e.category.id}-${i}`}
-                  className={`
-                    relative flex items-center bg-gradient-to-br ${e.category.previewBg}
-                    rounded-lg shadow-md overflow-hidden
-                  `}
-                >
+                <div key={`${e.category.id}-${i}`} className="relative">
+                  {/* Inner row keeps overflow-hidden for the rounded gradient,
+                      but the size/position popover below lives OUTSIDE it so it
+                      isn't clipped (that bug made "resize" look inactive). */}
+                  <div
+                    className={`
+                      flex items-center bg-gradient-to-br ${e.category.previewBg}
+                      rounded-lg shadow-md overflow-hidden
+                    `}
+                  >
                   <button
                     ref={(el) => { if (el) buttonRefs.current.set(key, el); }}
                     onClick={(ev) => onOverrideChange && openPicker(key, ev.currentTarget)}
@@ -307,6 +310,7 @@ export default function AiDetectedPanel({
                       <span className="text-[10px] font-mono leading-none">{elementSizePx[key] ? elementSizePx[key] : "⤢"}</span>
                     </button>
                   )}
+                  </div>
                   {customEmoji && (
                     <span className="absolute -top-1 -right-1 bg-white text-black text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold pointer-events-none">
                       ✓

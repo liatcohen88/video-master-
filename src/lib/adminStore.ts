@@ -119,6 +119,16 @@ export function resetStore() {
 }
 
 /**
+ * Launch reset — write an EMPTY store (not the demo seed) so the dashboard
+ * shows real zeros (₪0 revenue, 0 users, 0 videos) instead of the seeded
+ * ליאת/יוסי/נועה demo rows. Used by the "איפוס לקראת השקה" admin action.
+ */
+export function clearStoreEmpty() {
+  if (typeof window === "undefined") return;
+  write({ users: [], videos: [], revenue: [] });
+}
+
+/**
  * Summary stats for the dashboard tab.
  */
 export function getStats() {

@@ -1300,7 +1300,7 @@ export default function HomePage() {
             disabledElements={effects.disabledElements ?? []}
             elementSfxOverrides={effects.elementSfxOverrides ?? {}}
             elementSizePx={effects.elementSizePx ?? {}}
-            elementPosition={effects.elementPosition ?? {}}
+            elementPosition={effects.elementPositionOverrides ?? {}}
             brandSizePx={effects.brandSizePx ?? {}}
             brandPosition={effects.brandPosition ?? {}}
             onOverrideChange={(key, emoji) => {
@@ -1333,9 +1333,9 @@ export default function HomePage() {
               setEffects({ ...effects, elementSizePx: next });
             }}
             onElementPositionChange={(key, pos) => {
-              const next = { ...(effects.elementPosition ?? {}) };
+              const next = { ...(effects.elementPositionOverrides ?? {}) };
               if (pos === undefined) delete next[key]; else next[key] = pos;
-              setEffects({ ...effects, elementPosition: next });
+              setEffects({ ...effects, elementPositionOverrides: next });
             }}
             onBrandSizeChange={(key, px) => {
               const next = { ...(effects.brandSizePx ?? {}) };

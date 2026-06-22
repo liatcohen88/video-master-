@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import FeatureShowcase from "./FeatureShowcase";
+import AiAutoShowcase from "./AiAutoShowcase";
 import PremiumPkgCard, { SharedFeatures } from "./PremiumPkgCard";
 import PackagesCarousel from "./PackagesCarousel";
 import HeroBrowserMockup from "./HeroBrowserMockup";
@@ -58,7 +59,6 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
   const f1T = useContent("landing.feat1.title"); const f1B = useContent("landing.feat1.body");
   const f2T = useContent("landing.feat2.title"); const f2B = useContent("landing.feat2.body");
   const f3T = useContent("landing.feat3.title"); const f3B = useContent("landing.feat3.body");
-  const f4T = useContent("landing.feat4.title"); const f4B = useContent("landing.feat4.body");
   const f5T = useContent("landing.feat5.title"); const f5B = useContent("landing.feat5.body");
   const f6T = useContent("landing.feat6.title"); const f6B = useContent("landing.feat6.body");
 
@@ -118,10 +118,17 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
           <Feature icon={<Languages />} color="violet"   title={f1T} body={f1B} />
           <Feature icon={<Sparkles />}  color="fuchsia"  title={f2T} body={f2B} />
           {multiEnabled && <Feature icon={<Layers />} color="pink" title={f3T} body={f3B} />}
-          <Feature icon={<Wand2 />}     color="cyan"     title={f4T} body={f4B} />
+          {/* feat4 ("אנימציות ו-SFX") removed — its AI auto-magic now lives in
+              the tabbed AiAutoShowcase below, which is accurate (no Lottie). */}
           <Feature icon={<Coins />}     color="amber"    title={f5T} body={f5B} />
           <Feature icon={<Save />}      color="emerald"  title={f6T} body={f6B} />
         </div>
+      </section>
+
+      {/* ── 4.5. AI auto-magic — tabbed showcase of what the AI detects &
+              does on its own (words→emoji+WOW, brands→logo, drama, subtitles). */}
+      <section>
+        <AiAutoShowcase />
       </section>
 
       {/* ── 5. Testimonials ── */}

@@ -203,6 +203,7 @@ function OverviewTab() {
   const recent = listVideos().slice(0, 5);
   return (
     <div className="space-y-4">
+      <LiveAndSignups />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="הכנסות סה״כ"      value={`₪${stats.totalRevenue.toLocaleString()}`} hint="כל הזמנים" />
         <StatCard label="משתמשים פעילים"   value={String(stats.activeUsers)} />
@@ -255,6 +256,198 @@ function OverviewTab() {
           ))}
         </ul>
       </div>
+
+      <LaunchResetCard />
+    </div>
+  );
+}
+
+// ── Live visitors (Shopify-style) + new-signups notification ──────────
+async function adminAuthHeaders(): Promise<Record<string, string>> {
+  const { browserClient } = await import("@/lib/supabase");
+  const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+function pathLabel(p: string): string {
+  if (p === "/" ) return "דף הבית";
+  if (p.startsWith("/credits")) return "חבילות";
+  if (p.startsWith("/buy")) return "תשלום";
+  if (p.startsWith("/multi")) return "חיבור סרטונים";
+  if (p.startsWith("/dashboard")) return "אזור אישי";
+  if (p.startsWith("/help")) return "עזרה";
+  if (p.startsWith("/contact")) return "צור קשר";
+  if (p.startsWith("/login") || p.startsWith("/signup")) return "התחברות/הרשמה";
+  if (p.startsWith("/policy")) return "תקנון ופרטיות";
+  return p;
+}
+
+type LiveSnap = {
+  count: number;
+  byPath: { path: string; count: number }[];
+  byCountry: { country: string; count: number }[];
+};
+type SignupSnap = {
+  total: number; last24h: number; sinceSeen: number;
+  recent: { name: string; email: string; created_at: string }[];
+};
+
+function LiveAndSignups() {
+  const [live, setLive] = useState<LiveSnap | null>(null);
+  const [signups, setSignups] = useState<SignupSnap | null>(null);
+
+  // Poll live presence every 10s.
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      try {
+        const r = await fetch("/api/presence", { headers: await adminAuthHeaders() });
+        if (r.ok && alive) setLive(await r.json());
+      } catch { /* ignore */ }
+    };
+    tick();
+    const id = window.setInterval(tick, 10_000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, []);
+
+  // New signups — read real registered users, compare to last admin visit.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/users", { headers: await adminAuthHeaders() });
+        if (!r.ok || !alive) return;
+        const d = await r.json() as { users?: { display_name: string | null; email: string; created_at: string }[] };
+        const users = d.users ?? [];
+        const now = Date.now();
+        const lastSeen = Number(localStorage.getItem("vm_admin_lastseen") || 0);
+        const t24 = users.filter((u) => now - new Date(u.created_at).getTime() < 24 * 3600 * 1000).length;
+        const since = lastSeen ? users.filter((u) => new Date(u.created_at).getTime() > lastSeen).length : 0;
+        setSignups({
+          total: users.length,
+          last24h: t24,
+          sinceSeen: since,
+          recent: users.slice(0, 5).map((u) => ({ name: u.display_name || "—", email: u.email, created_at: u.created_at })),
+        });
+        localStorage.setItem("vm_admin_lastseen", String(now));
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Live visitors */}
+      <div className="bg-bg-card border border-white/10 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+          </span>
+          <span className="text-sm font-bold">מבקרים עכשיו</span>
+          <span className="mr-auto text-3xl font-black text-emerald-300 tabular-nums">{live?.count ?? "—"}</span>
+        </div>
+        {live && live.count > 0 ? (
+          <div className="space-y-1.5">
+            {live.byPath.slice(0, 6).map((p) => (
+              <div key={p.path} className="flex items-center justify-between text-xs bg-bg-input rounded-md px-2.5 py-1.5">
+                <span className="text-white/70 truncate">{pathLabel(p.path)}</span>
+                <span className="text-white/40 font-mono">{p.count}</span>
+              </div>
+            ))}
+            {live.byCountry.length > 0 && (
+              <div className="text-[11px] text-white/40 pt-1">
+                {live.byCountry.map((c) => `${c.country} (${c.count})`).join(" · ")}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-white/40">{live ? "אין מבקרים פעילים כרגע" : "טוען…"}</div>
+        )}
+      </div>
+
+      {/* New signups */}
+      <div className="bg-bg-card border border-white/10 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="w-4 h-4 text-brand-light" />
+          <span className="text-sm font-bold">הרשמות</span>
+          {signups && signups.sinceSeen > 0 && (
+            <span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 rounded-full px-2 py-0.5">
+              🆕 {signups.sinceSeen} מאז ביקורך האחרון
+            </span>
+          )}
+          <span className="mr-auto text-3xl font-black text-brand-light tabular-nums">{signups?.total ?? "—"}</span>
+        </div>
+        <div className="text-[11px] text-white/45 mb-2">{signups ? `${signups.last24h} נרשמו ב-24 השעות האחרונות` : "טוען…"}</div>
+        <ul className="space-y-1.5">
+          {(signups?.recent ?? []).map((u, i) => (
+            <li key={i} className="flex items-center gap-2 text-xs bg-bg-input rounded-md px-2.5 py-1.5">
+              <span className="font-bold truncate">{u.name}</span>
+              <span className="text-white/40 truncate flex-1" dir="ltr">{u.email}</span>
+              <span className="text-white/30">{new Date(u.created_at).toLocaleDateString("he-IL")}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ── Launch reset (#145) — clears operational data before going live ───
+function LaunchResetCard() {
+  const [busy, setBusy] = useState(false);
+  const [purgeUsers, setPurgeUsers] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function run() {
+    const base = "לאפס נתוני סרטונים/התראות/תשלומים-ממתינים ולהציג מאפס בדאשבורד? פעולה בלתי הפיכה.";
+    if (!window.confirm(purgeUsers ? base + "\n\nבנוסף יימחקו כל חשבונות הבדיקה (לא מנהלים)!" : base)) return;
+    if (purgeUsers && !window.confirm("בטוח למחוק לצמיתות את כל חשבונות הבדיקה? אי אפשר לבטל.")) return;
+    setBusy(true); setResult(null);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+      const r = await fetch("/api/admin/reset-launch", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ purgeUsers }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "נכשל");
+      const { clearStoreEmpty } = await import("@/lib/adminStore");
+      clearStoreEmpty();
+      const summary = Object.entries(d.result ?? {}).map(([k, v]) => `${k}: ${v}`).join(" · ");
+      setResult("אופס בהצלחה — " + summary + ". מרענן…");
+      window.setTimeout(() => window.location.reload(), 1500);
+    } catch (e) {
+      setResult("שגיאה: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="bg-red-500/[0.06] border border-red-500/30 rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <AlertTriangle className="w-4 h-4 text-red-300" />
+        <span className="text-sm font-bold text-red-200">אזור מסוכן — איפוס לקראת השקה</span>
+      </div>
+      <p className="text-[11px] text-white/50 mb-3">
+        מנקה סרטונים, התראות ותשלומים-ממתינים, ומאפס את מוני הדאשבורד — כדי לצאת להשקה עם דאטה נקייה. ההכנסות מתאפסות אוטומטית.
+      </p>
+      <label className="flex items-center gap-2 text-[12px] text-white/70 mb-3 cursor-pointer">
+        <input type="checkbox" checked={purgeUsers} onChange={(e) => setPurgeUsers(e.target.checked)} className="accent-red-500" />
+        למחוק גם את כל חשבונות הבדיקה (חוץ ממנהלים) — בלתי הפיך
+      </label>
+      <button
+        onClick={run}
+        disabled={busy}
+        className="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-100 text-sm font-bold px-4 py-2 rounded-lg disabled:opacity-50"
+      >
+        <Trash2 className="w-4 h-4" />
+        {busy ? "מאפס…" : "איפוס נתונים לקראת השקה"}
+      </button>
+      {result && <div className="mt-3 text-[11px] text-white/70 bg-bg-input rounded p-2 leading-relaxed">{result}</div>}
     </div>
   );
 }
@@ -1117,7 +1310,15 @@ function SfxTab({ onChange }: { onChange: () => void }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/sfx/upload", { method: "POST", body: fd });
+      // SFX upload is admin-gated server-side (requireUser requireAdmin) — must
+      // send the logged-in admin's Supabase token, else it 401s with "לא מחובר".
+      const { browserClient } = await import("@/lib/supabase");
+      const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/sfx/upload", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "העלאה נכשלה");
       const label = file.name.replace(/\.[^.]+$/, "").slice(0, 40) || "סאונד חדש";
@@ -1362,7 +1563,7 @@ function SfxTab({ onChange }: { onChange: () => void }) {
               disabled={uploadingSfx}
               className="text-xs bg-brand/20 hover:bg-brand/30 border border-brand/40 text-brand-light px-3 py-2 rounded-md disabled:opacity-50 whitespace-nowrap"
             >
-              {uploadingSfx ? "מעלה..." : "+ בחרי קובץ"}
+              {uploadingSfx ? "מעלה..." : "+ בחירת קובץ"}
             </button>
             <input
               ref={uploadInputRef}
@@ -1601,7 +1802,14 @@ function LottieTab({ onChange }: { onChange: () => void }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/lottie/upload", { method: "POST", body: fd });
+      // Same admin-gating as SFX upload — attach the logged-in admin's token.
+      const { browserClient } = await import("@/lib/supabase");
+      const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch("/api/lottie/upload", {
+        method: "POST",
+        body: fd,
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "העלאה נכשלה");
       const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 30) || "אנימציה חדשה";
