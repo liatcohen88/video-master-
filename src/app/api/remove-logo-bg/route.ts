@@ -21,7 +21,7 @@ const MAX_IMAGE_BYTES = 12 * 1024 * 1024; // 12 MB
 export async function POST(req: NextRequest) {
   // Background removal is a heavy sharp operation. Cap how often a single IP
   // can trigger it so it can't be used to exhaust CPU/memory on the server.
-  const limited = rateLimit(req, { key: "remove-logo-bg", max: 30, windowSec: 60 });
+  const limited = rateLimit(req, { key: "remove-logo-bg", max: 10, windowSec: 60 });
   if (limited) return limited;
 
   const body = await req.json().catch(() => null);
@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
   }
 
   const filename = src.replace("/custom-logos/", "");
+  // Path-traversal guard: only a plain basename (no "/", "\" or "..") is
+  // allowed, so a crafted src like "/custom-logos/../../../etc/passwd" can't
+  // escape the custom-logos folder to read/write arbitrary files.
+  if (!/^[A-Za-z0-9._-]+$/.test(filename) || filename.includes("..")) {
+    return NextResponse.json({ error: "שם קובץ לא חוקי" }, { status: 400 });
+  }
   const sourcePath = join(process.cwd(), "public", "custom-logos", filename);
   const dir = join(process.cwd(), "public", "custom-logos");
   await mkdir(dir, { recursive: true });

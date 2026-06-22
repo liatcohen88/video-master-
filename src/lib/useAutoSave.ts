@@ -26,6 +26,10 @@ export function useAutoSavedState<T>(
   const [wasRestored, setWasRestored] = useState(false);
   const hydratedRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  // Always-fresh copy of the value so the exit-flush below writes the LATEST
+  // edit without re-subscribing the listener on every keystroke.
+  const valRef = useRef(val);
+  valRef.current = val;
 
   // Initial hydrate (on mount only)
   useEffect(() => {
@@ -57,6 +61,24 @@ export function useAutoSavedState<T>(
     }, debounceMs);
     return () => { if (timerRef.current !== null) window.clearTimeout(timerRef.current); };
   }, [val, fullKey, debounceMs, key]);
+
+  // Flush-on-exit: if the user navigates away / closes the tab / backgrounds
+  // the app WITHIN the 600ms debounce window, the pending edit would be lost.
+  // Write the latest value synchronously on pagehide + when the tab is hidden
+  // so the very last edit is always persisted before unload.
+  useEffect(() => {
+    const flush = () => {
+      if (!hydratedRef.current) return;
+      try { localStorage.setItem(fullKey, JSON.stringify(valRef.current)); } catch { /* ignore */ }
+    };
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fullKey]);
 
   return [val, setVal, { wasRestored }];
 }
