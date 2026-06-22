@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/apiAuth";
 import { rateLimit } from "@/lib/rateLimit";
 import { spendCredits } from "@/lib/serverCredits";
+import { CREDIT_COSTS } from "@/lib/credits";
 
 export const runtime = "nodejs";
 
@@ -29,21 +30,31 @@ export async function POST(req: NextRequest) {
   const { amount, reason } = (await req.json().catch(() => ({}))) as {
     amount?: number; reason?: string;
   };
-  if (typeof amount !== "number" || amount <= 0 || amount > 1000) {
+
+  // Server-authoritative pricing for KNOWN reasons — NEVER trust the client's
+  // amount for a priced action (a tampered request could pay 1 for a 20-job).
+  // Unknown reasons fall back to the clamped client amount (back-compat).
+  const SERVER_COST: Record<string, number> = {
+    "multi-edit-download": CREDIT_COSTS.multi_video,
+  };
+  const required = reason && SERVER_COST[reason] != null
+    ? SERVER_COST[reason]
+    : (typeof amount === "number" ? Math.floor(amount) : NaN);
+  if (!Number.isFinite(required) || required <= 0 || required > 1000) {
     return NextResponse.json({ error: "סכום לא חוקי" }, { status: 400 });
   }
 
-  const result = await spendCredits(user.id, Math.floor(amount));
+  const result = await spendCredits(user.id, required);
   if (!result.ok) {
     if (result.reason === "insufficient") {
       return NextResponse.json(
-        { error: `אין מספיק מאסטרים (צריך ${amount}, יש לך ${result.balance})`, code: "INSUFFICIENT", balance: result.balance },
+        { error: `אין מספיק מאסטרים (צריך ${required}, יש לך ${result.balance})`, code: "INSUFFICIENT", balance: result.balance },
         { status: 402 },
       );
     }
     return NextResponse.json({ error: "מערכת התשלום לא זמינה" }, { status: 503 });
   }
 
-  console.log("[credits.spend]", { userId: user.id, amount, reason, newBalance: result.balance });
+  console.log("[credits.spend]", { userId: user.id, reason, required, newBalance: result.balance });
   return NextResponse.json({ ok: true, balance: result.balance });
 }

@@ -75,7 +75,12 @@ async function creditViaSupabase(opts: {
     user_id: userId,
     email: opts.email ?? null,
     provider: "grow",
-    provider_txn_id: opts.txnId ?? null,
+    // Idempotency key: a real per-payment id (transactionId/asmachta), or the
+    // single-use pending-payment id as fallback. Never NULL when we can avoid
+    // it — Postgres treats NULLs as distinct, so a NULL here would let Grow's
+    // webhook RETRY double-credit. The pending row is marked fulfilled below,
+    // so reusing its id is safe (a retry won't re-resolve a fulfilled row).
+    provider_txn_id: opts.txnId ?? pendingPaymentId ?? null,
     amount_ils: opts.amountIls ?? 0,
     credits_bought: opts.credits,
     package_id: resolvedPackageId ?? null,
@@ -152,7 +157,7 @@ export async function POST(req: NextRequest) {
       email,
       userId: hook.userId,
       credits,
-      txnId: hook.transactionId,
+      txnId: hook.transactionId ?? hook.asmachta,
       amountIls,
       packageId: hook.packageId,
     });
