@@ -35,6 +35,7 @@ export default function CreditsPage() {
   // `if (!hydrated) return ...` they fired in different orders pre/post
   // hydration → React Hooks-order error.
   const balanceLabel  = useContent("credits.balanceLabel");
+  const guestGift     = (useContent("credits.guestGift") as string) || "הירשמו וקבלו 25 מאסטרים במתנה מאיתנו 🎁";
   const calcCalcLabel = useContent("credits.calcCalcLabel");
   const eyebrow       = useContent("credits.eyebrow");
   const title         = useContent("credits.title");
@@ -112,6 +113,17 @@ export default function CreditsPage() {
       <div className="relative max-w-5xl mx-auto px-6 py-8">
         {/* Shared SiteHeader for cross-page consistency */}
         <div className="mb-8"><SiteHeader /></div>
+
+        {/* Guest-only gift CTA above the balance — invites signup for the
+            free 25 masters (logged-in users already received theirs). */}
+        {isGuest && (
+          <a
+            href="/signup"
+            className="block mb-4 text-center bg-gradient-to-r from-amber-500/20 via-amber-400/15 to-amber-500/20 border border-amber-400/40 text-amber-100 font-bold rounded-2xl px-5 py-3 hover:from-amber-500/30 hover:to-amber-500/30 transition-colors"
+          >
+            {guestGift}
+          </a>
+        )}
 
         {/* ── Balance + calculator in one strip — fully centered, mobile-friendly ── */}
         <div className="bg-gradient-to-br from-violet-500/20 via-bg-card to-cyan-500/10 border border-white/10 rounded-2xl p-5 mb-8 flex flex-col md:flex-row md:items-center md:justify-center gap-5 text-center">
