@@ -933,14 +933,20 @@ export function VideoComposition({
                 opacity: entrance.opacity,
               }}
             >
-              {words.map((w, i) => (
-                <span key={i}>
-                  {i > 0 && " "}
-                  <span style={{ color: i === activeIdx && !sameColor ? style.highlightColor : style.color }}>
-                    {w.word}
+              {/* <bdi> bidi-isolates the caption so numbers (e.g. 32000)
+                  render LTR inside the RTL block instead of reversing to
+                  00023. Mirrors the live preview (VideoPreview wraps words in
+                  <bdi> too) — without it the export flipped digit order. */}
+              <bdi>
+                {words.map((w, i) => (
+                  <span key={i}>
+                    {i > 0 && " "}
+                    <span style={{ color: i === activeIdx && !sameColor ? style.highlightColor : style.color }}>
+                      {w.word}
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))}
+              </bdi>
             </div>
           </AbsoluteFill>
         );
