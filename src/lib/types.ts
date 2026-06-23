@@ -252,7 +252,7 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
   },
   basic_effects: {
     ...DEFAULT_EFFECTS,
-    cutSilence: true,
+    cutSilence: false, // Liat: silence-cut must be user-activated, never auto
     zoomEffect: "subtle",
     zoomIntensity: 0.05,
     cinematicColor: true,
@@ -266,7 +266,7 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
   podcast: {
     ...DEFAULT_EFFECTS,
     aspectRatio: "original",       // ratio chooser exposed; default keeps full frame
-    cutSilence: true,
+    cutSilence: false, // Liat: silence-cut must be user-activated, never auto
     zoomEffect: "none",
     cinematicColor: true,
     subtitleAnimation: "pop",
@@ -290,7 +290,7 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
   advanced_effects: {
     ...DEFAULT_EFFECTS,
     aspectRatio: "original",
-    cutSilence: true,
+    cutSilence: false, // Liat: silence-cut must be user-activated, never auto
     zoomEffect: "punch",           // זיהוי פנים + זום אוטומטי — the headline feature
     cinematicColor: true,
     subtitleAnimation: "auto-mix",
