@@ -197,23 +197,66 @@ async function extractVideoAccent(
   } catch { return null; }
 }
 
-// Build the auto STYLE+COLOR for a video entirely client-side, then hand it to
-// pickAutoSubtitleStyle (emphasis_moments empty → energy is driven by the
-// sampled colorfulness). Returns null if sampling failed.
+// Curated style presets per mode — each clip deterministically lands on one,
+// so DIFFERENT videos get DIFFERENT looks (and the same video stays stable).
+// Earlier we relied only on in-browser color sampling, but it often returned
+// nothing (offscreen frame capture is flaky) AND talking-head clips are
+// skin-dominated → every clip looked the same. Presets guarantee real variety.
+const STYLE_PRESETS: Record<string, { templateId: string; accent: string }[]> = {
+  subtitles_only: [
+    { templateId: "ali",     accent: "#FACC15" },
+    { templateId: "minimal", accent: "#22D3EE" },
+    { templateId: "ali",     accent: "#F472B6" },
+    { templateId: "minimal", accent: "#34D399" },
+    { templateId: "ali",     accent: "#A78BFA" },
+    { templateId: "minimal", accent: "#FB923C" },
+  ],
+  podcast: [
+    { templateId: "ali",     accent: "#FACC15" },
+    { templateId: "minimal", accent: "#22D3EE" },
+    { templateId: "ali",     accent: "#F472B6" },
+    { templateId: "minimal", accent: "#A78BFA" },
+  ],
+  basic_effects: [
+    { templateId: "tiktok",    accent: "#FACC15" },
+    { templateId: "instagram", accent: "#FCD34D" },
+    { templateId: "ali",       accent: "#22D3EE" },
+    { templateId: "karaoke",   accent: "#EC4899" },
+  ],
+  advanced_effects: [
+    { templateId: "hormozi",  accent: "#22C55E" },
+    { templateId: "bold-pop", accent: "#FACC15" },
+    { templateId: "tiktok",   accent: "#F472B6" },
+    { templateId: "beast",    accent: "#FACC15" },
+  ],
+};
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// Auto subtitle STYLE+COLOR that VISIBLY varies per video. Each clip gets a
+// deterministic preset (template + accent) from its fingerprint; when the clip
+// is colorful enough we also borrow its real dominant color for the highlight
+// word so it matches the footage. NEVER returns null — always applies a look.
 async function autoStyleFromVideo(
-  file: File, mode: EditMode, durationSec: number,
-): Promise<{ templateId: string; style: SubtitleStyle } | null> {
-  const acc = await extractVideoAccent(file);
-  if (!acc) return null;
-  const fakeAna = {
-    duration_sec: durationSec,
-    emphasis_moments: [],
-    colorfulness: acc.colorfulness,
-    accent_color: acc.accent,
-    avg_brightness: acc.brightness,
-    is_talking_head: false,
-  } as unknown as VideoAnalysis;
-  return pickAutoSubtitleStyle(fakeAna, mode);
+  file: File, mode: EditMode, seedStr: string,
+): Promise<{ templateId: string; style: SubtitleStyle }> {
+  const presets = STYLE_PRESETS[mode] ?? STYLE_PRESETS.subtitles_only;
+  const seed = hashStr(seedStr || `${file.name}-${file.size}`);
+  const preset = presets[seed % presets.length];
+  let accent = preset.accent;
+  try {
+    const acc = await extractVideoAccent(file);
+    // Only adopt the sampled color when the clip is genuinely colorful — keeps
+    // skin-toned talking-head clips on their distinct preset color instead.
+    if (acc && acc.colorfulness >= 0.28) accent = acc.accent;
+  } catch { /* sampling failed — preset color stands */ }
+  const base = TEMPLATES.find((t) => t.id === preset.templateId) ?? TEMPLATES[0];
+  const style: SubtitleStyle = { ...base.style, highlightColor: accent };
+  return { templateId: preset.templateId, style };
 }
 
 export default function HomePage() {
@@ -726,7 +769,7 @@ export default function HomePage() {
         // Match subtitle style+color to THIS video (client-side, since server
         // analysis is unavailable) — even on a cache hit, which used to skip it.
         try {
-          const auto = await autoStyleFromVideo(videoFile, mode, cached[cached.length - 1]?.end ?? 0);
+          const auto = await autoStyleFromVideo(videoFile, mode, videoHash || "");
           if (auto) { setTemplateId(auto.templateId); setStyle(auto.style); }
         } catch {}
         setPhase("editing");
@@ -782,7 +825,7 @@ export default function HomePage() {
       // analyze route (cv2/mediapipe) isn't installed in prod, so we can't
       // rely on it — sample the video's accent color in the browser instead.
       try {
-        const auto = await autoStyleFromVideo(videoFile, mode, freshSubs[freshSubs.length - 1]?.end ?? 0);
+        const auto = await autoStyleFromVideo(videoFile, mode, videoHash || "");
         if (auto) { setTemplateId(auto.templateId); setStyle(auto.style); }
       } catch {}
       // Cache the transcription so next upload of same file is instant.
