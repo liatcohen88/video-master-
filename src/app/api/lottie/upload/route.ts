@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     });
     if (hasRasterOnly) {
       return NextResponse.json({
-        error: "Lottie מבוסס תמונה (PNG) — לא נתמך. הורידי גרסה וקטורית.",
+        error: "Lottie מבוסס תמונה (PNG) — לא נתמך. יש להוריד גרסה וקטורית.",
       }, { status: 400 });
     }
   }

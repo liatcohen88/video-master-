@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const allowed = [".png", ".jpg", ".jpeg", ".webp"];
   if (!allowed.includes(ext)) {
     return NextResponse.json(
-      { error: `סוג קובץ לא נתמך (${ext}). השתמשי ב-PNG, JPG או WEBP.` },
+      { error: `סוג קובץ לא נתמך (${ext}). יש להשתמש ב-PNG, JPG או WEBP.` },
       { status: 415 },
     );
   }

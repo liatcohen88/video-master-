@@ -54,7 +54,7 @@ export function rateLimit(
   if (b.count >= max) {
     const retryAfter = Math.ceil((b.resetAt - now) / 1000);
     return new Response(
-      JSON.stringify({ error: "יותר מדי בקשות. נסי שוב בעוד מעט.", retryAfter }),
+      JSON.stringify({ error: "יותר מדי בקשות. אפשר לנסות שוב בעוד מעט.", retryAfter }),
       {
         status: 429,
         headers: {

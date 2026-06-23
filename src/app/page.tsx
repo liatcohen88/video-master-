@@ -1020,7 +1020,7 @@ export default function HomePage() {
           if (exportBlobRef.current) await deliverExportFile(exportBlobRef.current, filename);
           setExportSavedVia("download");
           setDownloadSuccess(filename);
-          toast.success("✓ הסרטון מוכן וירד אלייך!");
+          toast.success("✓ הסרטון מוכן והורד בהצלחה!");
           setTimeout(() => setDownloadSuccess(null), 12000);
         }
       } else if (status === "failed") {
@@ -1046,7 +1046,7 @@ export default function HomePage() {
     // done/fail.
     try {
       if (localStorage.getItem("vm_export_job")) {
-        toast.error("אי אפשר לייצא שני סרטונים במקביל 🙏 יש ייצוא שעדיין רץ — רגע שהוא יסתיים והוא יירד אלייך.");
+        toast.error("אי אפשר לייצא שני סרטונים במקביל 🙏 יש ייצוא שעדיין רץ — כשהוא יסתיים הוא יירד אוטומטית.");
         return;
       }
     } catch { /* ignore */ }
@@ -1800,7 +1800,7 @@ export default function HomePage() {
                       <p className="text-sm text-white/70 mb-5 leading-relaxed">
                         בחלון השיתוף שנפתח, יש לבחור <strong className="text-emerald-300">&quot;שמור וידאו&quot; / &quot;שמירה בתמונות&quot;</strong> — והסרטון יישמר ל<strong className="text-emerald-300">גלריה</strong> 📱
                         <br />
-                        <span className="text-xs text-white/50">אם סגרת את החלון — הסרטון באפליקציית &quot;קבצים&quot; / ההורדות.</span>
+                        <span className="text-xs text-white/50">אם החלון נסגר — הסרטון באפליקציית &quot;קבצים&quot; / ההורדות.</span>
                       </p>
                     ) : (
                       <>

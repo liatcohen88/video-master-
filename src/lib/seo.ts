@@ -50,6 +50,12 @@ export function pageMetadata(opts: {
     robots: opts.noindex
       ? { index: false, follow: false }
       : { index: true, follow: true, googleBot: { index: true, follow: true } },
+    // Google Search Console verification — paste the HTML-tag token into the
+    // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION env var (Coolify) + redeploy, then
+    // click "Verify" in Search Console. No code change needed per token.
+    verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+      : undefined,
     openGraph: {
       type: "website",
       url: canonical,
