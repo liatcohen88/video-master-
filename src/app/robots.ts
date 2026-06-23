@@ -16,6 +16,9 @@ export default function robots(): MetadataRoute.Robots {
           "/admin",      // private admin panel
           "/api/",       // never index API
           "/dashboard",  // user-specific
+          "/account",    // private user settings
+          "/buy",        // transactional checkout
+          "/credits/success", // post-payment confirmation
         ],
       },
     ],
