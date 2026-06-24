@@ -43,6 +43,7 @@ import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
 import InsufficientCreditsModal, { type InsufficientInfo } from "@/components/InsufficientCreditsModal";
 import { useAutoSavedState } from "@/lib/useAutoSave";
+import { acquireWakeLock, releaseWakeLock, type WakeLockHandle } from "@/lib/wakeLock";
 import { toast } from "@/components/Toaster";
 import ResumeProjectBanner from "@/components/ResumeProjectBanner";
 import SaveSnapshotButton from "@/components/SaveSnapshotButton";
@@ -751,6 +752,12 @@ export default function HomePage() {
     if (!videoFile) return;
     setIsProcessing(true);
     setErrorMessage(null);
+    // Keep the screen awake for the whole job. On mobile the screen dimming +
+    // locking lets the browser throttle/suspend the tab, which can abort the
+    // upload/transcription mid-request (Liat: "שגיאה בתמלול... אולי בגלל
+    // שהמסך בטלפון נכבה?"). Released in the finally below.
+    let wakeLock: WakeLockHandle | null = null;
+    try { wakeLock = await acquireWakeLock(); } catch {}
 
     // If `force` is set we INTENTIONALLY skip the cache (Liat: "אני לא רואה
     // שינויים... אין דרך למחוק היסטוריה שלי שתמללתי שיעשה לי שוב?"). We
@@ -777,6 +784,7 @@ export default function HomePage() {
         // not the bottom of the editor panel where they were before transcription.
         if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
         setIsProcessing(false);
+        await releaseWakeLock(wakeLock);
         toast.success(`תמלול הוטען מהמטמון (${cached.length} כתוביות) — לא נמחקו ${currency}`);
         return;
       }
@@ -868,6 +876,7 @@ export default function HomePage() {
     } finally {
       setIsProcessing(false);
       setProgressMessage("");
+      await releaseWakeLock(wakeLock);
       // Liat 2026-06-16: after the AI pipeline finishes, the page often
       // sat at the bottom (where the "Start" button was), leaving the new
       // editor + preview off-screen — confusing especially on mobile. The
@@ -1114,6 +1123,9 @@ export default function HomePage() {
     setIsProcessing(true);
     setErrorMessage(null);
     setProgressMessage(progExport);
+    // Keep the screen awake during export too — same reason as transcription.
+    let exportWakeLock: WakeLockHandle | null = null;
+    try { exportWakeLock = await acquireWakeLock(); } catch {}
 
     // Pause any playing preview videos before the loader overlays the screen
     // (Liat 2026-06-16: "כשאני לוחצת על יצוא הסרטון מתנגן ברקע וזה חופר").
@@ -1302,6 +1314,7 @@ export default function HomePage() {
     } finally {
       setIsProcessing(false);
       setProgressMessage("");
+      await releaseWakeLock(exportWakeLock);
     }
   }
 

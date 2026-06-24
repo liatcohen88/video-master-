@@ -50,6 +50,8 @@ export default async function RootLayout({
   const overridesJson = JSON.stringify(overrides).replace(/</g, "\\u003c");
   // Google Analytics 4 — Master Video property. Override via env if needed.
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-XWDE4DZRS8";
+  // Microsoft Clarity — session recordings + heatmaps. Override via env if needed.
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID || "xc3q3bqbf1";
   return (
     <html lang="he" dir="rtl" className={fontVars}>
       <head>
@@ -69,6 +71,14 @@ export default async function RootLayout({
               }}
             />
           </>
+        )}
+        {/* Microsoft Clarity — session recordings + heatmaps */}
+        {clarityId && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${clarityId}");`,
+            }}
+          />
         )}
         {/* Inline CMS overrides BEFORE any client component mounts — kills
             the first-paint flash of default copy. contentStore reads this. */}

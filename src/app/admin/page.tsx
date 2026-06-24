@@ -851,13 +851,116 @@ function VideosTab() {
   );
 }
 
+type DatePreset = "today" | "yesterday" | "7d" | "30d" | "month" | "all" | "custom";
+
+// Local-midnight of a Date (00:00:00.000) — so "today" means from 00:00 in the
+// admin's own timezone, exactly like Liat asked ("היום מ-00:00").
+function startOfDay(d: Date): number {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.getTime();
+}
+// Parse a yyyy-mm-dd from <input type="date"> as LOCAL midnight (not UTC, which
+// is what `new Date("2026-06-24")` would give — that shifts the day by the TZ).
+function parseLocalDate(s: string, endOfDay = false): number | null {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const x = new Date(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  return x.getTime();
+}
+
 function RevenueTab() {
-  const txns = listRevenue();
+  const allTxns = listRevenue();
+  const [preset, setPreset] = useState<DatePreset>("all");
+  const [fromStr, setFromStr] = useState("");
+  const [toStr, setToStr] = useState("");
+
+  // Compute the active [from, to] window (ms epoch) from the chosen preset.
+  // `now` is read once per render — fine for an admin dashboard.
+  const range = useMemo<{ from: number | null; to: number | null }>(() => {
+    const now = Date.now();
+    const today0 = startOfDay(new Date(now));
+    const DAY = 86_400_000;
+    switch (preset) {
+      case "today":     return { from: today0, to: now };
+      case "yesterday": return { from: today0 - DAY, to: today0 - 1 };
+      case "7d":        return { from: today0 - 6 * DAY, to: now };
+      case "30d":       return { from: today0 - 29 * DAY, to: now };
+      case "month": {
+        const d = new Date(now);
+        return { from: startOfDay(new Date(d.getFullYear(), d.getMonth(), 1)), to: now };
+      }
+      case "custom":    return { from: parseLocalDate(fromStr), to: parseLocalDate(toStr, true) };
+      case "all":
+      default:          return { from: null, to: null };
+    }
+  }, [preset, fromStr, toStr]);
+
+  const txns = useMemo(() => {
+    return allTxns.filter((r) => {
+      const t = new Date(r.createdAt).getTime();
+      if (range.from != null && t < range.from) return false;
+      if (range.to != null && t > range.to) return false;
+      return true;
+    });
+  }, [allTxns, range]);
+
   const total = txns.reduce((a, b) => a + b.amountIls, 0);
+
+  const PRESETS: { id: DatePreset; label: string }[] = [
+    { id: "all", label: "הכל" },
+    { id: "today", label: "היום" },
+    { id: "yesterday", label: "אתמול" },
+    { id: "7d", label: "7 ימים" },
+    { id: "30d", label: "30 יום" },
+    { id: "month", label: "החודש" },
+    { id: "custom", label: "מותאם אישית" },
+  ];
+
   return (
     <div className="space-y-4">
+      {/* Date filter */}
+      <div className="bg-bg-card border border-white/10 rounded-xl p-3 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setPreset(p.id)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition ${
+                preset === p.id
+                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-200"
+                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+            <span>מתאריך</span>
+            <input
+              type="date"
+              value={fromStr}
+              onChange={(e) => setFromStr(e.target.value)}
+              className="bg-bg-input border border-white/10 rounded-lg px-2 py-1 text-white"
+            />
+            <span>עד</span>
+            <input
+              type="date"
+              value={toStr}
+              onChange={(e) => setToStr(e.target.value)}
+              className="bg-bg-input border border-white/10 rounded-lg px-2 py-1 text-white"
+            />
+          </div>
+        )}
+      </div>
+
       <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-4">
-        <div className="text-xs text-emerald-200">הכנסות סה״כ</div>
+        <div className="text-xs text-emerald-200">
+          הכנסות {preset === "all" ? "סה״כ" : "בטווח שנבחר"}
+        </div>
         <div className="text-4xl font-bold mt-1">₪{total.toLocaleString()}</div>
         <div className="text-[11px] text-white/50 mt-1">{txns.length} עסקאות</div>
       </div>
@@ -882,6 +985,13 @@ function RevenueTab() {
                 <td className="p-3 text-white/40 text-xs">{new Date(r.createdAt).toLocaleString("he-IL")}</td>
               </tr>
             ))}
+            {txns.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-white/40 text-xs">
+                  אין עסקאות בטווח שנבחר
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
