@@ -48,6 +48,8 @@ export default async function RootLayout({
   // ~1.5s until hydrateFromCloud() finishes its fetch.
   const overrides = (await loadOverridesServer()) as Content;
   const overridesJson = JSON.stringify(overrides).replace(/</g, "\\u003c");
+  // Google Analytics 4 — Master Video property. Override via env if needed.
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-XWDE4DZRS8";
   return (
     <html lang="he" dir="rtl" className={fontVars}>
       <head>
@@ -56,6 +58,18 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd()) }}
         />
+        {/* Google Analytics 4 (gtag.js) */}
+        {gaId && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
+              }}
+            />
+          </>
+        )}
         {/* Inline CMS overrides BEFORE any client component mounts — kills
             the first-paint flash of default copy. contentStore reads this. */}
         <script
