@@ -103,7 +103,7 @@ export const CONTENT_DEFAULTS = {
   "landing.claim.titlePre": "עורכים סרטונים",
   "landing.claim.titleHi":  "בלי להוריד",
   "landing.claim.titleSuf": "שום תוכנה.",
-  "landing.claim.body":     "אדובי פרמייר עולה ₪240/חודש ודורש מחשב חזק. כאן: חינמי, בדפדפן, בעברית, מוכן ב-5 דקות.",
+  "landing.claim.body":     "אדובי פרמייר עולה ₪240/חודש ודורש מחשב חזק. כאן: בלי מנוי חודשי, בדפדפן, בעברית, מוכן ב-5 דקות.",
   "landing.claim.cta":      "להתחיל עכשיו",
 
   // ── Landing page — features (6) ───────────────────────────
