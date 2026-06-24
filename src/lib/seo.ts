@@ -53,9 +53,11 @@ export function pageMetadata(opts: {
     // Google Search Console verification — paste the HTML-tag token into the
     // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION env var (Coolify) + redeploy, then
     // click "Verify" in Search Console. No code change needed per token.
-    verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
-      : undefined,
+    verification: {
+      google:
+        process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ??
+        "3pqjpHkhzGI8DJnS8ikqrYPRibhSemSDVFHAYeBDsaU",
+    },
     openGraph: {
       type: "website",
       url: canonical,
