@@ -91,12 +91,13 @@ export async function renderViaRemotion({
       // negligible size/quality cost for social video (the frame RENDER, not
       // encode, is the real cost — see the 1280-cap in the route).
       x264Preset: "faster",
-      // CX33 has 4 vCPU + 8GB AND also serves the live site from this box.
-      // concurrency 3 keeps ~1 core free so the site stays responsive while a
-      // render runs; concurrency 4 starved the Next server (site froze for
-      // other users mid-render). The real speed ceiling here is the 4-core box
-      // — see the render-queue / bigger-server options discussed with Liat.
-      concurrency: 3,
+      // The box ALSO serves the live site, so we never use all cores — leave a
+      // couple free for Next + transcription. On the 4-vCPU box concurrency 3
+      // was the ceiling (4 starved the site). After resizing to a 16-vCPU box
+      // (CX52), set RENDER_CONCURRENCY=12 in Coolify env — no rebuild needed —
+      // to roughly 3-4× the render speed while keeping ~4 cores for the site.
+      // Default stays 3 so it's always safe on the small box.
+      concurrency: Number(process.env.RENDER_CONCURRENCY) || 3,
       browserExecutable: process.env.CHROME_BIN,
       chromiumOptions: {
         // Belt-and-suspenders — kept from earlier file:// debugging.
