@@ -79,9 +79,14 @@ export async function renderViaRemotion({
       // (quality 90) capture MUCH faster than the default PNG — the per-frame
       // capture was a big chunk of the render time. Both are standard Remotion
       // speed levers and don't change the on-screen result meaningfully.
-      crf: 23,
+      // crf 20 (was 23) = noticeably sharper for text/subtitles at the same
+      // resolution. CRF affects only the final H.264 encode pass (fast) — NOT
+      // the per-frame Chromium render (the real cost) — so this is a quality
+      // win with negligible time impact. jpegQuality 92 sharpens the captured
+      // intermediate frames a touch.
+      crf: 20,
       imageFormat: "jpeg",
-      jpegQuality: 90,
+      jpegQuality: 92,
       // Faster H.264 encode preset — the encode phase is pure speed-up with a
       // negligible size/quality cost for social video (the frame RENDER, not
       // encode, is the real cost — see the 1280-cap in the route).

@@ -111,6 +111,15 @@ def main():
         # Better Hebrew quality:
         condition_on_previous_text=True,
         temperature=0.0,
+        # Prime the model to emit properly PUNCTUATED Hebrew (commas/periods/
+        # question marks) — Whisper often drops punctuation without a prompt,
+        # which makes the auto-chunker split lines awkwardly. Hebrew-only so it
+        # doesn't bias toward English.
+        initial_prompt="טקסט בעברית תקנית עם סימני פיסוק: פסיקים, נקודות וסימני שאלה.",
+        # Cut hallucinated words on near-silent/low-confidence audio (music
+        # intros, breaths) — raises the bar before Whisper invents text.
+        no_speech_threshold=0.6,
+        log_prob_threshold=-1.0,
     )
 
     # Collect all words across all segments
