@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, memo } from "react";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "@/lib/types";
 import { ASPECT_RATIO_INFO } from "@/lib/types";
 import { fontClassFor } from "@/lib/fonts";
@@ -1093,7 +1093,7 @@ export default function VideoPreview({
   );
 }
 
-function BrandOverlay({
+const BrandOverlay = memo(function BrandOverlay({
   brand, containerHeight, slot, transparentBg = false,
   sizePxOverride, positionOverride,
 }: {
@@ -1195,9 +1195,9 @@ function BrandOverlay({
       </div>
     </div>
   );
-}
+});
 
-function CustomLogoOverlay({
+const CustomLogoOverlay = memo(function CustomLogoOverlay({
   logo, containerHeight,
 }: {
   logo: NonNullable<VideoEffects["customLogos"]>[number];
@@ -1256,9 +1256,13 @@ function CustomLogoOverlay({
       />
     </div>
   );
-}
+});
 
-function ElementOverlay({
+// memo: during playback the parent re-renders ~10×/s for the subtitle word
+// highlight, but each emoji/element overlay's props (element object ref,
+// containerHeight) are stable — so memo lets them SKIP re-render every tick,
+// freeing the main thread for smooth video playback (Liat: "נתקע כשמתנגן").
+const ElementOverlay = memo(function ElementOverlay({
   element, containerHeight,
 }: { element: ElementEvent; containerHeight: number }) {
   // Position in % of container, matches ass.ts elementPosition().
@@ -1309,7 +1313,7 @@ function ElementOverlay({
       />
     </div>
   );
-}
+});
 
 function SubtitleOverlay({
   subtitle, subtitleIndex, style, currentTime, scale, animationType,
