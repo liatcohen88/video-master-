@@ -22,7 +22,7 @@ type Props = {
 
 
 export default function SfxPicker({
-  open, currentSfxId, defaultLabel, onSelect, onClose, anchorRect,
+  open, currentSfxId, defaultLabel, onSelect, onClose, anchorRect, hideDefault,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const handleRef = useRef<CappedPlayHandle | null>(null);
