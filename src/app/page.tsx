@@ -772,7 +772,11 @@ export default function HomePage() {
     if (!opts?.force && videoHash) {
       const cached = await loadTranscription(videoHash);
       if (cached && cached.length > 0) {
-        setSubtitles(cached);
+        // Re-chunk cached transcriptions through the current settings too, so
+        // the punctuation/silence line-breaking applies even without a fresh
+        // re-transcribe (Liat saw periods/commas mid-line on a cached video).
+        baseWordsRef.current = flattenWords(cached);
+        setSubtitles(applySubtitleSettings(cached, settings, baseWordsRef.current));
         // Match subtitle style+color to THIS video (client-side, since server
         // analysis is unavailable) — even on a cache hit, which used to skip it.
         try {

@@ -46,19 +46,50 @@ export function buildSubtitles(baseWords: TimedWord[], settings: SubtitleSetting
   const minW = Math.max(1, Math.floor(settings.minWordsPerLine) || 1);
   const keepPunct = settings.addPunctuation;
 
-  // Split into chunks of up to `size` words. minWordsPerLine: if the LAST chunk
-  // is shorter than the minimum (an orphan tail like a single word on its own
-  // line), merge it back into the previous chunk so no line falls below min.
-  const chunks: TimedWord[][] = [];
-  for (let i = 0; i < baseWords.length; i += size) chunks.push(baseWords.slice(i, i + size));
-  if (chunks.length >= 2 && chunks[chunks.length - 1].length < minW) {
-    const tail = chunks.pop()!;
-    chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(tail);
+  // Natural caption breaks (Liat): a caption should END at a clause boundary,
+  // not in the middle of a sentence. Two hard breaks:
+  //   1. PUNCTUATION — a word ending with . , ! ? ; : closes the caption, so a
+  //      period/comma never sits mid-line with more words after it.
+  //   2. SILENCE — a pause longer than SILENCE_GAP between two words starts a
+  //      new caption, so upcoming words don't show during the quiet gap.
+  // maxWordsPerLine is now a CAP that applies between hard breaks.
+  const BREAK_AFTER = /[.,!?;:׃…]["'»)\]]*\s*$/;
+  const SILENCE_GAP = 0.6; // seconds of silence that forces a new caption
+
+  // Each chunk records whether it ended on a HARD boundary (punctuation/
+  // silence) — those are deliberate and must survive the min-words merge below.
+  const chunks: { words: TimedWord[]; hard: boolean }[] = [];
+  let cur: TimedWord[] = [];
+  for (let i = 0; i < baseWords.length; i++) {
+    const w = baseWords[i];
+    cur.push(w);
+    const next = baseWords[i + 1];
+    const endsClause = BREAK_AFTER.test(w.word);
+    const silenceNext = !!next && next.start - w.end >= SILENCE_GAP;
+    if (endsClause || silenceNext || cur.length >= size) {
+      chunks.push({ words: cur, hard: endsClause || silenceNext });
+      cur = [];
+    }
+  }
+  if (cur.length) chunks.push({ words: cur, hard: false });
+
+  // minWordsPerLine: merge a too-short chunk back into the PREVIOUS one — but
+  // ONLY across a soft (max-words) boundary, never across a punctuation/silence
+  // break, so we don't undo a deliberate sentence split.
+  const mergedChunks: { words: TimedWord[]; hard: boolean }[] = [];
+  for (const c of chunks) {
+    const prev = mergedChunks[mergedChunks.length - 1];
+    if (prev && !prev.hard && c.words.length < minW) {
+      prev.words = prev.words.concat(c.words);
+      prev.hard = c.hard;
+    } else {
+      mergedChunks.push({ words: c.words.slice(), hard: c.hard });
+    }
   }
 
   const subs: Subtitle[] = [];
-  for (const chunk of chunks) {
-    const words = chunk
+  for (const chunk of mergedChunks) {
+    const words = chunk.words
       .map((w) => ({ word: keepPunct ? w.word : stripPunct(w.word), start: w.start, end: w.end }))
       .filter((w) => w.word.length > 0);
     if (!words.length) continue;
