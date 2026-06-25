@@ -36,12 +36,21 @@ export default function OnboardingSplash() {
   const currency = (useContent("brand.currencyName") as string) || "קרדיטים";
   const giftSuffix = useContent("onboarding.giftSuffix") as string;
 
-  const [showSplash,  setShowSplash]  = useState(true);
+  const [showSplash,  setShowSplash]  = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [closing,     setClosing]     = useState(false);
 
-  // 1) Splash logo — every page load, 1.8s.
+  // 1) Splash logo — ONCE per browser session, 1.8s. Was on every mount, so it
+  //    flashed on every full-page navigation = "טעינה על כל מעבר בין עמודים"
+  //    (Liat). sessionStorage gates it to the first load of the session; refresh
+  //    + in-app navigation stay clean. New tab/session → shows once again.
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (sessionStorage.getItem("vm_splash_shown") === "1") return;
+      sessionStorage.setItem("vm_splash_shown", "1");
+    } catch { /* private mode — just show it */ }
+    setShowSplash(true);
     const t = setTimeout(() => setShowSplash(false), 1800);
     return () => clearTimeout(t);
   }, []);
