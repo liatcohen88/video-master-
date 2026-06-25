@@ -723,7 +723,7 @@ export const CONTENT_DEFAULTS = {
   "effects.brandDetect.foundHeadingTpl":"{{n}} מותגים זוהו — גודל ומיקום לכל אחד",
 
   // ── EffectsPanel — intro SFX picker ──────────────────────────────
-  "effects.introSfx.heading":         "🔊 צליל לאנימציה (אופציונלי)",
+  "effects.introSfx.heading":         "🔊 צליל לאנימציית הכניסה לסרטון (אופציונלי)",
   "effects.introSfx.noneLabel":       "ללא צליל",
   "effects.introSfx.disabledLabel":   "מבוטל",
   "effects.introSfx.clickToPick":     "ללחיצה לבחירה",
