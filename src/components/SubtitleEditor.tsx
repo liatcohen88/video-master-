@@ -771,6 +771,7 @@ export default function SubtitleEditor({
             open={true}
             currentSfxId={current}
             defaultLabel={c.sfxNone}
+            hideDefault
             onSelect={(id) => updateManualElement(sfxPickerFor.subId, sfxPickerFor.idx, { sfxId: id })}
             onClose={() => setSfxPickerFor(null)}
             anchorRect={pickerAnchor}
@@ -796,6 +797,7 @@ export default function SubtitleEditor({
             open={true}
             currentSfxId={sub?.sfxId}
             defaultLabel={c.sfxNone}
+            hideDefault
             onSelect={(id) => update(sfxPickerForSub, { sfxId: id })}
             onClose={() => setSfxPickerForSub(null)}
             anchorRect={sfxPickerAnchor}

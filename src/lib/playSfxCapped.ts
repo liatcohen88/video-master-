@@ -40,9 +40,22 @@ export function playSfxCapped(
 ): CappedPlayHandle {
   const a = new Audio(url);
   a.preload = "auto";
-  a.crossOrigin = "anonymous";
 
-  const audioCtx = getCtx();
+  // CORS-safe playback. Routing a CROSS-ORIGIN media element through
+  // createMediaElementSource() makes the browser output SILENCE unless the
+  // server sends CORS headers the Web Audio graph trusts — Supabase-hosted
+  // admin SFX came out muted ("עלה אבל ללא שמע"). So we only use the Web Audio
+  // path (needed for >1 volume amplification) for SAME-ORIGIN / data: media;
+  // for cross-origin URLs we play the plain element, which streams cross-origin
+  // audio reliably (volume clamped to 0..1, fine for SFX).
+  let crossOrigin = false;
+  if (/^https?:\/\//i.test(url) && typeof location !== "undefined") {
+    try { crossOrigin = new URL(url).origin !== location.origin; } catch { /* keep false */ }
+  }
+  const useWebAudio = !crossOrigin;
+  if (useWebAudio) a.crossOrigin = "anonymous";
+
+  const audioCtx = useWebAudio ? getCtx() : null;
   let gainNode: GainNode | null = null;
   let mediaSource: MediaElementAudioSourceNode | null = null;
 

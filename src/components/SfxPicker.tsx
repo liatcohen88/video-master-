@@ -15,6 +15,9 @@ type Props = {
   onSelect: (sfxId: string | undefined) => void;
   onClose: () => void;
   anchorRect?: DOMRect | null;
+  /** Hide the separate "default" button when the default IS "no sound" — avoids
+   *  showing two near-identical no-sound buttons (Liat). */
+  hideDefault?: boolean;
 };
 
 
@@ -161,19 +164,22 @@ export default function SfxPicker({
         />
       </div>
 
-      {/* Default + mute */}
+      {/* Default + mute. When the default IS "no sound" (hideDefault) we show a
+          single "ללא סאונד אפקט" button instead of two near-identical ones. */}
       <div className="flex gap-1.5 mb-3">
-        <button
-          onClick={() => { onSelect(undefined); onClose(); }}
-          className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium border
-            ${currentSfxId === undefined ? "bg-brand/30 border-brand text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
-        >
-          {defaultLabel ?? "ברירת מחדל"}
-        </button>
+        {!hideDefault && (
+          <button
+            onClick={() => { onSelect(undefined); onClose(); }}
+            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium border
+              ${currentSfxId === undefined ? "bg-brand/30 border-brand text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
+          >
+            {defaultLabel ?? "ברירת מחדל"}
+          </button>
+        )}
         <button
           onClick={() => { onSelect("none"); onClose(); }}
           className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium border flex items-center justify-center gap-1
-            ${currentSfxId === "none" ? "bg-red-500/30 border-red-400 text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
+            ${(currentSfxId === "none" || (hideDefault && currentSfxId === undefined)) ? "bg-red-500/30 border-red-400 text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
         >
           <VolumeX className="w-3 h-3" /> ללא סאונד אפקט
         </button>
