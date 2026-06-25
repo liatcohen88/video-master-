@@ -969,7 +969,7 @@ export default function VideoPreview({
             brand={b}
             containerHeight={containerHeight}
             slot={i}
-            transparentBg={effects?.transparentLogoBg ?? false}
+            transparentBg={effects?.transparentLogoBg ?? true}
             sizePxOverride={effects?.brandSizePx?.[k]}
             positionOverride={effects?.brandPosition?.[k]}
           /> );
@@ -993,7 +993,7 @@ export default function VideoPreview({
                 brand={{ time, durationSec, brand, matchedText: "" }}
                 containerHeight={containerHeight}
                 slot={0}
-                transparentBg={effects?.transparentLogoBg ?? false}
+                transparentBg={effects?.transparentLogoBg ?? true}
                 sizePxOverride={me.scale ? Math.round(269 * me.scale) : undefined}
                 positionOverride={me.position}
               />

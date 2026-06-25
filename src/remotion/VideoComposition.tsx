@@ -591,7 +591,7 @@ export function VideoComposition({
       {effects?.contextualElements && effects.brandLogosDetect !== false && (() => {
         const brands = detectBrands(subtitles);
         const margin = 8; // % from edge
-        const transparentBg = effects.transparentLogoBg ?? false;
+        const transparentBg = effects.transparentLogoBg ?? true;
         return brands
           .map((b, i) => ({ b, i }))
           .filter(({ b }) => t >= b.time && t < b.time + b.durationSec)
@@ -668,7 +668,7 @@ export function VideoComposition({
           me.scale (default ≈ height*0.14), position from me.position. */}
       {(() => {
         const margin = 8; // % from edge
-        const transparentBg = effects?.transparentLogoBg ?? false;
+        const transparentBg = effects?.transparentLogoBg ?? true;
         const items: Array<{ brand: BrandLogo; time: number; durationSec: number; position: string; scale?: number; key: string }> = [];
         subtitles.forEach((sub) =>
           (sub.manualEmojis ?? []).forEach((me, mi) => {

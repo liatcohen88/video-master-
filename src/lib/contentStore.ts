@@ -717,8 +717,8 @@ export const CONTENT_DEFAULTS = {
   "effects.brandDetect.explainLead":  "ה-AI מזהה לוגואים של חברות גדולות.",
   "effects.brandDetect.explainBody":  "רשמו בכתוביות {{aliases}} וכו׳ — הלוגו יזוהה ויתווסף אוטומטית לסרטון.",
   "effects.brandDetect.aliases":      "אינסטגרם, אליאקספרס, שופיפיי",
-  "effects.brandDetect.transparentLabel": "הסר רקע לבן מהלוגו שזוהה",
-  "effects.brandDetect.transparentHint":  "אם הלוגו על רקע לבן — מסיר אותו כך שהלוגו צף נקי על הסרטון",
+  "effects.brandDetect.transparentLabel": "הוסף רקע לבן מאחורי הלוגו",
+  "effects.brandDetect.transparentHint":  "כברירת מחדל הלוגו מוצג נקי וללא רקע. סמנו אם תרצו ריבוע לבן מאחוריו",
   "effects.brandDetect.emptyHint":    "עוד לא זוהו מותגים בכתוביות. ברגע שהדובר יזכיר אמזון / אינסטגרם / אפל וכו׳, יופיע כאן כרטיס לכל מותג עם בקרות גודל ומיקום.",
   "effects.brandDetect.foundHeadingTpl":"{{n}} מותגים זוהו — גודל ומיקום לכל אחד",
 

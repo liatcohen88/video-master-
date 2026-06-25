@@ -134,7 +134,7 @@ export async function buildExportOverlays(opts: {
       const cardHeight = Math.round(outputHeight * 0.20);
       const maxW = Math.round(outputWidth * 0.40);
       const defaultMaxH = Math.round(outputHeight * 0.22);
-      const cards = await prepareBrandCards(brands, cardHeight, effects.transparentLogoBg ?? false);
+      const cards = await prepareBrandCards(brands, cardHeight, effects.transparentLogoBg ?? true);
       const brandPxMap = effects.brandSizePx ?? {};
       const brandPosMap = effects.brandPosition ?? {};
       let bi = 0;

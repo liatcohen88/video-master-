@@ -531,7 +531,7 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
         <CustomLogoSection
           logos={effects.customLogos ?? []}
           onChange={(logos) => update("customLogos", logos)}
-          transparentBg={effects.transparentLogoBg ?? false}
+          transparentBg={effects.transparentLogoBg ?? true}
           onTransparentBgChange={(v) => update("transparentLogoBg", v)}
           labels={{
             personalTitle: c.logoPersonalTitle,
@@ -604,8 +604,8 @@ export default function EffectsPanel({ effects, onChange, mode = "advanced_effec
                 className="shrink-0 w-9 h-5 appearance-none bg-white/10 rounded-full relative cursor-pointer transition-colors checked:bg-brand
                            before:absolute before:top-0.5 before:right-0.5 before:w-4 before:h-4 before:rounded-full before:bg-white
                            before:transition-all checked:before:right-[1.125rem]"
-                checked={effects.transparentLogoBg ?? false}
-                onChange={(e) => update("transparentLogoBg", e.target.checked)}
+                checked={!(effects.transparentLogoBg ?? true)}
+                onChange={(e) => update("transparentLogoBg", !e.target.checked)}
               />
             </label>
           </div>
