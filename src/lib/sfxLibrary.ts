@@ -130,6 +130,13 @@ export function registerCustomSfx(
 
 export function getSfxAsset(id: string | undefined): SfxAsset | null {
   if (!id || id === "none") return null;
+  // User-uploaded custom SFX: the id IS the audio source — either an inlined
+  // data: URL (from the picker's "upload your own sound") or an absolute http(s)
+  // URL. Both play in the live preview AND pass through the Remotion export's
+  // remotionAsset() unchanged, so no registry entry is needed.
+  if (id.startsWith("data:") || /^https?:\/\//i.test(id)) {
+    return { id, url: id, label: "צליל שהעליתי", category: "fx", weight: "short" };
+  }
   return BY_ID[id] ?? null;
 }
 

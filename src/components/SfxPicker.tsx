@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX, Play, Search } from "lucide-react";
+import { Volume2, VolumeX, Play, Search, Upload } from "lucide-react";
 import { listSfxByCategory, getSfxAsset, SFX_CATEGORY_LABEL } from "@/lib/sfxLibrary";
 import { playSfxCapped, type CappedPlayHandle } from "@/lib/playSfxCapped";
 import { useContent } from "@/lib/useContent";
@@ -23,8 +23,31 @@ export default function SfxPicker({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const handleRef = useRef<CappedPlayHandle | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  // Upload-your-own SFX: read the file as a data: URL and use it directly as
+  // the sfxId. getSfxAsset() returns it as-is, the preview plays it, and the
+  // Remotion export's remotionAsset() passes data: URLs through unchanged — so
+  // it works end-to-end with no storage/CORS. Capped at 1.5MB to keep the
+  // project/snapshot/render payload reasonable (a few-second clip is ~50-150KB).
+  const MAX_SFX_BYTES = 1.5 * 1024 * 1024;
+  function onUploadFile(file: File) {
+    setUploadErr(null);
+    if (!file.type.startsWith("audio/")) { setUploadErr("יש להעלות קובץ שמע (mp3/wav/m4a)"); return; }
+    if (file.size > MAX_SFX_BYTES) { setUploadErr(`הקובץ גדול מדי (מקס׳ 1.5MB). קצרו את הקליפ.`); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      if (!dataUrl.startsWith("data:")) { setUploadErr("קריאת הקובץ נכשלה"); return; }
+      onSelect(dataUrl);
+      onClose();
+    };
+    reader.onerror = () => setUploadErr("קריאת הקובץ נכשלה");
+    reader.readAsDataURL(file);
+  }
   const labelOverrides = useContent("sfx.labels");
   const hiddenSfx = useContent("sfx.hidden") as Record<string, true>;
   const categoryOrder = useContent("sfx.categoryOrder") as string[];
@@ -155,6 +178,25 @@ export default function SfxPicker({
           <VolumeX className="w-3 h-3" /> ללא צליל
         </button>
       </div>
+
+      {/* Upload your own sound — not only the ready-made library (Liat). */}
+      <button
+        onClick={() => fileRef.current?.click()}
+        className="w-full mb-1 px-2 py-1.5 rounded-md text-xs font-bold border border-dashed border-brand/50 text-brand-light bg-brand/10 hover:bg-brand/20 flex items-center justify-center gap-1.5 transition-colors"
+      >
+        <Upload className="w-3.5 h-3.5" /> העלאת צליל משלך
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadFile(f); e.target.value = ""; }}
+      />
+      {uploadErr && <div className="text-[10px] text-red-300 text-center mb-2">{uploadErr}</div>}
+      {currentSfxId && (currentSfxId.startsWith("data:") || /^https?:\/\//i.test(currentSfxId)) && (
+        <div className="text-[10px] text-emerald-300 text-center mb-2">✓ צליל מותאם אישית נבחר</div>
+      )}
 
       {(() => {
         const filtered = groups
