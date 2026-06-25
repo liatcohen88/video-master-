@@ -348,6 +348,32 @@ export default function HomePage() {
   const [whisperModel, setWhisperModel] = useAutoSavedState<string>("whisperModel", "ivrit-ai/whisper-large-v3-turbo-ct2");
   const [effects, setEffects] = useAutoSavedState<VideoEffects>("effects", MODE_DEFAULT_EFFECTS.subtitles_only);
 
+  // Hide the pre-hydration boot loader (rendered in layout.tsx) once we know
+  // what to show. It covers the home page that would otherwise flash on a
+  // refresh mid-edit (Liat: "מראה לי את דף הבית ולוקח זמן עד שמתעדכן").
+  //  - phase === "editing"  → editor is ready, drop the loader.
+  //  - no restore pending   → nothing to wait for, reveal the home page now.
+  //  - restore pending      → keep it until editing starts, but never >12s
+  //                           (stale flag / missing video → fall back to home).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const hide = () => {
+      const el = document.getElementById("vm-boot-loader");
+      if (el) el.style.display = "none";
+    };
+    if (phase === "editing") { hide(); return; }
+    let pending = false;
+    try {
+      pending =
+        sessionStorage.getItem("vm_active_edit") === "1" ||
+        sessionStorage.getItem("vm_autoload_video") === "1" ||
+        new URLSearchParams(window.location.search).has("restore");
+    } catch { /* private mode */ }
+    if (!pending) { hide(); return; }
+    const t = window.setTimeout(hide, 12000);
+    return () => window.clearTimeout(t);
+  }, [phase]);
+
   // Toast once on first paint if we restored saved state from a prior session.
   useEffect(() => {
     // Dashboard "שחזר גרסה" → /?restore=<snapshotId>: restore that EXACT saved
@@ -360,7 +386,11 @@ export default function HomePage() {
         window.history.replaceState({}, "", "/");
         (async () => {
           const v = await loadCurrentVideo();
-          if (!v) { toast.error("לא נמצא הסרטון לשחזור — נסו להעלות אותו שוב"); return; }
+          if (!v) {
+            const bl = document.getElementById("vm-boot-loader"); if (bl) bl.style.display = "none";
+            toast.error("לא נמצא הסרטון לשחזור — נסו להעלות אותו שוב");
+            return;
+          }
           const snaps = await listSnapshots();
           const snap = snaps.find((s) => String(s.id) === restoreId);
           await handleResume(storedToFile(v), snap);
@@ -391,6 +421,7 @@ export default function HomePage() {
         const v = await loadCurrentVideo();
         if (!v) {
           sessionStorage.removeItem("vm_active_edit"); // stale flag
+          const bl = document.getElementById("vm-boot-loader"); if (bl) bl.style.display = "none";
           return;
         }
         const file = storedToFile(v);

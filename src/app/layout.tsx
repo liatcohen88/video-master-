@@ -86,8 +86,50 @@ export default async function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: `window.__CMS_OVERRIDES__=${overridesJson};` }}
         />
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes vm-boot-spin{to{transform:rotate(360deg)}}` }} />
       </head>
       <body className="font-sans antialiased">
+        {/* Pre-hydration boot loader. The editor lives at "/", which is
+            prerendered as the HOME page — so a refresh mid-edit flashes the home
+            page for the whole hydrate+restore window (Liat: "מראה לי את דף הבית
+            ולוקח זמן עד שמתעדכן"). The inline script below shows this overlay
+            BEFORE the home page paints whenever a restore is pending; page.tsx
+            hides it the moment the editor (or, if nothing to restore, the home
+            page) is ready. */}
+        <div
+          id="vm-boot-loader"
+          suppressHydrationWarning
+          style={{
+            display: "none",
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "18px",
+            background: "#0a0a0f",
+          }}
+        >
+          <div
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: "9999px",
+              border: "4px solid rgba(255,255,255,0.14)",
+              borderTopColor: "#a855f7",
+              animation: "vm-boot-spin 0.8s linear infinite",
+            }}
+          />
+          <div style={{ color: "rgba(255,255,255,0.82)", fontWeight: 700, fontSize: 15, fontFamily: "inherit" }}>
+            טוען את הפרויקט שלך…
+          </div>
+        </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(location.pathname!=='/')return;var r=sessionStorage.getItem('vm_active_edit')==='1'||sessionStorage.getItem('vm_autoload_video')==='1'||/[?&]restore=/.test(location.search);if(r){var e=document.getElementById('vm-boot-loader');if(e)e.style.display='flex';}}catch(_){}})();`,
+          }}
+        />
         <ContentProvider initial={overrides}>
           <AnimatedBackground />
           {children}
