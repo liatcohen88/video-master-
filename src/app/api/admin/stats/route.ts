@@ -28,11 +28,29 @@ export async function GET(req: NextRequest) {
   }
   const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
-  // Revenue — sum amount_ils across all confirmed payments.
+  // Revenue — pull all confirmed payments once; sum + return the list so the
+  // admin revenue tab shows REAL payers (not the ליאת/יוסי/עמיר demo seed).
   let totalRevenue = 0;
+  let txns: {
+    id: string; userName: string; amountIls: number;
+    creditsBought: number; package: string; createdAt: string;
+  }[] = [];
   try {
-    const { data } = await admin.from("revenue_txns").select("amount_ils");
-    totalRevenue = (data ?? []).reduce((a, r) => a + Number(r.amount_ils ?? 0), 0);
+    const { data } = await admin
+      .from("revenue_txns")
+      .select("id, user_name, amount_ils, credits_bought, package, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    const rows = data ?? [];
+    totalRevenue = rows.reduce((a, r) => a + Number(r.amount_ils ?? 0), 0);
+    txns = rows.map((r) => ({
+      id: String(r.id),
+      userName: (r.user_name as string) || "—",
+      amountIls: Number(r.amount_ils ?? 0),
+      creditsBought: Number(r.credits_bought ?? 0),
+      package: (r.package as string) || "starter",
+      createdAt: r.created_at as string,
+    }));
   } catch { /* table may not exist yet → 0 */ }
 
   // Active users — total registered profiles.
@@ -70,6 +88,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     configured: true,
     totalRevenue,
+    txns,
     activeUsers,
     videosLast24h,
     successRate,

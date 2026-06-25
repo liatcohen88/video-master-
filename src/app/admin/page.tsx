@@ -871,7 +871,24 @@ function parseLocalDate(s: string, endOfDay = false): number | null {
 }
 
 function RevenueTab() {
-  const allTxns = listRevenue();
+  // REAL payments from Supabase (revenue_txns) — only people who actually paid.
+  // Falls back to the local demo seed (ליאת/יוסי/עמיר) ONLY if Supabase isn't
+  // configured/reachable, so we never show fake payers in production (Liat:
+  // "שיראה רק מי ששילם").
+  const [real, setReal] = useState<RevenueTxn[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/stats", { headers: await adminAuthHeaders() });
+        if (!r.ok || !alive) return;
+        const d = await r.json();
+        if (d?.configured && Array.isArray(d.txns)) setReal(d.txns as RevenueTxn[]);
+      } catch { /* keep demo fallback */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+  const allTxns = real ?? listRevenue();
   const [preset, setPreset] = useState<DatePreset>("all");
   const [fromStr, setFromStr] = useState("");
   const [toStr, setToStr] = useState("");
