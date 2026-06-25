@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import LogoMark from "./LogoMark";
 import MasterCoin from "./MasterCoin";
@@ -118,18 +119,18 @@ export default function SiteHeader() {
       {/* CENTER — main nav (desktop only) */}
       <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
         <a href="/" onClick={goHomeClean} className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHome}</a>
-        <a href="/credits" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navCredits}</a>
-        <a href="/help" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHelp}</a>
+        <Link href="/credits" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navCredits}</Link>
+        <Link href="/help" className="px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">{navHelp}</Link>
       </nav>
 
       {/* LEFT — credits + notifications + profile */}
       <div className="flex items-center gap-2 shrink-0">
-        <a href="/credits"
+        <Link href="/credits"
            className="bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-white/10 hover:border-brand/40 px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors"
            title={tipBalance}>
           <MasterCoin size={16} />
           <span className="font-bold text-white">{credits.toLocaleString()}</span>
-        </a>
+        </Link>
 
         {/* Bell */}
         <div className="relative">
@@ -176,8 +177,8 @@ export default function SiteHeader() {
         {/* Auth area (desktop) — login/signup buttons when guest, profile menu when logged in */}
         {isGuest ? (
           <div className="hidden md:flex items-center gap-2">
-            <a href="/login" className="text-sm text-white/80 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 transition-colors whitespace-nowrap">{navLogin}</a>
-            <a href="/signup" className="text-sm bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap">{navSignup}</a>
+            <Link href="/login" className="text-sm text-white/80 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 transition-colors whitespace-nowrap">{navLogin}</Link>
+            <Link href="/signup" className="text-sm bg-gradient-to-r from-brand to-accent-pink text-white font-bold px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap">{navSignup}</Link>
           </div>
         ) : (
         <div className="relative hidden md:block">
