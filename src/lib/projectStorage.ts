@@ -188,7 +188,8 @@ export async function loadTranscription(hash: string): Promise<Subtitle[] | null
 
 /* ──────────────────────────── Snapshots ──────────────────────────── */
 
-const MAX_SNAPSHOTS = 10;
+const MAX_SNAPSHOTS = 10;          // auto-saves (one per video after coalesce)
+const MAX_MANUAL_SNAPSHOTS = 50;   // deliberate "שמור גרסה" checkpoints — kept long
 
 /** An auto-save — by the explicit flag OR the legacy auto labels (so old
  *  duplicates already in IndexedDB get cleaned up on the next auto-save). */
@@ -209,12 +210,17 @@ export async function saveSnapshot(snap: Omit<ProjectSnapshot, "id">): Promise<v
     await Promise.all(dupes.map((d) => deleteSnapshot(d.id!)));
   }
   await tx(STORE_SNAPSHOTS, "readwrite", (s) => s.add(snap));
-  // Trim to MAX_SNAPSHOTS keeping the newest.
+  // Trim — but NEVER drop a manual ("שמור גרסה") snapshot. Only AUTO snapshots
+  // are capped; manual saves are the user's deliberate checkpoints and must
+  // survive (Liat lost a styled version because auto-coalesce overwrote the
+  // only copy). Manual saves keep a generous cap of their own.
   const all = await listSnapshots();
-  if (all.length > MAX_SNAPSHOTS) {
-    const drop = all.slice(MAX_SNAPSHOTS);
-    await Promise.all(drop.map((d) => deleteSnapshot(d.id!)));
-  }
+  const autos = all.filter(isAutoSnapshot);
+  const manuals = all.filter((s) => !isAutoSnapshot(s));
+  const drop: ProjectSnapshot[] = [];
+  if (autos.length > MAX_SNAPSHOTS) drop.push(...autos.slice(MAX_SNAPSHOTS));
+  if (manuals.length > MAX_MANUAL_SNAPSHOTS) drop.push(...manuals.slice(MAX_MANUAL_SNAPSHOTS));
+  await Promise.all(drop.filter((d) => d.id !== undefined).map((d) => deleteSnapshot(d.id!)));
 }
 
 /** Snapshots older than this are auto-deleted on every list call.
@@ -233,12 +239,15 @@ export async function listSnapshots(): Promise<ProjectSnapshot[]> {
     r.onsuccess = () => resolve((r.result as ProjectSnapshot[]) ?? []);
     r.onerror = () => resolve([]);
   });
+  // TTL applies ONLY to auto-saves. Manual ("שמור גרסה") snapshots never expire
+  // — they're the user's deliberate checkpoints (Liat lost work; manual saves
+  // must be permanent until she deletes them or hits the manual cap).
   const cutoff = Date.now() - SNAPSHOT_TTL_MS;
-  const expired = all.filter((s) => s.at < cutoff && s.id !== undefined);
+  const expired = all.filter((s) => isAutoSnapshot(s) && s.at < cutoff && s.id !== undefined);
   if (expired.length > 0) {
     await Promise.all(expired.map((s) => deleteSnapshot(s.id!)));
   }
-  return all.filter((s) => s.at >= cutoff).sort((a, b) => b.at - a.at);
+  return all.filter((s) => !(isAutoSnapshot(s) && s.at < cutoff)).sort((a, b) => b.at - a.at);
 }
 
 export async function deleteSnapshot(id: number): Promise<void> {
