@@ -174,7 +174,8 @@ export default function LottieGallery({
         <SfxPicker
           open={true}
           currentSfxId={elements[sfxPickerIdx]?.sfxId}
-          defaultLabel="ללא צליל"
+          defaultLabel="ללא סאונד אפקט"
+          hideDefault
           onSelect={(id) => update(sfxPickerIdx, { sfxId: id })}
           onClose={() => setSfxPickerIdx(null)}
           anchorRect={anchorRect}

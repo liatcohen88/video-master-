@@ -13,7 +13,7 @@ import { colorFilterCss } from "@/lib/colorFilters";
 import { detectDramaMoments, dramaActiveAt, pickDramaSting, detectWowMoments, wowActiveAt, manualDramaMoments } from "@/lib/dramaEffects";
 import { introFrameAt } from "@/lib/introAnimations";
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "@/lib/sfxLibrary";
-import { playSfxCapped } from "@/lib/playSfxCapped";
+import { playSfxCapped, preloadSfx } from "@/lib/playSfxCapped";
 import { detectBrands, brandLogoCdnUrl, getBrandById, type BrandEvent } from "@/lib/brandLogos";
 import { DYNAMIC_BG_MAP } from "@/lib/dynamicBackgrounds";
 import LottiePreviewOverlay from "./LottiePreviewOverlay";
@@ -114,6 +114,11 @@ export default function VideoPreview({
     const SFX_LEAD_MS = 120;
     for (const trig of triggers) trig.time = Math.max(0, trig.time - SFX_LEAD_MS / 1000);
     triggers.sort((a, b) => a.time - b.time);
+
+    // Warm the cache for every SFX in this video NOW, so the first time each
+    // one fires during playback it starts instantly instead of fetching on
+    // demand (Liat: "הצליל מגיע בדיילאי"). Cheap — just primes the HTTP cache.
+    for (const trig of triggers) preloadSfx(trig.url);
 
     // Per-trigger live handle from playSfxCapped — lets us stop a still-
     // playing instance before re-firing on a seek-back, and guarantees the
@@ -448,6 +453,12 @@ export default function VideoPreview({
     reset();
 
     if (!id || id === "none") return;
+
+    // Warm the intro SFX so it fires on-beat with the animation instead of
+    // landing late (Liat: "הצליל ... גם בפתיח" arrives delayed).
+    if (effects?.introSfxId && effects.introSfxId !== "none") {
+      preloadSfx(getSfxAsset(effects.introSfxId)?.url);
+    }
 
     let raf = 0;
     let running = false;

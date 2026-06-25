@@ -30,6 +30,26 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
+// Warm the browser cache for an SFX url so the FIRST playSfxCapped() of it
+// starts with minimal latency. Without this, `new Audio(url); play()` fetches
+// the file on demand, and the sound lands noticeably late — especially the
+// intro "riser" and cross-origin (Supabase) uploads (Liat: "הצליל מגיע
+// בדיילאי, גם בפתיח"). We DON'T set crossOrigin here so the cached response
+// matches the plain (no-CORS) element playSfxCapped uses for volume ≤ 1 — a
+// mismatched CORS mode would be a separate cache entry and defeat the warm-up.
+// The element is kept in the map so it isn't GC'd mid-buffer.
+const preloadCache = new Map<string, HTMLAudioElement>();
+export function preloadSfx(url: string | null | undefined): void {
+  if (!url || typeof window === "undefined" || preloadCache.has(url)) return;
+  try {
+    const a = new Audio();
+    a.preload = "auto";
+    a.src = url;
+    a.load();
+    preloadCache.set(url, a);
+  } catch { /* ignore — playback still works, just без warm-up */ }
+}
+
 /** Play `url` with the cap. `volume` is a linear multiplier — values >1
  *  amplify above the source. WebAudio path is used when available so
  *  volumes like 2.0 actually produce louder output. */

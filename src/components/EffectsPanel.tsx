@@ -776,9 +776,21 @@ function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onC
   const disabledLabel= useContent("effects.introSfx.disabledLabel") as string;
   const heading      = useContent("effects.introSfx.heading") as string;
   const pickLabel    = useContent("effects.introSfx.clickToPick") as string;
+  // Resolve the SELECTED sfx's display name from the CMS custom list FIRST.
+  // registerCustomSfx() mutates a module-level map without triggering a React
+  // re-render, so getSfxAsset() can still return the raw id here if this
+  // rendered before registration — showing "u_1...-riser" instead of the Hebrew
+  // name (Liat: "ישלו שם בעברית אבל זה שם אחר"). useContent re-renders when the
+  // custom list loads, so the name resolves correctly.
+  const customSfx = (useContent("sfx.custom") as Array<{ id: string; label: string; url: string }>) ?? [];
+  const resolveSfxName = (id: string): string => {
+    const c = customSfx.find((x) => x.id === id || x.url === id);
+    if (c) return c.label;
+    return getSfxAsset(id)?.label ?? id;
+  };
   const label = !currentSfxId ? noneLabel
     : currentSfxId === "none" ? disabledLabel
-    : getSfxAsset(currentSfxId)?.label ?? currentSfxId;
+    : resolveSfxName(currentSfxId);
   return (
     <div className="mt-3 pt-3 border-t border-white/5">
       <div className="text-[10px] text-white/40 mb-1.5">{heading}</div>
@@ -798,6 +810,7 @@ function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onC
           open
           currentSfxId={currentSfxId}
           defaultLabel={noneLabel}
+          hideDefault
           onSelect={(id) => { onChange(id); setOpen(false); }}
           onClose={() => setOpen(false)}
           anchorRect={anchor}
