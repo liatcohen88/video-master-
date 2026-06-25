@@ -1651,9 +1651,14 @@ function SfxTab({ onChange }: { onChange: () => void }) {
       audioRef.current = null;
       if (playingId === id) { setPlayingId(null); return; }
     }
+    // Resolve from the SAME source the list renders from (`customs`), not a
+    // separate getContent() read — they could diverge right after an upload, so
+    // a just-uploaded sound showed in the list but its play button found no URL
+    // → silent (Liat: "שהעלית שקטים"). Fall back to getContent for safety.
     const sfx = SFX_LIBRARY.find((s) => s.id === id)
+      ?? customs.find((s) => s.id === id)
       ?? (getContent("sfx.custom") as { id: string; url: string }[]).find((s) => s.id === id);
-    if (!sfx) return;
+    if (!sfx || !sfx.url) return;
     // Capped preview — never plays beyond 3.5s, even for long files. Same
     // cap Liat asked for in the trigger system; consistent behavior across
     // admin + picker + live preview.
