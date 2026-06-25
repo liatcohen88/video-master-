@@ -15,7 +15,7 @@ import { useRef, useEffect, useState } from "react";
 import {
   Upload, Wand2, Download, Coins, Zap, Languages,
   Sparkles, Layers, Cloud, ArrowLeft, Star, Quote, Save,
-  FileDown, Crown, Rocket, Film, Check,
+  FileDown, Crown, Rocket, Film, Check, Volume2, ScanSearch,
 } from "lucide-react";
 import { useContent } from "@/lib/useContent";
 import FeatureShowcase from "./FeatureShowcase";
@@ -61,6 +61,8 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
   const f3T = useContent("landing.feat3.title"); const f3B = useContent("landing.feat3.body");
   const f5T = useContent("landing.feat5.title"); const f5B = useContent("landing.feat5.body");
   const f6T = useContent("landing.feat6.title"); const f6B = useContent("landing.feat6.body");
+  const f7T = useContent("landing.feat7.title"); const f7B = useContent("landing.feat7.body");
+  const f8T = useContent("landing.feat8.title"); const f8B = useContent("landing.feat8.body");
 
   // ── Testimonials ─────────────────────────────────────────────
   const tEy = useContent("landing.test.eyebrow");
@@ -120,6 +122,8 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
           {multiEnabled && <Feature icon={<Layers />} color="pink" title={f3T} body={f3B} />}
           {/* feat4 ("אנימציות ו-SFX") removed — its AI auto-magic now lives in
               the tabbed AiAutoShowcase below, which is accurate (no Lottie). */}
+          <Feature icon={<Volume2 />}   color="cyan"     title={f7T} body={f7B} />
+          <Feature icon={<ScanSearch />} color="fuchsia" title={f8T} body={f8B} />
           <Feature icon={<Coins />}     color="amber"    title={f5T} body={f5B} />
           <Feature icon={<Save />}      color="emerald"  title={f6T} body={f6B} />
         </div>

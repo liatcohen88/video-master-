@@ -122,6 +122,10 @@ export const CONTENT_DEFAULTS = {
   "landing.feat5.body":  "משלמים רק כשמייצאים. לא פג לעולם. סרטון פשוט = 10 מאסטרים, מתקדם = 40.",
   "landing.feat6.title": "שמירה אוטומטית",
   "landing.feat6.body":  "כל שנייה הכל נשמר. ברענון ממשיכים מאיפה שהפסקתם. אף פעם לא תאבדו עבודה.",
+  "landing.feat7.title": "ספריית סאונד אפקטים ויראליים",
+  "landing.feat7.body":  "מעל 100 סאונד אפקטים ויראליים מוכנים לבחירה — וגם אפשר להעלות משלכם. הכל בלחיצה אחת.",
+  "landing.feat8.title": "זיהוי לוגו ומילות מפתח אוטומטי",
+  "landing.feat8.body":  "ה-AI מזהה לבד מותגים ומילות מפתח בדיבור, ומוסיף לוגואים, אמוג'ים וסאונד אפקטים במקום הנכון.",
 
   // ── Landing page — Showcase cards (video mockup section) ──
   "landing.showcase1.title":     "פחות מ-10 שניות ויש לכם רילס מוכן",
