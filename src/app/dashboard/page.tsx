@@ -383,7 +383,7 @@ export default function DashboardPage() {
                         {new Date(s.at).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {s.payload.subtitles.length} {cSnapCountSuffix}
                       </div>
                     </div>
-                    <Link href="/" className="px-2.5 py-1 rounded-md bg-brand/20 hover:bg-brand/40 text-brand-light text-[10px] font-bold transition">
+                    <Link href={s.id ? `/?restore=${s.id}` : "/"} className="px-2.5 py-1 rounded-md bg-brand/20 hover:bg-brand/40 text-brand-light text-[10px] font-bold transition">
                       {cSnapRestoreBtn}
                     </Link>
                     <button onClick={() => s.id && removeSnapshot(s.id)} className="p-1.5 rounded-md text-white/30 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover/row:opacity-100 transition" title={cSnapDelTooltip}>

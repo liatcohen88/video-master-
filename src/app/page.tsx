@@ -350,6 +350,24 @@ export default function HomePage() {
 
   // Toast once on first paint if we restored saved state from a prior session.
   useEffect(() => {
+    // Dashboard "שחזר גרסה" → /?restore=<snapshotId>: restore that EXACT saved
+    // version (not just the latest), so a user can roll back to an earlier
+    // styled version after a reset (Liat lost her styling on a reload).
+    if (typeof window !== "undefined") {
+      const restoreId = new URLSearchParams(window.location.search).get("restore");
+      if (restoreId) {
+        // Clean the URL immediately so a later refresh doesn't re-restore.
+        window.history.replaceState({}, "", "/");
+        (async () => {
+          const v = await loadCurrentVideo();
+          if (!v) { toast.error("לא נמצא הסרטון לשחזור — נסו להעלות אותו שוב"); return; }
+          const snaps = await listSnapshots();
+          const snap = snaps.find((s) => String(s.id) === restoreId);
+          await handleResume(storedToFile(v), snap);
+        })();
+        return;
+      }
+    }
     // Coming from the multi-video joiner? Auto-load the combined video that
     // was stashed in IndexedDB and drop straight into the setup phase.
     if (typeof window !== "undefined" && sessionStorage.getItem("vm_autoload_video") === "1") {
@@ -770,15 +788,45 @@ export default function HomePage() {
     // Cache hit? Skip the API call — same file was transcribed before.
     // Saves the user 30-60s + avoids burning server CPU on duplicate work.
     if (!opts?.force && videoHash) {
+      // FIRST: if the user already has SAVED EDITS for this exact video
+      // (styling, effects, edited subtitles) restore that snapshot instead of
+      // re-deriving from scratch. Re-loading the same video must NEVER wipe
+      // their work (Liat: "עשיתי טעינה שוב וזה מחק לי את עיצוב הכתוביות וכל
+      // העריכה"). Snapshots keep the last 10 versions in IndexedDB.
+      try {
+        const snaps = await listSnapshots();
+        const snap = snaps
+          .filter((s) => s.videoHash === videoHash)
+          .sort((a, b) => b.at - a.at)[0];
+        if (snap) {
+          const p = snap.payload;
+          setMode(p.mode);
+          setExportFormat(p.exportFormat);
+          setSettings(p.settings);
+          setTemplateId(p.templateId);
+          setStyle(p.style);
+          baseWordsRef.current = flattenWords(p.subtitles);
+          setSubtitles(p.subtitles);
+          setEffects(p.effects);
+          setWhisperModel(p.whisperModel);
+          setPhase("editing");
+          void reconcileBgMusic();
+          if (typeof window !== "undefined") setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+          setIsProcessing(false);
+          await releaseWakeLock(wakeLock);
+          toast.success(`שוחזרה העריכה שלך (${p.subtitles.length} כתוביות) — לא נמחקו ${currency}`);
+          return;
+        }
+      } catch { /* no snapshot → fall through to cached transcription */ }
+
       const cached = await loadTranscription(videoHash);
       if (cached && cached.length > 0) {
-        // Re-chunk cached transcriptions through the current settings too, so
-        // the punctuation/silence line-breaking applies even without a fresh
-        // re-transcribe (Liat saw periods/commas mid-line on a cached video).
+        // No prior edits — re-chunk the cached transcription through current
+        // settings (punctuation/silence breaking) and derive a per-video style.
         baseWordsRef.current = flattenWords(cached);
         setSubtitles(applySubtitleSettings(cached, settings, baseWordsRef.current));
         // Match subtitle style+color to THIS video (client-side, since server
-        // analysis is unavailable) — even on a cache hit, which used to skip it.
+        // analysis is unavailable) — only for a never-edited cached video.
         try {
           const auto = await autoStyleFromVideo(videoFile, mode, videoHash || "");
           if (auto) { setTemplateId(auto.templateId); setStyle(auto.style); }
