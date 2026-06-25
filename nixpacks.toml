@@ -44,7 +44,16 @@ cmds = [
 ]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = [
+  "npm run build",
+  # Pre-download Remotion's Chrome Headless Shell (~150MB) into
+  # node_modules/.remotion — which lives INSIDE /app, so it's baked into the
+  # final image and survives every deploy/restart. Without this, each fresh
+  # container cold-downloads Chrome on the FIRST export, which intermittently
+  # failed/OOM'd → "הייצוא נכשל" after every redeploy. Baking it means the very
+  # first export after a deploy works instantly. ~220MB image cost, one-time.
+  "npx remotion browser ensure",
+]
 
 [start]
 cmd = "npm run start"
