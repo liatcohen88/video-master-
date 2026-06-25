@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useMemo } from "react";
 import type { Subtitle, SubtitleStyle, VideoEffects } from "@/lib/types";
 import { ASPECT_RATIO_INFO } from "@/lib/types";
 import { fontClassFor } from "@/lib/fonts";
+import { useFitText } from "@/lib/useFitText";
 import { resolveAnimation } from "@/lib/subtitleAnimations";
 import { detectElements, type ElementEvent } from "@/lib/keywordElements";
 import { appleEmojiUrl, twemojiUrl } from "@/lib/twemoji";
@@ -1333,6 +1334,9 @@ function SubtitleOverlay({
   const fontSizePx = style.fontSize * scale;
   const strokePx = style.strokeWidth * scale;
   const offsetPx = style.positionOffset * scale;
+  // Shrink-to-fit: keep the caption on one line but scale it down so a long
+  // line never overflows/clips the frame (re-measures when the text/size change).
+  const fitRef = useFitText<HTMLDivElement>(fontSizePx, `${subtitle.id}|${subtitle.text}`);
 
   const bgHex =
     style.backgroundOpacity > 0
@@ -1365,6 +1369,7 @@ function SubtitleOverlay({
       }}
     >
       <div
+        ref={fitRef}
         className={fontClassFor(style.fontFamily)}
         dir="rtl"
         style={{

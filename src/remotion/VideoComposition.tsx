@@ -34,6 +34,65 @@ import { detectBrands, brandLogoCdnUrl, getBrandById, type BrandLogo } from "../
 import { getSfxAsset, DEFAULT_SFX_FOR_KIND } from "../lib/sfxLibrary";
 import { resolveRemotionFont } from "./remotionFonts";
 import { resolveAnimation, type SubtitleAnimationType } from "../lib/subtitleAnimations";
+import { useFitText } from "../lib/useFitText";
+
+/**
+ * One caption line for the export — shrink-to-fit so a long line scales down
+ * to fit the frame instead of clipping (parity with the live preview).
+ */
+function ExportCaption({
+  style, fontSizePx, strokePx, bgHex, scale, entrance, words, activeIdx, sameColor,
+}: {
+  style: SubtitleStyle;
+  fontSizePx: number;
+  strokePx: number;
+  bgHex: string;
+  scale: number;
+  entrance: { transform: string; opacity: number };
+  words: { word: string; start: number; end: number }[];
+  activeIdx: number;
+  sameColor: boolean;
+}) {
+  const fitRef = useFitText<HTMLDivElement>(fontSizePx, words.map((w) => w.word).join(" "));
+  return (
+    <div
+      ref={fitRef}
+      dir="rtl"
+      style={{
+        fontFamily: resolveRemotionFont(style.fontFamily),
+        fontSize: `${fontSizePx}px`,
+        fontWeight: style.fontWeight,
+        paintOrder: "stroke fill",
+        WebkitTextStroke: strokePx > 0 ? `${strokePx}px ${style.strokeColor}` : undefined,
+        background: bgHex,
+        padding: style.backgroundOpacity > 0 ? `${8 * scale}px ${18 * scale}px` : "0",
+        borderRadius: `${12 * scale}px`,
+        textShadow: style.shadow ? `0 ${4 * scale}px ${16 * scale}px rgba(0,0,0,0.85)` : "none",
+        display: "inline-block",
+        lineHeight: 1.3,
+        maxWidth: "96%",
+        whiteSpace: "nowrap",
+        textAlign: "center",
+        color: style.color,
+        transformOrigin: "center center",
+        transform: entrance.transform,
+        opacity: entrance.opacity,
+      }}
+    >
+      {/* <bdi> bidi-isolates so numbers render LTR inside the RTL block. */}
+      <bdi>
+        {words.map((w, i) => (
+          <span key={i}>
+            {i > 0 && " "}
+            <span style={{ color: i === activeIdx && !sameColor ? style.highlightColor : style.color }}>
+              {w.word}
+            </span>
+          </span>
+        ))}
+      </bdi>
+    </div>
+  );
+}
 
 /**
  * Frame-based reimplementation of the subtitle entrance @keyframes (see
@@ -908,49 +967,17 @@ export function VideoComposition({
               transform: style.position === "middle" ? "translateY(-50%)" : undefined,
             }}
           >
-            <div
-              dir="rtl"
-              style={{
-                fontFamily: resolveRemotionFont(style.fontFamily),
-                fontSize: `${fontSizePx}px`,
-                fontWeight: style.fontWeight,
-                paintOrder: "stroke fill",
-                WebkitTextStroke: strokePx > 0 ? `${strokePx}px ${style.strokeColor}` : undefined,
-                background: bgHex,
-                padding: style.backgroundOpacity > 0 ? `${8 * scale}px ${18 * scale}px` : "0",
-                borderRadius: `${12 * scale}px`,
-                textShadow: style.shadow ? `0 ${4 * scale}px ${16 * scale}px rgba(0,0,0,0.85)` : "none",
-                display: "inline-block",
-                lineHeight: 1.3,
-                maxWidth: "96%",
-                // One line per subtitle — parity with the live preview. The
-                // words-per-line cap controls how many words show; nowrap keeps
-                // them on a single row instead of wrapping to two.
-                whiteSpace: "nowrap",
-                textAlign: "center",
-                color: style.color,
-                transformOrigin: "center center",
-                // Frame-based entrance animation (matches the preview's CSS
-                // keyframe per the selected subtitleAnimation).
-                transform: entrance.transform,
-                opacity: entrance.opacity,
-              }}
-            >
-              {/* <bdi> bidi-isolates the caption so numbers (e.g. 32000)
-                  render LTR inside the RTL block instead of reversing to
-                  00023. Mirrors the live preview (VideoPreview wraps words in
-                  <bdi> too) — without it the export flipped digit order. */}
-              <bdi>
-                {words.map((w, i) => (
-                  <span key={i}>
-                    {i > 0 && " "}
-                    <span style={{ color: i === activeIdx && !sameColor ? style.highlightColor : style.color }}>
-                      {w.word}
-                    </span>
-                  </span>
-                ))}
-              </bdi>
-            </div>
+            <ExportCaption
+              style={style}
+              fontSizePx={fontSizePx}
+              strokePx={strokePx}
+              bgHex={bgHex}
+              scale={scale}
+              entrance={entrance}
+              words={words}
+              activeIdx={activeIdx}
+              sameColor={sameColor}
+            />
           </AbsoluteFill>
         );
       })()}
