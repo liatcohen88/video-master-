@@ -1498,6 +1498,41 @@ function SfxTab({ onChange }: { onChange: () => void }) {
       setUploadingSfx(false);
     }
   }
+  // Bulk upload — pick many files at once (e.g. 20 downloaded Pixabay SFX).
+  // Each is uploaded sequentially, auto-named from its filename, into the
+  // currently-selected category. Liat renames/recategorizes afterwards.
+  async function uploadSfxMany(files: File[]) {
+    setUploadingSfx(true); setUploadError(null);
+    try {
+      const { browserClient } = await import("@/lib/supabase");
+      const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+      const added: CustomSfx[] = [];
+      for (const file of files) {
+        try {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/sfx/upload", {
+            method: "POST", body: fd,
+            headers: token ? { authorization: `Bearer ${token}` } : {},
+          });
+          const j = await res.json();
+          if (!res.ok) throw new Error(j.error || "העלאה נכשלה");
+          const label = file.name.replace(/\.[^.]+$/, "").slice(0, 40) || "סאונד חדש";
+          added.push({ id: j.id, label, category: uploadCat, url: j.url });
+        } catch (e) {
+          setUploadError((prev) => `${prev ? prev + " · " : ""}${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      if (added.length) {
+        const next = [...customs, ...added];
+        setCustoms(next);
+        setContent("sfx.custom", next as never);
+        onChange();
+      }
+    } finally {
+      setUploadingSfx(false);
+    }
+  }
   function removeCustom(id: string) {
     const next = customs.filter((c) => c.id !== id);
     setCustoms(next);
@@ -1711,7 +1746,7 @@ function SfxTab({ onChange }: { onChange: () => void }) {
           <div className="flex-1">
             <div className="text-sm font-bold mb-0.5">🎵 העלאת סאונד משלך</div>
             <div className="text-[11px] text-white/50">
-              MP3 / WAV / OGG עד 3MB. הסאונד יופיע מיד בכל בוררי הצלילים באתר ובייצוא.
+              MP3 / WAV / OGG עד 3MB. אפשר לבחור כמה קבצים יחד. הסאונדים יופיעו מיד בכל בוררי הסאונד באתר ובייצוא (אפשר לשנות שם/קטגוריה אחר כך).
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1729,14 +1764,20 @@ function SfxTab({ onChange }: { onChange: () => void }) {
               disabled={uploadingSfx}
               className="text-xs bg-brand/20 hover:bg-brand/30 border border-brand/40 text-brand-light px-3 py-2 rounded-md disabled:opacity-50 whitespace-nowrap"
             >
-              {uploadingSfx ? "מעלה..." : "+ בחירת קובץ"}
+              {uploadingSfx ? "מעלה..." : "+ בחירת קבצים"}
             </button>
             <input
               ref={uploadInputRef}
               type="file"
               accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg"
+              multiple
               className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSfx(f); e.target.value = ""; }}
+              onChange={(e) => {
+                const fs = Array.from(e.target.files ?? []);
+                if (fs.length === 1) uploadSfx(fs[0]);
+                else if (fs.length > 1) uploadSfxMany(fs);
+                e.target.value = "";
+              }}
             />
           </div>
         </div>
