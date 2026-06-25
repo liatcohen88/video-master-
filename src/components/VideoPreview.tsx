@@ -434,68 +434,97 @@ export default function VideoPreview({
     const id = effects?.introAnimation;
     if (!v || !wrapper) return;
 
-    // Wipe any stale intro state from a previous selection.
-    wrapper.style.transform = "";
-    wrapper.style.transformOrigin = "center center";
-    v.style.removeProperty("clip-path");
-    if (overlay) {
-      overlay.style.opacity = "0";
-      overlay.style.background = "transparent";
-    }
+    // Reset the wrapper/video/overlay to passthrough (no intro transform).
+    const reset = () => {
+      wrapper.style.transform = "";
+      wrapper.style.transformOrigin = "center center";
+      wrapper.style.opacity = "1";
+      v.style.removeProperty("clip-path");
+      if (overlay) {
+        overlay.style.opacity = "0";
+        overlay.style.background = "transparent";
+      }
+    };
+    reset();
 
     if (!id || id === "none") return;
 
-    // Rewind + play so the user sees the intro from frame 0.
+    let raf = 0;
+    let running = false;
+    let lastSfxAt = -1;
+
+    // The visual rAF loop — reads v.currentTime each frame and applies the
+    // intro transform to the wrapper until the intro window (1.2s) ends or the
+    // video pauses. Guarded by `running` so overlapping triggers (select +
+    // play) don't spawn two loops.
+    const runVisual = () => {
+      if (running) return;
+      running = true;
+      const tick = () => {
+        const t = v.currentTime;
+        const f = introFrameAt(t, id);
+        wrapper.style.transform = `scale(${f.scaleMul}) translate(${f.translateX}%, ${f.translateY}%) rotate(${f.rotate}deg)`;
+        wrapper.style.opacity = String(f.opacity);
+        if (f.clipPath) v.style.clipPath = f.clipPath;
+        else v.style.removeProperty("clip-path");
+        if (overlay) {
+          if (f.overlayBg && (f.overlayOpacity ?? 0) > 0) {
+            overlay.style.background = f.overlayBg;
+            overlay.style.opacity = String(f.overlayOpacity);
+          } else {
+            overlay.style.opacity = "0";
+          }
+        }
+        if (t < 1.2 && !v.paused) {
+          raf = requestAnimationFrame(tick);
+        } else {
+          running = false;
+          reset();
+        }
+      };
+      raf = requestAnimationFrame(tick);
+    };
+
+    // Intro SFX — fire once, de-duped within a 300ms window so the select-path
+    // and the play-event path don't double-fire. Capped at 3.5s like all SFX.
+    const fireSfx = () => {
+      if (!effects?.introSfxId || effects.introSfxId === "none") return;
+      const now = performance.now();
+      if (now - lastSfxAt < 300) return;
+      lastSfxAt = now;
+      const url = getSfxAsset(effects.introSfxId)?.url;
+      if (url) playSfxCapped(url, 0.85 * (effects?.sfxMasterVolume ?? 1));
+    };
+
+    // KEY FIX (Liat: "האנימציית כניסה לא מראה בתצוגה החיה רק כשאני לוחצת עליה"):
+    // the intro must play whenever the video STARTS from the beginning in the
+    // live preview — not only the moment she picks an animation. Hook the
+    // video's `play` event: if playback begins at/near frame 0, run the intro.
+    const onPlay = () => {
+      if (v.currentTime <= 0.25) {
+        fireSfx();
+        runVisual();
+      }
+    };
+    v.addEventListener("play", onPlay);
+
+    // On SELECTION (this effect re-runs because the animation id changed):
+    // rewind to 0 and play so she immediately sees what she chose. The play()
+    // emits a 'play' event too, but we also trigger directly so a video that's
+    // already playing at 0 still shows the intro.
     try {
       v.currentTime = 0;
       v.play().catch(() => {});
     } catch { /* ignore */ }
+    fireSfx();
+    runVisual();
 
-    // Intro SFX — fire ONCE at the start, alongside the visual animation.
-    // Capped at 3.5s like all other SFX in the editor for consistency.
-    if (effects?.introSfxId && effects.introSfxId !== "none") {
-      const url = getSfxAsset(effects.introSfxId)?.url;
-      if (url) {
-        playSfxCapped(url, 0.85 * (effects?.sfxMasterVolume ?? 1));
-      }
-    }
-
-    let raf = 0;
-    let stopped = false;
-    const tick = () => {
-      if (stopped) return;
-      const t = v.currentTime;
-      const f = introFrameAt(t, id);
-
-      // Apply transform to the wrapper (NOT the video). Composes via GPU
-      // with the React-written transform on the video element.
-      wrapper.style.transform = `scale(${f.scaleMul}) translate(${f.translateX}%, ${f.translateY}%) rotate(${f.rotate}deg)`;
-      wrapper.style.opacity = String(f.opacity);
-      if (f.clipPath) v.style.clipPath = f.clipPath;
-      else v.style.removeProperty("clip-path");
-
-      if (overlay) {
-        if (f.overlayBg && (f.overlayOpacity ?? 0) > 0) {
-          overlay.style.background = f.overlayBg;
-          overlay.style.opacity = String(f.overlayOpacity);
-        } else {
-          overlay.style.opacity = "0";
-        }
-      }
-
-      const stillRunning = t < 1.2;
-      if (stillRunning) raf = requestAnimationFrame(tick);
-      else {
-        // Reset to passthrough after intro ends.
-        wrapper.style.transform = "";
-        wrapper.style.opacity = "1";
-        v.style.removeProperty("clip-path");
-        if (overlay) overlay.style.opacity = "0";
-      }
+    return () => {
+      v.removeEventListener("play", onPlay);
+      running = false;
+      cancelAnimationFrame(raf);
     };
-    raf = requestAnimationFrame(tick);
-    return () => { stopped = true; cancelAnimationFrame(raf); };
-  }, [effects?.introAnimation, effects?.introSfxId, videoUrl]);
+  }, [effects?.introAnimation, effects?.introSfxId, effects?.sfxMasterVolume, videoUrl]);
 
   // First-frame paint is handled by the single consolidated useEffect at
   // the top of this component (the one with the muted-play fallback).
