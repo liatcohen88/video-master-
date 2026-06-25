@@ -1788,29 +1788,9 @@ export default function HomePage() {
                 }
               />
 
-              {/* Manual "save version" — a DURABLE, user-controlled checkpoint.
-                  Unlike the auto-save (which coalesces to one per video and can
-                  be overwritten), manual saves are kept and never auto-deleted,
-                  so the user can always roll back (Liat lost a styled version). */}
-              <button
-                onClick={async () => {
-                  if (!videoHash) { toast.error("אין סרטון לשמירה"); return; }
-                  try {
-                    await saveSnapshot({
-                      at: Date.now(),
-                      label: "גרסה שמורה " + new Date().toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
-                      auto: false,
-                      videoHash,
-                      payload: { mode, exportFormat, settings, templateId, style, subtitles, effects, whisperModel },
-                    });
-                    toast.success("✅ הגרסה נשמרה! אפשר לשחזר אותה בכל רגע מ'גרסאות שמורות' בפרופיל");
-                  } catch { toast.error("השמירה נכשלה — נסו שוב"); }
-                }}
-                className="w-full bg-bg-panel border border-white/15 hover:border-brand/40 text-white/90 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition-colors"
-              >
-                💾 שמור גרסה
-              </button>
-
+              {/* Manual "save version" button removed per Liat — she already has
+                  a save-version control elsewhere; the auto-save (+ protected
+                  snapshots) still safeguards work without this extra button. */}
               <button
                 onClick={exportProject}
                 disabled={isProcessing}
