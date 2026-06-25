@@ -39,7 +39,10 @@ import { getFfmpegPath, getFfprobePath } from "@/lib/ffmpegBinaries";
 const ffmpegPath = getFfmpegPath;
 const ffprobePath = getFfprobePath;
 
-const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB hard cap (audit H8)
+// Upload cap, env-tunable (audit H8). 200MB was too small for 90s HD videos;
+// default 600MB, override with MAX_UPLOAD_MB.
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 600;
+const MAX_VIDEO_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   // Security (audit C2 + H8): require auth, rate-limit per user, cap file size.

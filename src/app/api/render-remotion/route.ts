@@ -27,7 +27,12 @@ import { createJob, updateJob, jobOutputPath, cleanupOldJobs } from "@/lib/rende
 export const runtime = "nodejs";
 export const maxDuration = 1800;
 
-const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+// Upload cap, env-tunable. 200MB was too small for 90-second HD phone videos
+// (Liat hit "קובץ גדול מדי" on a normal export). The renderer downscales to
+// 1280px anyway, so a bigger raw input only needs upload + disk-staging
+// headroom. Default 600MB; raise MAX_UPLOAD_MB after the server upgrade.
+const MAX_VIDEO_BYTES = (Number(process.env.MAX_UPLOAD_MB) || 600) * 1024 * 1024;
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 600;
 
 // Hold references to in-flight background renders so the Node GC doesn't
 // collect the un-awaited promise. The process is long-lived (next start), so
@@ -57,7 +62,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get("video") as File | null;
   if (!file) return NextResponse.json({ error: "לא נמצא קובץ וידאו" }, { status: 400 });
   if (file.size > MAX_VIDEO_BYTES) {
-    return NextResponse.json({ error: "קובץ גדול מדי (מקס׳ 200MB)" }, { status: 413 });
+    return NextResponse.json({ error: `קובץ גדול מדי (מקס׳ ${MAX_UPLOAD_MB}MB)` }, { status: 413 });
   }
 
   const subtitlesJson = formData.get("subtitles") as string | null;
