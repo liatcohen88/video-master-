@@ -1384,8 +1384,13 @@ function SubtitleOverlay({
             : "none",
           display: "inline-block",
           lineHeight: 1.3,
-          maxWidth: "92%",
-          whiteSpace: "normal",
+          maxWidth: "96%",
+          // Keep each subtitle on ONE line so "max words per line" maps to a
+          // single visual line — wrapping to 2 lines (whiteSpace:"normal") made
+          // a short chunk like "מוודאים שעות הכבוי, פותחים" spill onto two rows
+          // even when the user capped the words-per-line (Liat). nowrap honors
+          // that cap; if a line is ever too wide the user simply lowers the cap.
+          whiteSpace: "nowrap",
           textAlign: "center",
           color: style.color,
           animation: animDef.cssAnimation,

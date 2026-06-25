@@ -922,8 +922,11 @@ export function VideoComposition({
                 textShadow: style.shadow ? `0 ${4 * scale}px ${16 * scale}px rgba(0,0,0,0.85)` : "none",
                 display: "inline-block",
                 lineHeight: 1.3,
-                maxWidth: "92%",
-                whiteSpace: "normal",
+                maxWidth: "96%",
+                // One line per subtitle — parity with the live preview. The
+                // words-per-line cap controls how many words show; nowrap keeps
+                // them on a single row instead of wrapping to two.
+                whiteSpace: "nowrap",
                 textAlign: "center",
                 color: style.color,
                 transformOrigin: "center center",
