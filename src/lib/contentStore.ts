@@ -68,6 +68,14 @@ export const CONTENT_DEFAULTS = {
   "footer.contactEmail": "motiva8891@gmail.com",
   "footer.contactPhone": "053-5372699",
 
+  // ── Floating WhatsApp bubble (bottom-right, site-wide) ───────
+  // Opens a direct WhatsApp chat to the support number. The number reuses
+  // footer.contactPhone (single source of truth). Set bubbleEnabled to "0"
+  // to hide it. bubbleText is pre-filled for the user; gender-neutral copy.
+  "whatsapp.bubbleEnabled": "1",
+  "whatsapp.bubbleText":    "היי! אשמח לעזרה עם Master Video 🙂",
+  "whatsapp.bubbleLabel":   "דברו איתנו",
+
   // ── Contact page ─────────────────────────────────────────────
   "contact.title":        "בואו נדבר",
   "contact.subtitle":     "אנחנו פה לכל שאלה — תוך 24 שעות תקבלו תשובה",

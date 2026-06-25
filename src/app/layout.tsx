@@ -10,6 +10,7 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import AccessibilityPanel from "@/components/AccessibilityPanel";
 import ExportJobBadge from "@/components/ExportJobBadge";
 import PresenceBeacon from "@/components/PresenceBeacon";
+import WhatsAppBubble from "@/components/WhatsAppBubble";
 import { pageMetadata, softwareJsonLd, getSiteUrl } from "@/lib/seo";
 import { loadOverridesServer } from "@/lib/contentStoreServer";
 import ContentProvider from "@/lib/ContentProvider";
@@ -101,6 +102,7 @@ export default async function RootLayout({
           <ConfirmDialogRoot />
           <SfxCustomLoader />
           <AccessibilityPanel />
+          <WhatsAppBubble />
         </ContentProvider>
       </body>
     </html>
