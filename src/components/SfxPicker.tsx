@@ -130,7 +130,7 @@ export default function SfxPicker({
 
   const currentLabel =
     currentSfxId === "none"
-      ? "ללא צליל"
+      ? "ללא סאונד אפקט"
       : currentSfxId
         ? labelFor(currentSfxId, getSfxAsset(currentSfxId)?.label ?? currentSfxId)
         : (defaultLabel ?? "ברירת מחדל");
@@ -143,7 +143,7 @@ export default function SfxPicker({
       dir="rtl"
     >
       <div className="text-xs text-white/40 mb-2 text-center">
-        בחירת צליל (נוכחי: <span className="text-white/70">{currentLabel}</span>)
+        בחירת סאונד אפקט (נוכחי: <span className="text-white/70">{currentLabel}</span>)
       </div>
 
       {/* Search */}
@@ -152,7 +152,7 @@ export default function SfxPicker({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="חיפוש צליל (למשל: ציוץ, פיצוץ, מעבר)..."
+          placeholder="חיפוש סאונד אפקט (למשל: ציוץ, פיצוץ, מעבר)..."
           className="w-full bg-white/5 border border-white/10 rounded-md text-xs px-3 py-1.5 pr-8 placeholder-white/30 focus:outline-none focus:border-white/30"
           dir="rtl"
           // Liat 2026-06-16: removed autoFocus — on mobile this popped the
@@ -175,7 +175,7 @@ export default function SfxPicker({
           className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium border flex items-center justify-center gap-1
             ${currentSfxId === "none" ? "bg-red-500/30 border-red-400 text-white" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`}
         >
-          <VolumeX className="w-3 h-3" /> ללא צליל
+          <VolumeX className="w-3 h-3" /> ללא סאונד אפקט
         </button>
       </div>
 
@@ -184,7 +184,7 @@ export default function SfxPicker({
         onClick={() => fileRef.current?.click()}
         className="w-full mb-1 px-2 py-1.5 rounded-md text-xs font-bold border border-dashed border-brand/50 text-brand-light bg-brand/10 hover:bg-brand/20 flex items-center justify-center gap-1.5 transition-colors"
       >
-        <Upload className="w-3.5 h-3.5" /> העלאת צליל משלך
+        <Upload className="w-3.5 h-3.5" /> העלאת סאונד אפקט משלך
       </button>
       <input
         ref={fileRef}
@@ -195,7 +195,7 @@ export default function SfxPicker({
       />
       {uploadErr && <div className="text-[10px] text-red-300 text-center mb-2">{uploadErr}</div>}
       {currentSfxId && (currentSfxId.startsWith("data:") || /^https?:\/\//i.test(currentSfxId)) && (
-        <div className="text-[10px] text-emerald-300 text-center mb-2">✓ צליל מותאם אישית נבחר</div>
+        <div className="text-[10px] text-emerald-300 text-center mb-2">✓ סאונד אפקט מותאם אישית נבחר</div>
       )}
 
       {(() => {
@@ -212,8 +212,8 @@ export default function SfxPicker({
         if (filtered.length === 0) {
           return (
             <div className="text-center text-xs text-white/40 py-6">
-              לא נמצאו צלילים ל-״{query}״
-              <div className="text-[10px] text-white/30 mt-1">ניתן לעדכן שמות צלילים ב-/admin → SFX</div>
+              לא נמצאו סאונד אפקטים ל-״{query}״
+              <div className="text-[10px] text-white/30 mt-1">ניתן לעדכן שמות ב-/admin → SFX</div>
             </div>
           );
         }

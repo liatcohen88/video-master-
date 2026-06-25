@@ -135,7 +135,7 @@ export function getSfxAsset(id: string | undefined): SfxAsset | null {
   // URL. Both play in the live preview AND pass through the Remotion export's
   // remotionAsset() unchanged, so no registry entry is needed.
   if (id.startsWith("data:") || /^https?:\/\//i.test(id)) {
-    return { id, url: id, label: "צליל שהעליתי", category: "fx", weight: "short" };
+    return { id, url: id, label: "סאונד אפקט שהעליתי", category: "fx", weight: "short" };
   }
   return BY_ID[id] ?? null;
 }
