@@ -1406,7 +1406,9 @@ function SubtitleOverlay({
         className={fontClassFor(style.fontFamily)}
         dir="rtl"
         style={{
-          fontSize: `${fontSizePx}px`,
+          // fontSize is owned imperatively by useFitText (fitRef) — do NOT set
+          // it here, or React resets it to the base on every re-render and
+          // fights the shrink-to-fit (caused first captions to render tiny).
           fontWeight: style.fontWeight,
           paintOrder: "stroke fill",
           WebkitTextStroke: strokePx > 0

@@ -60,7 +60,9 @@ function ExportCaption({
       dir="rtl"
       style={{
         fontFamily: resolveRemotionFont(style.fontFamily),
-        fontSize: `${fontSizePx}px`,
+        // fontSize is owned imperatively by useFitText (the fitRef above) — do
+        // NOT set it here, or React would reset it to the base on every frame
+        // and fight the shrink-to-fit (caused "כתוביות ראשונות קטנות").
         fontWeight: style.fontWeight,
         paintOrder: "stroke fill",
         WebkitTextStroke: strokePx > 0 ? `${strokePx}px ${style.strokeColor}` : undefined,
