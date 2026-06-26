@@ -121,7 +121,7 @@ export default function AccessibilityPanel() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={c.openLabel}
-        className="fixed bottom-4 left-4 z-[60] w-12 h-12 rounded-full bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/40 flex items-center justify-center transition-all hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-400/50"
+        className="fixed bottom-4 left-4 z-[60] w-11 h-11 rounded-full bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/40 flex items-center justify-center transition-colors focus:outline-none focus:ring-4 focus:ring-violet-400/50"
       >
         <Accessibility className="w-6 h-6" aria-hidden />
       </button>
