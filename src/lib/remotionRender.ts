@@ -95,13 +95,14 @@ export async function renderViaRemotion({
       // negligible size/quality cost for social video (the frame RENDER, not
       // encode, is the real cost — see the 1280-cap in the route).
       x264Preset: "faster",
-      // The box ALSO serves the live site, so we never use all cores — leave a
-      // couple free for Next + transcription. On the 4-vCPU box concurrency 3
-      // was the ceiling (4 starved the site). After resizing to a 16-vCPU box
-      // (CX52), set RENDER_CONCURRENCY=12 in Coolify env — no rebuild needed —
-      // to roughly 3-4× the render speed while keeping ~4 cores for the site.
-      // Default stays 3 so it's always safe on the small box.
-      concurrency: Number(process.env.RENDER_CONCURRENCY) || 3,
+      // Concurrency = parallel frame-render workers. Default bumped 3→4 on
+      // 2026-06-26: transcription moved OFF the CPU (OpenAI Whisper API), so
+      // the render can now use all 4 cores. MEASURED on the live box: a 10s
+      // clip went 129s→92s (~29% faster, no quality loss). Tradeoff: during an
+      // export the live site is sluggish for OTHER users (all cores busy) —
+      // fine pre-launch; set RENDER_CONCURRENCY=3 in Coolify env when traffic
+      // grows, or =7+ after a core upgrade (CPX42=8 → ~7). Env overrides this.
+      concurrency: Number(process.env.RENDER_CONCURRENCY) || 4,
       browserExecutable: process.env.CHROME_BIN,
       chromiumOptions: {
         // Belt-and-suspenders — kept from earlier file:// debugging.
