@@ -1367,7 +1367,7 @@ export default function HomePage() {
         // Record this export in the user's profile ("הסרטונים שלי") so it shows
         // up there immediately as "בעיבוד"; ExportJobBadge flips it to done/failed.
         try {
-          let vidTitle = `סרטון ${dateStamp}`;
+          let vidTitle = filename.replace(/\.mp4$/, "");
           const firstCap = (subtitles?.[0] as { text?: string } | undefined)?.text?.trim();
           if (firstCap) vidTitle = firstCap.length > 40 ? `${firstCap.slice(0, 40)}…` : firstCap;
           const creditsUsed = calcDynamicCost(mode, effects).total;

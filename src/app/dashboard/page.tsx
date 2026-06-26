@@ -172,7 +172,15 @@ export default function DashboardPage() {
   const realAvatar   = authProfile?.avatar_url || mockProfile.avatarUrl || undefined;
   const profile = { ...mockProfile, name: realName, email: realEmail, joinedAt: realJoinedAt, avatarUrl: realAvatar };
   const stats         = getUserStats();
-  const videos        = cloudVideos ?? listMyVideos();
+  // MERGE cloud + local (deduped) instead of `cloudVideos ?? listMyVideos()`:
+  // `??` only falls back on null, but fetchVideoRows() returns an EMPTY array
+  // when Supabase has 0 rows (e.g. the cross-device push failed) — which then
+  // HID the user's local videos even though the stat counter showed them
+  // (Liat: "רושם שעשיתי 3 אבל לא רואים אותם"). Cloud rows win (latest status);
+  // local-only videos (not yet synced) are appended so nothing disappears.
+  const localVideos   = listMyVideos();
+  const cloudIds      = new Set((cloudVideos ?? []).map((v) => v.id));
+  const videos        = [...(cloudVideos ?? []), ...localVideos.filter((v) => !cloudIds.has(v.id))];
   const notifications = cloudNotifs ?? listNotifications();
   const invoices      = listInvoices();
   const unread        = notifications.filter((n) => !n.read).length;

@@ -24,6 +24,7 @@ import { DEFAULT_EFFECTS } from "@/lib/types";
 import { makeCancelSignal } from "@remotion/renderer";
 import { renderViaRemotion } from "@/lib/remotionRender";
 import { exportFileName } from "@/lib/exportFilename";
+import { adminClient } from "@/lib/supabase";
 import {
   createJob, updateJob, jobOutputPath, cleanupOldJobs,
   registerRenderCancel, unregisterRenderCancel, isCancelRequested,
@@ -167,12 +168,36 @@ export async function POST(req: NextRequest) {
   cleanupOldJobs().catch(() => {});
   sweepStaleSpends().catch(() => {}); // refund earlier renders that died unnoticed
 
+  // Cross-device video history ("הסרטונים שלי"). The browser-side pushVideoRow()
+  // was silently blocked (RLS / auth not ready at export time) so user_videos was
+  // ALWAYS empty → Liat saw the count "3" but an empty list. Insert it here with
+  // the SERVICE-ROLE client (bypasses RLS, always works). Best-effort: a failure
+  // never blocks the export (the localStorage copy still shows it). The status is
+  // flipped to done/failed/cancelled in the task below.
+  const vidTitle = (() => {
+    const first = (subtitles[0] as { text?: string } | undefined)?.text?.trim();
+    if (first) return first.length > 40 ? `${first.slice(0, 40)}…` : first;
+    return filename.replace(/\.mp4$/, "");
+  })();
+  async function setVideoRow(status: "processing" | "done" | "failed") {
+    try {
+      const admin = adminClient();
+      if (!admin) return;
+      await admin.from("user_videos").upsert({
+        id: job.id, user_id: user.id, title: vidTitle, thumbnail_emoji: "🎬",
+        duration_sec: Math.round(durationSec), mode, credits_used: cost.total, status,
+      });
+    } catch { /* best-effort */ }
+  }
+  await setVideoRow("processing");
+
   const task = enqueueRender(async () => {
     // Cancelled while still QUEUED (before this slot ran)? Skip the render
     // entirely; the cancel endpoint already refunded.
     if (isCancelRequested(job.id)) {
       await updateJob(job.id, { status: "cancelled" });
       await reconcileSpend(job.id, user.id).catch(() => {});
+      await setVideoRow("failed"); // cancelled → don't leave it "processing"
       return;
     }
     await updateJob(job.id, { status: "rendering" });
@@ -211,6 +236,7 @@ export async function POST(req: NextRequest) {
       });
       await updateJob(job.id, { status: "done" });
       await settleSpend(job.id); // render OK → mark settled (no refund owed)
+      await setVideoRow("done"); // reflect in "הסרטונים שלי" (cross-device)
     } catch (err) {
       if (isCancelRequested(job.id)) {
         // User cancelled → renderMedia rejected on the cancel signal. The
@@ -224,6 +250,7 @@ export async function POST(req: NextRequest) {
         await reconcileSpend(job.id, user.id).catch(() => {});
         await updateJob(job.id, { status: "failed", error: "הייצוא נכשל" });
       }
+      await setVideoRow("failed"); // failed/cancelled → not "processing"
     } finally {
       unregisterRenderCancel(job.id);
     }
