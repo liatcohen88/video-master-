@@ -96,9 +96,21 @@ export function useAuth(): AuthState & {
       load();
     });
 
+    // Re-fetch the profile (→ live credits balance) whenever credits change —
+    // e.g. an export refund. Without this, the header showed the refunded
+    // מאסטרים only after a manual refresh (Liat: "המשתמש לא יבין... שיראו אותם
+    // באותו רגע"). Any caller fires `window.dispatchEvent(new Event("credits-change"))`.
+    const onCreditsChange = () => { load(); };
+    if (typeof window !== "undefined") {
+      window.addEventListener("credits-change", onCreditsChange);
+    }
+
     return () => {
       cancelled = true;
       sub?.data?.subscription?.unsubscribe();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("credits-change", onCreditsChange);
+      }
     };
   }, []);
 

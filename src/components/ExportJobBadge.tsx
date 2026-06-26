@@ -132,6 +132,9 @@ export default function ExportJobBadge() {
     setVideoStatus(id, "failed");
     void setVideoRowStatus(id, "failed");
     clearJob();
+    // Refresh the live balance NOW so the refunded מאסטרים appear immediately,
+    // not only after a refresh (Liat).
+    try { window.dispatchEvent(new Event("credits-change")); } catch { /* ignore */ }
     toast.success("הייצוא בוטל — המאסטרים שלך הוחזרו ✓");
   }, [clearJob]);
 
@@ -173,12 +176,15 @@ export default function ExportJobBadge() {
           setVideoStatus(id, "failed"); // reflect the failure in the profile
           void setVideoRowStatus(id, "failed"); // cross-device copy (best-effort)
           clearJob();
+          // Show the refunded balance immediately (not only after a refresh).
+          try { window.dispatchEvent(new Event("credits-change")); } catch { /* ignore */ }
           toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
         } else if (data.status === "cancelled") {
           // Cancelled (here or from another tab/device) → stop + confirm refund.
           setVideoStatus(id, "failed");
           void setVideoRowStatus(id, "failed");
           clearJob();
+          try { window.dispatchEvent(new Event("credits-change")); } catch { /* ignore */ }
           toast.success("הייצוא בוטל — המאסטרים שלך הוחזרו ✓");
         } else {
           setJob({ id, filename, status: "rendering", progress: typeof data.progress === "number" ? data.progress : 0 });
@@ -204,6 +210,9 @@ export default function ExportJobBadge() {
       if (d?.jobId && d?.filename) {
         try { localStorage.setItem(LS_KEY, JSON.stringify({ id: d.jobId, filename: d.filename })); } catch { /* ignore */ }
         startPolling(d.jobId, d.filename);
+        // The spend already happened server-side → refresh the balance so it
+        // drops live on export start (and comes back live on fail/cancel).
+        try { window.dispatchEvent(new Event("credits-change")); } catch { /* ignore */ }
       }
     };
     window.addEventListener("vm-export-started", onStart);
