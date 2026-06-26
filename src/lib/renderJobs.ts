@@ -23,7 +23,7 @@ import { randomUUID } from "node:crypto";
 
 const JOBS_DIR = join(tmpdir(), "vm-render-jobs");
 
-export type RenderJobStatus = "queued" | "rendering" | "done" | "failed";
+export type RenderJobStatus = "queued" | "rendering" | "done" | "failed" | "cancelled";
 
 export type RenderJob = {
   id: string;
@@ -115,4 +115,33 @@ export async function cleanupOldJobs(): Promise<void> {
       }),
     );
   } catch { /* ignore */ }
+}
+
+// ── In-process cancellation registry ────────────────────────────────────────
+// The render runs in THIS Node process (a background task on the long-lived
+// `next start`), so a module-level map lets the /api/render-cancel route abort
+// an in-flight render. Lives only for the process lifetime — a redeploy orphans
+// the render, which getJob()'s stale-detection already turns into a refundable
+// "failed". (Liat: "אפשרות לבטל יצוא וזה מחזיר את כל הקרדיטים".)
+const cancelFns = new Map<string, () => void>();
+const cancelRequested = new Set<string>();
+
+/** Register a render's cancel function (Remotion's makeCancelSignal().cancel). */
+export function registerRenderCancel(jobId: string, cancel: () => void): void {
+  cancelFns.set(jobId, cancel);
+}
+export function unregisterRenderCancel(jobId: string): void {
+  cancelFns.delete(jobId);
+}
+/** Mark a job cancelled and abort it if it's currently rendering. Returns true
+ *  if a running render was signalled (false = still queued / already gone — the
+ *  queued runner checks isCancelRequested() and skips it before rendering). */
+export function requestRenderCancel(jobId: string): boolean {
+  cancelRequested.add(jobId);
+  const fn = cancelFns.get(jobId);
+  if (fn) { try { fn(); } catch { /* ignore */ } return true; }
+  return false;
+}
+export function isCancelRequested(jobId: string): boolean {
+  return cancelRequested.has(jobId);
 }

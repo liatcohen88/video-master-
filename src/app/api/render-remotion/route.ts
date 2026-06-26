@@ -21,8 +21,12 @@ import { recordSpend, settleSpend, reconcileSpend, sweepStaleSpends } from "@/li
 import { calcDynamicCost } from "@/lib/credits";
 import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/types";
 import { DEFAULT_EFFECTS } from "@/lib/types";
+import { makeCancelSignal } from "@remotion/renderer";
 import { renderViaRemotion } from "@/lib/remotionRender";
-import { createJob, updateJob, jobOutputPath, cleanupOldJobs } from "@/lib/renderJobs";
+import {
+  createJob, updateJob, jobOutputPath, cleanupOldJobs,
+  registerRenderCancel, unregisterRenderCancel, isCancelRequested,
+} from "@/lib/renderJobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 1800;
@@ -165,7 +169,18 @@ export async function POST(req: NextRequest) {
   sweepStaleSpends().catch(() => {}); // refund earlier renders that died unnoticed
 
   const task = enqueueRender(async () => {
+    // Cancelled while still QUEUED (before this slot ran)? Skip the render
+    // entirely; the cancel endpoint already refunded.
+    if (isCancelRequested(job.id)) {
+      await updateJob(job.id, { status: "cancelled" });
+      await reconcileSpend(job.id, user.id).catch(() => {});
+      return;
+    }
     await updateJob(job.id, { status: "rendering" });
+    // A cancel signal the /api/render-cancel route can trigger to abort an
+    // in-flight render (Liat: "אפשרות לבטל יצוא וזה מחזיר את כל הקרדיטים").
+    const { cancelSignal, cancel } = makeCancelSignal();
+    registerRenderCancel(job.id, cancel);
     try {
       await renderViaRemotion({
         inputProps: {
@@ -183,6 +198,7 @@ export async function POST(req: NextRequest) {
         bgMusicBuffer,
         bgMusicFileName,
         outPath: jobOutputPath(job.id),
+        cancelSignal,
         onProgress: ({ renderedFrames, totalFrames }) => {
           // Heartbeat ~every 15 frames (keeps the job from being flagged stale)
           // and report % so the client badge can show real progress.
@@ -197,12 +213,20 @@ export async function POST(req: NextRequest) {
       await updateJob(job.id, { status: "done" });
       await settleSpend(job.id); // render OK → mark settled (no refund owed)
     } catch (err) {
-      console.error("[render-remotion] job failed", job.id, err);
-      // Refund exactly once via the persistent ledger (idempotent with the
-      // status-poll + stale-sweep reconcile paths) so a failure never costs
-      // the user — even if THIS process dies before the refund.
-      await reconcileSpend(job.id, user.id).catch(() => {});
-      await updateJob(job.id, { status: "failed", error: "הייצוא נכשל" });
+      if (isCancelRequested(job.id)) {
+        // User cancelled → renderMedia rejected on the cancel signal. The
+        // cancel endpoint already refunded; just record the final status.
+        await updateJob(job.id, { status: "cancelled" });
+      } else {
+        console.error("[render-remotion] job failed", job.id, err);
+        // Refund exactly once via the persistent ledger (idempotent with the
+        // status-poll + stale-sweep reconcile paths) so a failure never costs
+        // the user — even if THIS process dies before the refund.
+        await reconcileSpend(job.id, user.id).catch(() => {});
+        await updateJob(job.id, { status: "failed", error: "הייצוא נכשל" });
+      }
+    } finally {
+      unregisterRenderCancel(job.id);
     }
   });
   runningJobs.add(task);

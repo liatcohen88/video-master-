@@ -15,6 +15,7 @@ import path from "node:path";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
+import type { CancelSignal } from "@remotion/renderer";
 import type { CompositionProps } from "@/remotion/VideoComposition";
 
 export type RemotionRenderArgs = {
@@ -34,10 +35,13 @@ export type RemotionRenderArgs = {
   /** Called as frames render — used by the background-job runner to heartbeat
    *  the job so a long (but healthy) render isn't mistaken for a dead one. */
   onProgress?: (p: { renderedFrames: number; totalFrames: number }) => void;
+  /** Remotion cancel signal — when triggered (user hits "בטל ייצוא"),
+   *  renderMedia rejects and the job is refunded. */
+  cancelSignal?: CancelSignal;
 };
 
 export async function renderViaRemotion({
-  inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName, outPath, onProgress,
+  inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName, outPath, onProgress, cancelSignal,
 }: RemotionRenderArgs): Promise<void> {
   // Use the project's REAL public/ dir as the bundle publicDir. It already
   // holds sfx/, lottie/, custom-logos/ etc., so every staticFile() the
@@ -125,6 +129,8 @@ export async function renderViaRemotion({
       // (NOT delayRenderTimeoutInMilliseconds — that was silently ignored
       // last attempt, all renders kept failing at exactly 28000ms).
       timeoutInMilliseconds: 120_000,
+      // Lets the background job abort this render when the user cancels.
+      cancelSignal,
       onProgress: onProgress
         ? ({ renderedFrames }) => onProgress({ renderedFrames, totalFrames: composition.durationInFrames })
         : undefined,

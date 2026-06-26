@@ -121,6 +121,20 @@ export default function ExportJobBadge() {
     if (!shared) clearJob(); // desktop: downloaded → dismiss the badge
   }, [deliver, fetchBlob, clearJob]);
 
+  // Cancel an in-flight render → the server aborts it and refunds the credits
+  // (Liat: "אפשרות לבטל יצוא וזה מחזיר את כל הקרדיטים"). Optimistically clear the
+  // badge; the server refund is idempotent regardless.
+  const cancelJob = useCallback(async (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("לבטל את הייצוא? המאסטרים שירדו יוחזרו לך.")) return;
+    try {
+      await fetch(`/api/render-cancel/${id}`, { method: "POST", headers: await authHeader() });
+    } catch { /* best-effort — the server refunds on its own reconcile paths too */ }
+    setVideoStatus(id, "failed");
+    void setVideoRowStatus(id, "failed");
+    clearJob();
+    toast.success("הייצוא בוטל — המאסטרים שלך הוחזרו ✓");
+  }, [clearJob]);
+
   const startPolling = useCallback((id: string, filename: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
     setJob({ id, filename, status: "rendering", progress: 0 });
@@ -160,6 +174,12 @@ export default function ExportJobBadge() {
           void setVideoRowStatus(id, "failed"); // cross-device copy (best-effort)
           clearJob();
           toast.error("הייצוא נכשל — המאסטרים שלך הוחזרו. אפשר לנסות שוב 🙏");
+        } else if (data.status === "cancelled") {
+          // Cancelled (here or from another tab/device) → stop + confirm refund.
+          setVideoStatus(id, "failed");
+          void setVideoRowStatus(id, "failed");
+          clearJob();
+          toast.success("הייצוא בוטל — המאסטרים שלך הוחזרו ✓");
         } else {
           setJob({ id, filename, status: "rendering", progress: typeof data.progress === "number" ? data.progress : 0 });
         }
@@ -201,27 +221,37 @@ export default function ExportJobBadge() {
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] max-w-[94vw]" dir="rtl">
       {job.status === "rendering" ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-3 rounded-2xl bg-bg-card/95 backdrop-blur border border-brand/40 shadow-2xl px-4 py-3 text-right"
-        >
-          <span className="relative inline-flex w-8 h-8 items-center justify-center shrink-0">
-            <span className="absolute inset-0 rounded-full border-2 border-brand border-t-transparent animate-spin" />
-            <span className="text-[9px] font-bold text-white tabular-nums">{pct}%</span>
-          </span>
-          <span className="text-sm">
-            <span className="block font-bold text-white">מייצא את הסרטון ברקע…</span>
-            <span className="block text-[11px] text-white/50">
-              {expanded ? job.filename : "אפשר להמשיך לעבוד — נודיע כשמוכן 🎬"}
+        <div className="flex items-center gap-2 rounded-2xl bg-bg-card/95 backdrop-blur border border-brand/40 shadow-2xl pr-4 pl-2 py-3">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-3 text-right"
+          >
+            <span className="relative inline-flex w-8 h-8 items-center justify-center shrink-0">
+              <span className="absolute inset-0 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+              <span className="text-[9px] font-bold text-white tabular-nums">{pct}%</span>
             </span>
-            {expanded && (
-              <span className="mt-1.5 block h-1.5 w-44 max-w-full rounded-full bg-white/15 overflow-hidden">
-                <span className="block h-full rounded-full bg-brand transition-[width] duration-500" style={{ width: `${pct}%` }} />
+            <span className="text-sm">
+              <span className="block font-bold text-white">מייצא את הסרטון ברקע…</span>
+              <span className="block text-[11px] text-white/50">
+                {expanded ? job.filename : "אפשר להמשיך לעבוד — נודיע כשמוכן 🎬"}
               </span>
-            )}
-          </span>
-        </button>
+              {expanded && (
+                <span className="mt-1.5 block h-1.5 w-44 max-w-full rounded-full bg-white/15 overflow-hidden">
+                  <span className="block h-full rounded-full bg-brand transition-[width] duration-500" style={{ width: `${pct}%` }} />
+                </span>
+              )}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => cancelJob(job.id)}
+            className="shrink-0 self-stretch px-3 rounded-lg border border-white/10 bg-white/5 hover:bg-red-500/80 text-white/60 hover:text-white text-xs font-bold transition-colors"
+            title="בטל ייצוא והחזר מאסטרים"
+          >
+            בטל
+          </button>
+        </div>
       ) : (
         <div className="flex items-center gap-3 rounded-2xl bg-emerald-600/95 backdrop-blur border border-emerald-300/40 shadow-2xl px-4 py-3">
           <div className="text-sm">
