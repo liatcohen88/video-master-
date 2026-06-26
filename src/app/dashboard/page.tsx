@@ -77,6 +77,8 @@ export default function DashboardPage() {
   const cMyVidsTotal    = useContent("dashboard.myVideos.totalSuffix") as string;
   const cMyVidsEmpty    = useContent("dashboard.myVideos.empty") as string;
   const cMyVidsEmptyCta = useContent("dashboard.myVideos.emptyCta") as string;
+  const cMyVidsRetention = (useContent("dashboard.myVideos.retentionNote") as string)
+    || "הסרטונים נשמרים בפרופיל. הקובץ זמין להורדה חוזרת עד 24 שעות מהייצוא — מומלץ לשמור אותו למכשיר.";
   const cDelVidTitle    = useContent("dashboard.confirm.deleteVideo.title") as string;
   const cDelVidBodyTpl  = useContent("dashboard.confirm.deleteVideo.body") as string;
   const cDelVidBtn      = useContent("dashboard.confirm.deleteVideo.btn") as string;
@@ -319,10 +321,14 @@ export default function DashboardPage() {
 
         {/* ── My videos — clean list, less per-row noise ── */}
         <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-bold uppercase tracking-wider text-white/50">{cMyVidsHeading}</h2>
             <span className="text-xs text-white/30">{videos.length} {cMyVidsTotal}</span>
           </div>
+          {/* Retention note — the MP4 file is re-downloadable for 24h (the render
+              job folder's TTL); the record itself stays. Liat asked to make this
+              explicit so users save the file in time. */}
+          <p className="text-[11px] text-white/35 mb-4 leading-relaxed">{cMyVidsRetention}</p>
           {videos.length === 0 ? (
             <div className="text-center py-10 border border-dashed border-white/10 rounded-xl">
               <Film className="w-8 h-8 text-white/20 mx-auto mb-3" />

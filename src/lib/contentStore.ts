@@ -497,6 +497,7 @@ export const CONTENT_DEFAULTS = {
   "dashboard.myVideos.totalSuffix":"סך הכל",
   "dashboard.myVideos.empty":     "עדיין אין סרטונים",
   "dashboard.myVideos.emptyCta":  "ליצירת הראשון →",
+  "dashboard.myVideos.retentionNote": "הסרטונים נשמרים בפרופיל. הקובץ זמין להורדה חוזרת עד 24 שעות מהייצוא — מומלץ לשמור אותו למכשיר.",
   "dashboard.video.downloadTooltip":"הורדה",
   "dashboard.video.deleteTooltip":  "מחיקה",
   "dashboard.confirm.deleteVideo.title": "למחוק את הסרטון?",
