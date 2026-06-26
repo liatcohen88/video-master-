@@ -5,6 +5,7 @@
  */
 import { adminClient } from "./supabase";
 import { CREDIT_PACKAGES } from "./credits";
+import { notifyAdminPayment } from "./notifyAdmin";
 
 /** Map a paid amount (₪) to the number of credits that package grants. */
 export function creditsForAmount(amountIls: number): number {
@@ -57,5 +58,10 @@ export async function creditUserByEmail(opts: {
 
   const { error: addErr } = await supa.rpc("add_credits", { p_user_id: profile.id, p_credits: opts.credits });
   if (addErr) throw new Error(`add_credits failed: ${addErr.message}`);
+
+  // Heads-up to the admin on every successful payment (WhatsApp via CallMeBot).
+  // Fire-and-forget on the long-lived server process so it never delays the
+  // webhook's ack to the payment provider. No-op until the CallMeBot env is set.
+  void notifyAdminPayment({ amountIls: opts.amountIls, credits: opts.credits, packageId: opts.packageId });
   return "credited";
 }
