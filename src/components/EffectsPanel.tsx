@@ -783,9 +783,15 @@ function IntroSfxPicker({ currentSfxId, onChange }: { currentSfxId?: string; onC
   // name (Liat: "ישלו שם בעברית אבל זה שם אחר"). useContent re-renders when the
   // custom list loads, so the name resolves correctly.
   const customSfx = (useContent("sfx.custom") as Array<{ id: string; label: string; url: string }>) ?? [];
+  // Admin renames live in `sfx.labels` (id → label), NOT in the custom's own
+  // `label` field (which stays the original filename like "u_1...-riser"). The
+  // SfxPicker applies this override via labelFor(); we must too, or the intro
+  // shows the filename instead of the Hebrew name Liat set ("וויש 10").
+  const sfxLabels = (useContent("sfx.labels") as Record<string, string>) ?? {};
   const resolveSfxName = (id: string): string => {
+    if (sfxLabels[id]) return sfxLabels[id];
     const c = customSfx.find((x) => x.id === id || x.url === id);
-    if (c) return c.label;
+    if (c) return sfxLabels[c.id] ?? c.label;
     return getSfxAsset(id)?.label ?? id;
   };
   const label = !currentSfxId ? noneLabel
