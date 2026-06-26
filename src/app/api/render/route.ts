@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { writeFile, mkdir, rm, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { exportFileName } from "@/lib/exportFilename";
 import { buildFilterChain, cinematicColorFilter } from "@/lib/ffmpegFilter";
 import { buildColorFilterFfmpeg } from "@/lib/colorFilterFfmpeg";
 import { detectBeatDrops } from "@/lib/wowEffects";
@@ -324,12 +325,13 @@ export async function POST(req: NextRequest) {
     await runFfmpeg(args);
 
     const output = await readFile(outputPath);
-    const now = new Date();
-    const dateStamp = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
+    // The name is Hebrew ("מאסטר וידאו …") → RFC 5987 encode it. filename* is
+    // what modern browsers use; the ASCII filename is a fallback for old ones.
+    const dlName = exportFileName();
     return new NextResponse(output as unknown as BodyInit, {
       headers: {
         "Content-Type": "video/mp4",
-        "Content-Disposition": `attachment; filename="video-master-${dateStamp}.mp4"`,
+        "Content-Disposition": `attachment; filename="master-video.mp4"; filename*=UTF-8''${encodeURIComponent(dlName)}`,
         "Content-Length": String(output.length),
       },
     });

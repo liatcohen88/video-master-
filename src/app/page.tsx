@@ -29,6 +29,7 @@ import {
 } from "@/lib/types";
 import { TEMPLATES, type SubtitleTemplate } from "@/lib/templates";
 import { modeCapabilities } from "@/lib/modeCapabilities";
+import { exportFileName } from "@/lib/exportFilename";
 import { useContent } from "@/lib/useContent";
 import { Bell } from "lucide-react";
 import LogoMark from "@/components/LogoMark";
@@ -1347,9 +1348,7 @@ export default function HomePage() {
         throw new Error(body.error || `שגיאת שרת ${res.status}`);
       }
 
-      const now = new Date();
-      const dateStamp = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
-      const filename = `video-master-${dateStamp}.mp4`;
+      const filename = exportFileName();
 
       // Remotion path returns 202 + { jobId } and renders in the BACKGROUND so
       // the user isn't stuck on a spinner for minutes (Liat: "יצוא לוקח המון

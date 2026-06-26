@@ -23,6 +23,7 @@ import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/type
 import { DEFAULT_EFFECTS } from "@/lib/types";
 import { makeCancelSignal } from "@remotion/renderer";
 import { renderViaRemotion } from "@/lib/remotionRender";
+import { exportFileName } from "@/lib/exportFilename";
 import {
   createJob, updateJob, jobOutputPath, cleanupOldJobs,
   registerRenderCancel, unregisterRenderCancel, isCancelRequested,
@@ -152,10 +153,8 @@ export async function POST(req: NextRequest) {
   const videoFileName = `input-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
   const videoBuffer = Buffer.from(await file.arrayBuffer());
 
-  // Suggested download filename (date-stamped). new Date() is fine here — this
-  // is a request handler, not a replayable workflow.
-  const d = new Date();
-  const filename = `video-master-${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}.mp4`;
+  // Suggested download filename: "מאסטר וידאו DD-MM-YYYY HH-MM.mp4" (Israel time).
+  const filename = exportFileName();
 
   // Create the job and kick the render off in the BACKGROUND so the user gets
   // an instant response instead of waiting minutes on a spinner. The render
