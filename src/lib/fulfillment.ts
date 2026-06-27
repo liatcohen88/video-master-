@@ -42,11 +42,24 @@ export async function creditUserByEmail(opts: {
     .from("profiles").select("id").eq("email", opts.email.toLowerCase().trim()).maybeSingle();
   if (!profile?.id) return "no-user";
 
+  // Idempotency key for the unique (provider, provider_txn_id) index. A real
+  // per-payment id always wins. When the payload carries none, NULL would let
+  // a retried webhook double-credit (Postgres treats NULLs as distinct, so two
+  // NULL rows both insert). Synthesize a deterministic key instead — the same
+  // payment retried on the same day collapses to one row; distinct payments
+  // differ. Warn loudly so the webhook source can be fixed to send a real id.
+  let txnKey = opts.txnId;
+  if (!txnKey) {
+    const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    txnKey = `auto:${opts.provider}:${opts.email.toLowerCase().trim()}:${opts.amountIls}:${day}`;
+    console.warn("[fulfillment] no txnId — using synthetic idempotency key", { provider: opts.provider, txnKey });
+  }
+
   const { error: revErr } = await supa.from("revenue_txns").insert({
     user_id: profile.id,
     email: opts.email,
     provider: opts.provider,
-    provider_txn_id: opts.txnId ?? null,
+    provider_txn_id: txnKey,
     amount_ils: opts.amountIls,
     credits_bought: opts.credits,
     package_id: opts.packageId ?? null,

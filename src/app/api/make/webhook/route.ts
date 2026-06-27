@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   // trust a `credits` field from the payload — otherwise anyone who learns the
   // webhook secret could pay ₪10 and claim 1,000,000 מאסטרים. (Audit C3.)
   const credits = creditsForAmount(amount);
-  const txnId = (body.txnId as string) || (body.transactionId as string) || undefined;
+  const txnId = (body.txnId as string) || (body.transactionId as string) || (body.asmachta as string) || undefined;
 
   try {
     const result = await creditUserByEmail({

@@ -89,7 +89,7 @@ export default function BuyPage({ params }: { params: Promise<{ pkg: string }> }
     try {
       const sb = browserClient();
       const token = (await sb?.auth.getSession())?.data.session?.access_token;
-      if (!token) throw new Error("התחברות לא תקפה — נסי להתחבר מחדש.");
+      if (!token) throw new Error("התחברות לא תקפה — יש להתחבר מחדש.");
 
       const res = await fetch("/api/buy", {
         method: "POST",

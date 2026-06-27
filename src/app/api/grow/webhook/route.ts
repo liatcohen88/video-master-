@@ -69,18 +69,27 @@ async function creditViaSupabase(opts: {
   }
   if (!userId) return "no-user";
 
+  // Idempotency key: a real per-payment id (transactionId/asmachta), or the
+  // single-use pending-payment id as fallback. Postgres treats NULLs as
+  // distinct, so a NULL here would let Grow's webhook RETRY double-credit —
+  // synthesize a deterministic key as a last resort so the unique index still
+  // collapses retries of the same payment on the same day.
+  let txnKey = opts.txnId ?? pendingPaymentId;
+  if (!txnKey) {
+    const day = new Date().toISOString().slice(0, 10);
+    txnKey = `auto:grow:${userId}:${opts.amountIls ?? 0}:${day}`;
+    console.warn("[grow webhook] no txnId/pending — using synthetic idempotency key", { txnKey });
+  }
+
   // Record revenue first — the unique (provider, provider_txn_id) index makes
   // a repeated delivery fail here, so we skip the credit and report duplicate.
   const { error: revErr } = await supa.from("revenue_txns").insert({
     user_id: userId,
     email: opts.email ?? null,
     provider: "grow",
-    // Idempotency key: a real per-payment id (transactionId/asmachta), or the
-    // single-use pending-payment id as fallback. Never NULL when we can avoid
-    // it — Postgres treats NULLs as distinct, so a NULL here would let Grow's
-    // webhook RETRY double-credit. The pending row is marked fulfilled below,
-    // so reusing its id is safe (a retry won't re-resolve a fulfilled row).
-    provider_txn_id: opts.txnId ?? pendingPaymentId ?? null,
+    // The pending row is marked fulfilled below, so reusing its id is safe
+    // (a retry won't re-resolve a fulfilled row).
+    provider_txn_id: txnKey,
     amount_ils: opts.amountIls ?? 0,
     credits_bought: opts.credits,
     package_id: resolvedPackageId ?? null,
