@@ -149,9 +149,20 @@ export default function ExportJobBadge() {
         const data = await res.json() as { status?: string; progress?: number };
         if (data.status === "done") {
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          const got = await fetchBlob(id);
+          if (!got) {
+            // Render finished but the MP4 can't be fetched (file lost to a
+            // disk-full event or a container swap mid-deploy). Don't leave a
+            // phantom "done" job that resurrects on every reload and spams
+            // "ההורדה נכשלה" on each tap — clear it and say so once.
+            setVideoStatus(id, "failed");
+            void setVideoRowStatus(id, "failed");
+            clearJob();
+            toast.error("הסרטון כבר לא זמין להורדה — אפשר לייצא מחדש 🙏");
+            return;
+          }
           setVideoStatus(id, "done"); // mark it ready in the profile ("הסרטונים שלי")
           void setVideoRowStatus(id, "done"); // cross-device copy (best-effort)
-          await fetchBlob(id);
           setJob({ id, filename, status: "done", progress: 100 });
           if (gallerySaveMode()) {
             // MOBILE: the share-sheet ("save to gallery") needs a user TAP, so we
