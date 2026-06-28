@@ -58,7 +58,7 @@ export const TEMPLATES: SubtitleTemplate[] = [
   {
     id: "beast",
     name: "Beast",
-    description: "לבן עם רקע ירוק — סגנון MrBeast",
+    description: "לבן עם רקע ירוק, בולט וויראלי",
     category: "viral",
     previewBg: "from-green-400 to-emerald-600",
     style: {

@@ -19,8 +19,8 @@ const TEMPLATES = [
 ];
 
 const ANIMATIONS = [
-  { name: "רעד דרמטי", icon: "🎸", desc: "MrHorse" },
-  { name: "פאנץ׳ זום",  icon: "🥊", desc: "MrBeast" },
+  { name: "רעד דרמטי", icon: "🎸", desc: "דרמטי" },
+  { name: "פאנץ׳ זום",  icon: "🥊", desc: "ויראלי" },
   { name: "ללא",        icon: "—",  desc: "התחלה רגילה" },
   { name: "באוטם",      icon: "🎸", desc: "overshoot" },
   { name: "וייפ פאן",   icon: "🌪", desc: "blur" },

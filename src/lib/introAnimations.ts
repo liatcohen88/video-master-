@@ -29,8 +29,8 @@ export type IntroPreset = {
 
 export const INTRO_ANIMATIONS: IntroPreset[] = [
   { id: "none",        label: "ללא",          emoji: "—",  desc: "התחלה רגילה",                              duration: 0    },
-  { id: "punchZoom",   label: "פאנץ' זום",    emoji: "🥊", desc: "מתחיל בזום 1.4× וקופץ לרגיל — MrBeast",     duration: 0.55 },
-  { id: "shake",       label: "רעד דרמטי",    emoji: "🌋", desc: "רעידה אגרסיבית 350ms — סטייל MrHorse",     duration: 0.4  },
+  { id: "punchZoom",   label: "פאנץ' זום",    emoji: "🥊", desc: "מתחיל בזום 1.4× וקופץ לגודל רגיל",     duration: 0.55 },
+  { id: "shake",       label: "רעד דרמטי",    emoji: "🌋", desc: "רעידה אגרסיבית של 350ms",     duration: 0.4  },
   { id: "dropZoom",    label: "זום סוחף",     emoji: "🎯", desc: "זום פנימה איטי 4% — תחושת מתח",            duration: 0.85 },
   { id: "whipPan",     label: "וויפ פאן",     emoji: "🌪️", desc: "מחליק מהצד עם blur תנועה",                duration: 0.45 },
   { id: "bounceIn",    label: "באונס",        emoji: "🏀", desc: "קופץ פנימה עם overshoot חינני",            duration: 0.7  },
