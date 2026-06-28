@@ -1085,17 +1085,36 @@ function CustomLogoSection({
         reader.onerror = () => reject(new Error(labels.readErr));
         reader.readAsDataURL(file);
       });
+      // Auto-remove the (usually white) background so the logo drops onto the
+      // video cleanly instead of showing an ugly white box (Liat: "רקע לבן
+      // מגעיל... תעשה את הלוגו בלי רקע"). Best-effort — fall back to the
+      // original if removal fails or times out, and the user can still toggle.
+      let finalSrc = url;
+      let transparent = false;
+      let srcTransparent: string | undefined;
+      try {
+        const res = await fetch("/api/remove-logo-bg", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ src: url }),
+        });
+        if (res.ok) {
+          const j = await res.json().catch(() => ({}));
+          if (j?.url) { finalSrc = j.url; srcTransparent = j.url; transparent = true; }
+        }
+      } catch { /* keep original on failure */ }
       onChange([
         ...logos,
         {
-          src: url,
+          src: finalSrc,
           srcOriginal: url,
+          srcTransparent,
           name: file.name.replace(/\.[^.]+$/, ""),
           persistent: true, // watermark by default
           time: 0,
           durationSec: 999,
           position: "top-right",
-          transparent: false, // start with original — user toggles "ללא רקע" to remove
+          transparent, // background removed by default; toggle reverts to original
           size: "M",
         },
       ]);
