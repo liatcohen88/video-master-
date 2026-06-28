@@ -375,7 +375,7 @@ export const CONTENT_DEFAULTS = {
   "credits.calcSubtitle":    "המחיר יורד מהיתרה רק בלחיצה על \"ייצוא\"",
   "credits.balanceLabel":    "היתרה",
   // Guest-only CTA above the balance on /credits — invites signup for the gift.
-  "credits.guestGift":       "הירשמו וקבלו 25 מאסטרים במתנה מאיתנו 🎁",
+  "credits.guestGift":       "הירשמו בכדי לנצל את ה-25 מאסטרים שקיבלתם מאיתנו 🎁",
   "credits.calcCalcLabel":   "איתם אפשר לעשות:",
   // ── Mode-by-mode pricing card (4-up grid below packages) ──
   "credits.modes.subtitles_only.name": "כתוביות בלבד",

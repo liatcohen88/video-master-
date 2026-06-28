@@ -9,7 +9,9 @@
  */
 
 const LS_KEY = "vm_credits_v1";
-const NEW_USER_GIFT = 25;
+/** Free masters a new user gets on signup — also shown as a teaser balance to
+ *  guests in the header (they can only spend them once registered). */
+export const NEW_USER_GIFT = 25;
 
 export const CREDIT_PACKAGES: ReadonlyArray<{
   id: "mini" | "starter" | "pro" | "business";

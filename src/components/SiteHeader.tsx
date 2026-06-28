@@ -7,7 +7,7 @@ import { Bell } from "lucide-react";
 import LogoMark from "./LogoMark";
 import MasterCoin from "./MasterCoin";
 import { useContent } from "@/lib/useContent";
-import { getCredits } from "@/lib/credits";
+import { getCredits, NEW_USER_GIFT } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications } from "@/lib/userStore";
 import { useAuth } from "@/lib/useAuth";
 
@@ -54,11 +54,12 @@ export default function SiteHeader() {
   const isGuest = auth.status === "guest";
   // For credits: prefer the Supabase profile balance when we have one,
   // otherwise fall back to the localStorage credit (legacy + offline mode).
-  // Guests get hard-zero — the localStorage value lingers from previous
-  // sessions (Liat saw "75 מאסטרים" without being signed in). Real credits
-  // only exist server-side against an authenticated user.
+  // Guests see the fixed NEW_USER_GIFT (25) as a teaser — NOT the lingering
+  // localStorage value (Liat once saw a stale "75 מאסטרים"). It's a constant
+  // signup hook; they can only actually spend it once registered. Real credits
+  // exist server-side against an authenticated user.
   const [localCredits, setLocalCredits] = useState(0);
-  const credits = isGuest ? 0 : (auth.profile?.credits ?? localCredits);
+  const credits = isGuest ? NEW_USER_GIFT : (auth.profile?.credits ?? localCredits);
   // When the user is a guest, force "לא מחובר" — defaultUserName is the
   // CMS string for that case. Otherwise prefer display_name → email-prefix
   // → fallback. Liat 2026-06-17: don't show "משתמש" for unauthenticated.

@@ -35,7 +35,7 @@ export default function CreditsPage() {
   // `if (!hydrated) return ...` they fired in different orders pre/post
   // hydration → React Hooks-order error.
   const balanceLabel  = useContent("credits.balanceLabel");
-  const guestGift     = (useContent("credits.guestGift") as string) || "הירשמו וקבלו 25 מאסטרים במתנה מאיתנו 🎁";
+  const guestGift     = (useContent("credits.guestGift") as string) || "הירשמו בכדי לנצל את ה-25 מאסטרים שקיבלתם מאיתנו 🎁";
   const calcCalcLabel = useContent("credits.calcCalcLabel");
   const eyebrow       = useContent("credits.eyebrow");
   const title         = useContent("credits.title");
