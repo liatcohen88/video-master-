@@ -56,7 +56,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // Next.js needs unsafe-inline; eval for some dev tools
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.clarity.ms https://*.clarity.ms",   // Next.js needs unsafe-inline; eval for dev tools; *.clarity.ms = Microsoft Clarity analytics tag (was BLOCKED → "לא מחובר")
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data: https://fonts.gstatic.com",
