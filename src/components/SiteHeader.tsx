@@ -85,6 +85,9 @@ export default function SiteHeader() {
   }, [tick]);
 
   const initial = userName.charAt(0) || defaultInitial;
+  // Profile photo (if the user uploaded one) — shown in the header avatar
+  // instead of the colored initial. Liat: "אם יש לי תמונת פרופיל שיראו אותה גם בהדר".
+  const avatarUrl = isGuest ? undefined : auth.profile?.avatar_url;
   const notifications = listNotifications();
 
   // Logo + "Home" intent → REAL landing page (the upload screen), not the
@@ -188,7 +191,10 @@ export default function SiteHeader() {
             className="bg-bg-panel border border-white/10 hover:border-brand/40 px-2 py-1.5 rounded-full text-xs flex items-center gap-2 text-white/80 hover:text-white transition-colors"
             title={tipMenu}
           >
-            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-[11px] font-black text-white shrink-0">{initial}</span>
+            {avatarUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+              : <span className="w-6 h-6 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-[11px] font-black text-white shrink-0">{initial}</span>}
             <span className="hidden lg:inline whitespace-nowrap font-medium">{userName}</span>
             <svg width="10" height="10" viewBox="0 0 12 12" className={`text-white/50 transition-transform ${profileOpen ? "rotate-180" : ""}`}>
               <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -244,7 +250,10 @@ export default function SiteHeader() {
               title={isGuest ? navLogin : navProfile}
               className="w-full flex items-center gap-2 mb-2 pb-2 border-b border-white/10 text-right rounded-lg -mx-1 px-1 py-1 hover:bg-white/[0.04] transition-colors"
             >
-              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-sm font-black text-white shrink-0">{initial}</span>
+              {avatarUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                : <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-pink-500 flex items-center justify-center text-sm font-black text-white shrink-0">{initial}</span>}
               <div className="flex-1 min-w-0 text-right">
                 <div className="text-xs font-bold truncate">{userName}</div>
                 <div className="text-[10px] text-white/40">{credits.toLocaleString()} {currencyName}</div>

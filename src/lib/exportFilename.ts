@@ -1,13 +1,14 @@
 /**
  * Suggested download name for an exported MP4.
  *
- * Liat: the file should be named in Hebrew — "מאסטר וידאו" — with the date AND
- * time (was the English "video-master-26-6-2026"). The app is Hebrew/Israel-only,
- * so the timestamp is formatted in Asia/Jerusalem (the render runs server-side
- * where the clock is UTC — without this the time would be off by 2-3h).
+ * ASCII-only ("Master Video") — a Hebrew filename ("מאסטר וידאו") crashed the
+ * download: HTTP Content-Disposition values are Latin-1 only, so Hebrew bytes
+ * threw "Cannot convert argument to a ByteString" and every export failed at
+ * delivery (Liat: "אם יש קריסה בגלל השם העברי תעשה לאנגלית"). Date AND time,
+ * formatted in Asia/Jerusalem (render runs server-side on a UTC clock).
  *
  * Characters are filename-safe: no ":" (invalid on Windows) — time uses "-".
- * Result: "מאסטר וידאו 26-06-2026 14-30.mp4".
+ * Result: "Master Video 26-06-2026 14-30.mp4".
  */
 export function exportFileName(now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -20,5 +21,5 @@ export function exportFileName(now: Date = new Date()): string {
     hour12: false,
   }).formatToParts(now);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `מאסטר וידאו ${get("day")}-${get("month")}-${get("year")} ${get("hour")}-${get("minute")}.mp4`;
+  return `Master Video ${get("day")}-${get("month")}-${get("year")} ${get("hour")}-${get("minute")}.mp4`;
 }
