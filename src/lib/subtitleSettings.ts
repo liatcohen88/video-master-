@@ -121,10 +121,14 @@ export function buildSubtitles(baseWords: TimedWord[], settings: SubtitleSetting
     });
   }
 
-  // Stretch: each line stays on screen until the next one begins (no gaps).
+  // Stretch: close only the TINY gaps between consecutive lines (avoids a
+  // 1-frame flicker between captions). A real pause (>= SILENCE_GAP) is left
+  // EMPTY — the caption disappears when the speech stops instead of lingering
+  // over silence (Liat: "אמר 'חסר עוד' ואז שקט — תעיף את הכתוביות, שיהיה בול").
   if (settings.stretchSubtitles) {
     for (let i = 0; i < subs.length - 1; i++) {
-      if (subs[i + 1].start > subs[i].end) subs[i].end = subs[i + 1].start;
+      const gap = subs[i + 1].start - subs[i].end;
+      if (gap > 0 && gap < SILENCE_GAP) subs[i].end = subs[i + 1].start;
     }
   }
 
