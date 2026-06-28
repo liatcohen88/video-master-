@@ -6,7 +6,6 @@ import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, Fil
 import VideoUploader from "@/components/VideoUploader";
 import ModeSelector from "@/components/ModeSelector";
 import SubtitleSettingsPanel from "@/components/SubtitleSettingsPanel";
-import ExportFormatToggle from "@/components/ExportFormatToggle";
 import VideoPreview from "@/components/VideoPreview";
 import StylePanel from "@/components/StylePanel";
 import SubtitleEditor from "@/components/SubtitleEditor";
@@ -35,7 +34,7 @@ import { Bell } from "lucide-react";
 import LogoMark from "@/components/LogoMark";
 import MasterCoin from "@/components/MasterCoin";
 import SavedIndicator from "@/components/SavedIndicator";
-import { getCredits, calcDynamicCost } from "@/lib/credits";
+import { getCredits, calcDynamicCost, CREDIT_COSTS } from "@/lib/credits";
 import { listNotifications, markNotificationRead, clearAllNotifications, addVideo } from "@/lib/userStore";
 import { pushVideoRow } from "@/lib/userData";
 import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
@@ -1152,7 +1151,11 @@ export default function HomePage() {
     void pollExportStatus(jobId, filename); // immediate first check
   }
 
-  async function exportProject() {
+  async function exportProject(fmtArg?: ExportFormat) {
+    // Output format is now chosen at export time via two buttons (MP4 vs SRT),
+    // not upfront. The explicit arg wins; fall back to the saved state so the
+    // post-signup re-call (onSuccess → exportProject()) keeps the user's pick.
+    const format: ExportFormat = fmtArg ?? exportFormat;
     // Block a SECOND concurrent export — renders queue server-side, and a
     // pile-up makes each one slow. One at a time (Liat: "שיקפוץ פופאפ שאי
     // אפשר לייצא שני סרטונים במקביל"). The global badge clears this key on
@@ -1187,16 +1190,38 @@ export default function HomePage() {
     // masters" popup BEFORE we spin up the renderer. Previously the user
     // saw a long loader, then a generic error toast. Now: instant popup
     // with a "buy" / "back" CTA, no wait.
-    // SRT export is free, so this guard only applies to mp4.
-    if (exportFormat === "mp4") {
-      const { total: cost } = calcDynamicCost(mode, effects);
+    // Pre-flight credit check — MP4 is priced by effects, SRT is a flat
+    // CREDIT_COSTS.srt_export (Liat: "שיעלה רק 10 מטבעות").
+    {
+      const cost = format === "mp4" ? calcDynamicCost(mode, effects).total : CREDIT_COSTS.srt_export;
       const balance = auth.profile?.credits ?? 0;
       if (balance < cost) {
         setInsufficientInfo({ need: cost, have: balance });
         return;
       }
     }
-    if (exportFormat === "srt") {
+    if (format === "srt") {
+      // Charge server-side (authoritative) BEFORE handing over the file.
+      try {
+        const res = await fetch("/api/credits/spend", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(await exportAuthHeader()) },
+          body: JSON.stringify({ reason: "srt-export" }),
+        });
+        if (!res.ok) {
+          const b = await res.json().catch(() => ({}));
+          if (b?.code === "INSUFFICIENT") {
+            setInsufficientInfo({ need: CREDIT_COSTS.srt_export, have: b.balance ?? 0 });
+          } else {
+            toast.error("הורדת הכתוביות נכשלה — אפשר לנסות שוב");
+          }
+          return;
+        }
+        try { window.dispatchEvent(new Event("credits-change")); } catch { /* ignore */ }
+      } catch {
+        toast.error("הורדת הכתוביות נכשלה — אפשר לנסות שוב");
+        return;
+      }
       const srt = subtitles.map((s, i) => {
         const fmt = (t: number) => {
           const h = Math.floor(t / 3600);
@@ -1215,6 +1240,7 @@ export default function HomePage() {
       a.download = "subtitles.srt";
       a.click();
       URL.revokeObjectURL(url);
+      toast.success("✓ קובץ הכתוביות (SRT) ירד — מוכן לייבוא לפרמייר 🎬");
       return;
     }
 
@@ -1575,9 +1601,9 @@ export default function HomePage() {
                   modelId={whisperModel}
                   onModelChange={setWhisperModel}
                 />
-                <div className="bg-bg-panel border border-white/10 rounded-2xl p-6">
-                  <ExportFormatToggle value={exportFormat} onChange={setExportFormat} />
-                </div>
+                {/* Output format (MP4 vs subtitles) is no longer chosen here —
+                    it's picked AFTER editing, via two buttons by the export
+                    action (Liat: "אפשר לבחור לאחר עריכת הסרטון ולא לפני"). */}
               </div>
 
               <button
@@ -1845,8 +1871,11 @@ export default function HomePage() {
               {/* Manual "save version" button removed per Liat — she already has
                   a save-version control elsewhere; the auto-save (+ protected
                   snapshots) still safeguards work without this extra button. */}
+              {/* Two export choices AFTER editing (Liat): a full MP4 render
+                  (priced by effects) and a cheap subtitles-for-Premiere .srt
+                  (flat CREDIT_COSTS.srt_export). */}
               <button
-                onClick={exportProject}
+                onClick={() => { setExportFormat("mp4"); void exportProject("mp4"); }}
                 disabled={isProcessing}
                 className="
                   w-full bg-gradient-to-r from-green-500 to-emerald-600
@@ -1867,8 +1896,8 @@ export default function HomePage() {
                 ) : (
                   <>
                     <Download className="w-5 h-5" />
-                    ייצוא {exportFormat === "mp4" ? "וידאו (MP4)" : "כתוביות (SRT)"}
-                    {exportFormat === "mp4" && (() => {
+                    ייצוא וידאו (MP4)
+                    {(() => {
                       // Dynamic cost — base price for the mode + per-feature
                       // add-ons for advanced_effects, capped at 40. Updates
                       // in real time as user toggles effects on/off.
@@ -1889,6 +1918,26 @@ export default function HomePage() {
                     })()}
                   </>
                 )}
+              </button>
+
+              {/* Subtitles for Premiere — cheap .srt, no heavy render. */}
+              <button
+                onClick={() => { setExportFormat("srt"); void exportProject("srt"); }}
+                disabled={isProcessing}
+                className="
+                  w-full bg-bg-panel border border-white/15 text-white/90 font-bold py-3.5 rounded-2xl
+                  flex items-center justify-center gap-3
+                  hover:border-white/30 hover:bg-white/5
+                  disabled:opacity-60 disabled:cursor-not-allowed
+                  transition-all duration-200
+                "
+              >
+                <Download className="w-5 h-5 opacity-80" />
+                כתוביות לפרמייר (SRT)
+                <span className="mr-1 inline-flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-full text-xs font-bold">
+                  <MasterCoin size={14} />
+                  {CREDIT_COSTS.srt_export} {currency}
+                </span>
               </button>
 
               {errorMessage && phase === "editing" && (

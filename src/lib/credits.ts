@@ -39,6 +39,7 @@ export const CREDIT_COSTS = {
   podcast: 20,
   advanced_effects: 25,
   multi_video: 20,
+  srt_export: 10, // download subtitles as an .srt for Premiere (no MP4 render)
 } as const;
 
 /** Hard ceiling for advanced_effects regardless of how many toggles fire. */

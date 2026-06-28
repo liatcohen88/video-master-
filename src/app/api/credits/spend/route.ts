@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
   // Unknown reasons fall back to the clamped client amount (back-compat).
   const SERVER_COST: Record<string, number> = {
     "multi-edit-download": CREDIT_COSTS.multi_video,
+    "srt-export": CREDIT_COSTS.srt_export,
   };
   const required = reason && SERVER_COST[reason] != null
     ? SERVER_COST[reason]
