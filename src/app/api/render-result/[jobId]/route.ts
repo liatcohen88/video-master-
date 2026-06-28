@@ -26,11 +26,18 @@ export async function GET(
   }
 
   const bytes = await readFile(jobOutputPath(job.id));
+  // The download filename is Hebrew ("מאסטר וידאו…") — putting it RAW in a
+  // Content-Disposition header throws "Cannot convert argument to a ByteString"
+  // (header values are Latin-1 only), which made the result 500 and the export
+  // "fail" at the very end after a successful render (Liat). Use RFC 5987:
+  // an ASCII fallback + a percent-encoded UTF-8 filename* that browsers prefer.
+  const asciiName = job.filename.replace(/[^\x20-\x7E]+/g, "").trim() || "master-video.mp4";
+  const utf8Name = encodeURIComponent(job.filename);
   return new NextResponse(new Uint8Array(bytes), {
     status: 200,
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Disposition": `attachment; filename="${job.filename}"`,
+      "Content-Disposition": `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`,
       "Content-Length": String(bytes.length),
     },
   });
