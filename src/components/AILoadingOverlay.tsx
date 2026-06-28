@@ -11,6 +11,9 @@ type Props = {
   /** Small reassuring footnote. Defaults to the CMS aiLoader.defaultHint;
    *  pass a custom string for other operations, or "" to hide it entirely. */
   hint?: string;
+  /** Optional 0-100 progress. When provided, shows a determinate bar + %
+   *  label instead of the indeterminate shimmer. */
+  progress?: number;
 };
 
 /**
@@ -20,7 +23,8 @@ type Props = {
  * ("מתמלל" vs "מתמלל ועורך"). The default hint comes from the CMS so
  * admin can rephrase without a deploy.
  */
-export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
+export default function AILoadingOverlay({ title, subtitle, hint, progress }: Props) {
+  const pct = typeof progress === "number" ? Math.max(0, Math.min(100, Math.round(progress))) : null;
   const cmsHint = useContent("aiLoader.defaultHint") as string;
   const stayWarn = useContent("aiLoader.stayWarning") as string;
   const finalHint = hint !== undefined ? hint : cmsHint;
@@ -55,10 +59,23 @@ export default function AILoadingOverlay({ title, subtitle, hint }: Props) {
           )}
         </div>
 
-        {/* Indeterminate progress shimmer */}
-        <div className="w-72 h-1.5 rounded-full bg-white/10 overflow-hidden">
-          <div className="h-full w-1/3 bg-gradient-to-r from-brand to-pink-500 rounded-full animate-shimmer" />
-        </div>
+        {/* Progress — determinate bar + % when a value is given, else an
+            indeterminate shimmer. */}
+        {pct !== null ? (
+          <div className="w-72 flex flex-col items-center gap-1.5">
+            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-brand to-pink-500 rounded-full transition-[width] duration-300 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-sm font-bold text-white/80 tabular-nums">{pct}%</span>
+          </div>
+        ) : (
+          <div className="w-72 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full w-1/3 bg-gradient-to-r from-brand to-pink-500 rounded-full animate-shimmer" />
+          </div>
+        )}
 
         {finalHint && (
           <p className="text-[11px] text-white/40 max-w-xs leading-relaxed">{finalHint}</p>

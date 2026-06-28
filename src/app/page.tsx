@@ -331,6 +331,11 @@ export default function HomePage() {
   const [phase, setPhase] = useState<"setup" | "editing">("setup");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string>("");
+  // Time-estimated transcription progress (0-100). OpenAI Whisper gives no real
+  // %, so we ramp asymptotically toward 95% and snap to 100% on completion —
+  // a moving number reassures more than a frozen spinner (Liat: "שנראה אחוזים").
+  const [procProgress, setProcProgress] = useState<number | null>(null);
+  const procTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   // How the finished file was actually delivered, so the success popup tells
@@ -876,6 +881,16 @@ export default function HomePage() {
 
     setProgressMessage(progUpload);
 
+    // Start the time-estimated progress ramp (upload → transcribe → analyze).
+    // Asymptotic toward 95% so it always moves but never claims "done" early.
+    const procStart = Date.now();
+    setProcProgress(1);
+    if (procTimerRef.current) clearInterval(procTimerRef.current);
+    procTimerRef.current = setInterval(() => {
+      const t = (Date.now() - procStart) / 1000;
+      setProcProgress(Math.max(1, Math.min(95, Math.round(95 * (1 - Math.exp(-t / 14))))));
+    }, 250);
+
     try {
       // Run transcription AND analysis in parallel — both need the same upload.
       // We submit twice for simplicity; could be optimized to one upload later.
@@ -958,6 +973,11 @@ export default function HomePage() {
       const msg = e instanceof Error ? e.message : String(e);
       setErrorMessage(msg);
     } finally {
+      // Snap the bar to 100% then clear it shortly after, so the user sees it
+      // complete rather than vanish mid-ramp.
+      if (procTimerRef.current) { clearInterval(procTimerRef.current); procTimerRef.current = null; }
+      setProcProgress(100);
+      setTimeout(() => setProcProgress(null), 600);
       setIsProcessing(false);
       setProgressMessage("");
       await releaseWakeLock(wakeLock);
@@ -1423,7 +1443,11 @@ export default function HomePage() {
       {/* Full-screen AI loader — covers BOTH heavy operations:
           transcription (setup phase) and MP4 export (editing phase). */}
       {isProcessing && (
-        <AILoadingOverlay title={loaderTitle} subtitle={progressMessage || undefined} />
+        <AILoadingOverlay
+          title={loaderTitle}
+          subtitle={progressMessage || undefined}
+          progress={phase === "setup" && procProgress != null ? procProgress : undefined}
+        />
       )}
 
       {/* Background-export badge moved to the GLOBAL <ExportJobBadge> in the
