@@ -23,7 +23,7 @@ import { stripLottieBg } from "@/lib/lottieBgStrip";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 import {
-  listUsers, listVideos, listRevenue, updateUserCredits, setUserStatus, getStats, resetStore, clearStoreEmpty,
+  listUsers, listVideos, listRevenue, updateUserCredits, setUserStatus, getStats, resetStore,
   type AdminUser, type VideoJob, type RevenueTxn,
 } from "@/lib/adminStore";
 import {
@@ -125,16 +125,6 @@ export default function AdminPage() {
 
   return (
     <div dir="rtl" className="min-h-screen text-white">
-      <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex items-center gap-2 justify-center">
-        <AlertTriangle className="w-3.5 h-3.5" />
-        סביבת פיתוח · אין auth · נתונים ב-localStorage · מתחבר ל-Supabase אחרי המעבר ל-Lovable
-        <button onClick={() => { clearStoreEmpty(); setTick((t) => t + 1); }}
-          className="ml-2 text-amber-100 hover:text-white underline flex items-center gap-1"
-          title="מאפס רק נתוני דמו מקומיים (סטטיסטיקות) — לא נוגע בתוכן/CMS">
-          <RefreshCw className="w-3 h-3" /> איפוס נתוני דמו
-        </button>
-      </div>
-
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">פאנל ניהול</h1>
