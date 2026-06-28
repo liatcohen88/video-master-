@@ -50,3 +50,4 @@ public/lottie/*.broken-raster
 public/demo.mp4
 # Remotion render output
 out/
+.env.aws

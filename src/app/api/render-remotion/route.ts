@@ -23,6 +23,7 @@ import type { Subtitle, SubtitleStyle, VideoEffects, EditMode } from "@/lib/type
 import { DEFAULT_EFFECTS } from "@/lib/types";
 import { makeCancelSignal } from "@remotion/renderer";
 import { renderViaRemotion } from "@/lib/remotionRender";
+import { renderViaLambda, lambdaEnabled } from "@/lib/remotionLambdaRender";
 import { exportFileName } from "@/lib/exportFilename";
 import { adminClient } from "@/lib/supabase";
 import {
@@ -217,34 +218,40 @@ export async function POST(req: NextRequest) {
     const { cancelSignal, cancel } = makeCancelSignal();
     registerRenderCancel(job.id, cancel);
     try {
-      await renderViaRemotion({
-        inputProps: {
-          videoSrc: videoFileName,
-          subtitles,
-          style,
-          effects,
-          width: canvasW,
-          height: canvasH,
-          durationSec,
-          fps: 30,
-        },
-        videoBuffer,
-        videoFileName,
-        bgMusicBuffer,
-        bgMusicFileName,
-        outPath: jobOutputPath(job.id),
-        cancelSignal,
-        onProgress: ({ renderedFrames, totalFrames }) => {
-          // Heartbeat ~every 15 frames (keeps the job from being flagged stale)
-          // and report % so the client badge can show real progress.
-          if (renderedFrames % 15 === 0) {
-            const progress = totalFrames > 0
-              ? Math.min(99, Math.round((renderedFrames / totalFrames) * 100))
-              : 0;
-            updateJob(job.id, { status: "rendering", progress }).catch(() => {});
-          }
-        },
-      });
+      const inputProps = {
+        videoSrc: videoFileName,
+        subtitles,
+        style,
+        effects,
+        width: canvasW,
+        height: canvasH,
+        durationSec,
+        fps: 30,
+      };
+      const onProgress = ({ renderedFrames, totalFrames }: { renderedFrames: number; totalFrames: number }) => {
+        // Heartbeat ~every 15 frames (keeps the job from being flagged stale)
+        // and report % so the client badge can show real progress.
+        if (renderedFrames % 15 === 0) {
+          const progress = totalFrames > 0
+            ? Math.min(99, Math.round((renderedFrames / totalFrames) * 100))
+            : 0;
+          updateJob(job.id, { status: "rendering", progress }).catch(() => {});
+        }
+      };
+      // Render on AWS Lambda when enabled (faster + auto-scaling); otherwise
+      // the local renderer. Both write the MP4 to jobOutputPath so the rest of
+      // the pipeline (delivery, ledger, history) is identical.
+      if (lambdaEnabled()) {
+        await renderViaLambda({
+          inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName,
+          outPath: jobOutputPath(job.id), onProgress,
+        });
+      } else {
+        await renderViaRemotion({
+          inputProps, videoBuffer, videoFileName, bgMusicBuffer, bgMusicFileName,
+          outPath: jobOutputPath(job.id), cancelSignal, onProgress,
+        });
+      }
       await updateJob(job.id, { status: "done" });
       await settleSpend(job.id); // render OK → mark settled (no refund owed)
       await setVideoRow("done"); // reflect in "הסרטונים שלי" (cross-device)
