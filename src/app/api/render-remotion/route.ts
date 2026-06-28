@@ -45,17 +45,28 @@ const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 600;
 // these keep running after the HTTP response returns.
 const runningJobs = new Set<Promise<void>>();
 
-// Serialize renders: this box is a 4-core machine that ALSO serves the live
-// site. Running several headless-Chromium renders at once would saturate the
-// CPU and freeze the site for everyone. A single-slot queue means each job
-// waits its turn — fine, since the user isn't blocked (they get a jobId
-// instantly and a "queued/rendering" badge). The chain never breaks: a failed
-// job's rejection is swallowed so the next one still runs.
-let renderQueue: Promise<unknown> = Promise.resolve();
-function enqueueRender(fn: () => Promise<void>): Promise<void> {
-  const run = renderQueue.then(fn, fn);
-  renderQueue = run.catch(() => {});
-  return run;
+// Render concurrency is an N-slot semaphore so the box never runs more
+// headless-Chromium renders at once than it has CPU for (extra jobs wait in
+// line — the user isn't blocked: they get a jobId + a "queued/rendering" badge
+// and the file is delivered when ready). RENDER_SLOTS controls how many run in
+// parallel: keep 1 on the 4-core box; set 2-3 after upgrading to 8 cores
+// (CPX42) for ~3-4x throughput when several users export at once. Default 1 →
+// behaviour identical to the old single-slot queue.
+const RENDER_SLOTS = Math.max(1, Number(process.env.RENDER_SLOTS) || 1);
+let activeRenders = 0;
+const renderWaiters: Array<() => void> = [];
+function acquireRenderSlot(): Promise<void> {
+  if (activeRenders < RENDER_SLOTS) { activeRenders++; return Promise.resolve(); }
+  return new Promise<void>((resolve) => renderWaiters.push(resolve));
+}
+function releaseRenderSlot(): void {
+  const next = renderWaiters.shift();
+  if (next) next();          // hand the slot straight to the next waiter
+  else activeRenders--;      // no one waiting → free the slot
+}
+async function enqueueRender(fn: () => Promise<void>): Promise<void> {
+  await acquireRenderSlot();
+  try { await fn(); } finally { releaseRenderSlot(); }
 }
 
 export async function POST(req: NextRequest) {
