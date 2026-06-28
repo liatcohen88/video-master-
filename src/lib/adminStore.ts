@@ -43,35 +43,18 @@ export type RevenueTxn = {
   createdAt: string;
 };
 
-const LS_KEY = "vm_admin_store_v1";
+// v2 (2026-06-28): bumped to abandon the old demo-seeded `_v1` store so every
+// existing browser auto-starts clean (zeros) without a manual reset.
+const LS_KEY = "vm_admin_store_v2";
 
 type Store = { users: AdminUser[]; videos: VideoJob[]; revenue: RevenueTxn[] };
 
+// Demo seeding is DISABLED for launch (2026-06-28, Liat: "תאפס גם"). The admin
+// panel must start clean — no fake ליאת/יוסי/נועה rows and no inflated traffic.
+// (The old demo seed lived here; recover it from git history if ever needed for
+// UI design work.) Every store now starts empty until real data flows in.
 function seed(): Store {
-  const now = Date.now();
-  const ago = (h: number) => new Date(now - h * 3600 * 1000).toISOString();
-  const users: AdminUser[] = [
-    { id: "u1", email: "liat@example.com",   name: "ליאת",    createdAt: ago(720), credits: 320, totalSpent: 250, videosCount: 18, lastActive: ago(2),   status: "active" },
-    { id: "u2", email: "yossi@example.com",  name: "יוסי",    createdAt: ago(540), credits: 95,  totalSpent: 50,  videosCount: 7,  lastActive: ago(24),  status: "active" },
-    { id: "u3", email: "noa@example.com",    name: "נועה",    createdAt: ago(120), credits: 25,  totalSpent: 0,   videosCount: 1,  lastActive: ago(1),   status: "active" },
-    { id: "u4", email: "amir@example.com",   name: "עמיר",    createdAt: ago(2400), credits: 0,  totalSpent: 100, videosCount: 22, lastActive: ago(168), status: "suspended" },
-    { id: "u5", email: "tal@example.com",    name: "טל",      createdAt: ago(48),  credits: 50,  totalSpent: 25,  videosCount: 3,  lastActive: ago(6),   status: "active" },
-  ];
-  const videos: VideoJob[] = [
-    { id: "v1", userId: "u1", userName: "ליאת", fileName: "reels-43.mp4",   durationSec: 28, mode: "podcast",          creditsUsed: 15, status: "done",        createdAt: ago(2)  },
-    { id: "v2", userId: "u1", userName: "ליאת", fileName: "tutorial.mp4",   durationSec: 180, mode: "advanced_effects", creditsUsed: 40, status: "done",        createdAt: ago(4)  },
-    { id: "v3", userId: "u2", userName: "יוסי", fileName: "ad-cut.mov",     durationSec: 60, mode: "basic_effects",    creditsUsed: 20, status: "done",        createdAt: ago(24) },
-    { id: "v4", userId: "u5", userName: "טל",   fileName: "demo.mp4",       durationSec: 45, mode: "subtitles_only",   creditsUsed: 10, status: "failed",      createdAt: ago(6)  },
-    { id: "v5", userId: "u3", userName: "נועה", fileName: "intro.mp4",      durationSec: 15, mode: "podcast",          creditsUsed: 15, status: "in_progress", createdAt: ago(0.5) },
-  ];
-  const revenue: RevenueTxn[] = [
-    { id: "r1", userId: "u1", userName: "ליאת",  amountIls: 100, creditsBought: 200, package: "business", createdAt: ago(360) },
-    { id: "r2", userId: "u1", userName: "ליאת",  amountIls: 50,  creditsBought: 100, package: "pro",      createdAt: ago(168) },
-    { id: "r3", userId: "u2", userName: "יוסי",  amountIls: 50,  creditsBought: 100, package: "pro",      createdAt: ago(120) },
-    { id: "r4", userId: "u4", userName: "עמיר",  amountIls: 100, creditsBought: 200, package: "business", createdAt: ago(720) },
-    { id: "r5", userId: "u5", userName: "טל",    amountIls: 25,  creditsBought: 50,  package: "starter",  createdAt: ago(24)  },
-  ];
-  return { users, videos, revenue };
+  return { users: [], videos: [], revenue: [] };
 }
 
 function read(): Store {
@@ -151,12 +134,15 @@ export function getStats() {
   // without inventing random noise. Replace getTraffic() with a real
   // fetch once analytics is live.
   const totalVideos = s.videos.length;
-  const base = activeUsers * 40 + totalVideos * 6 + 120;
+  // Derived from real local data with NO artificial floor — an empty store
+  // shows true zeros (clean launch, Liat: "תאפס גם"). Flip isReal + replace
+  // with a real fetch once analytics (Microsoft Clarity) is wired in.
+  const base = activeUsers * 40 + totalVideos * 6;
   const traffic = {
     isReal: false,                                   // ← flip true when analytics is wired
     visitors7d: base,
     pageViews7d: base * 3,
-    signups7d: Math.max(1, Math.round(activeUsers * 0.7)),
+    signups7d: Math.round(activeUsers * 0.7),
     conversionRate: base > 0 ? Math.round((activeUsers / base) * 1000) / 10 : 0, // %
     // 7-day visitor trend (deterministic shape, newest last)
     trend7d: [0.62, 0.7, 0.55, 0.8, 0.74, 0.9, 1].map((f) => Math.round(base * f / 7)),
