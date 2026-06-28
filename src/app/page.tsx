@@ -398,6 +398,15 @@ export default function HomePage() {
           }
           const snaps = await listSnapshots();
           const snap = snaps.find((s) => String(s.id) === restoreId);
+          // The video store keeps a SINGLE "current" blob (not one per hash), so
+          // if the loaded video isn't the one this version was made from, we'd
+          // paint its captions/effects onto the WRONG footage (Liat: "סרטון אחר
+          // אבל אותם אפקטים"). Refuse the mismatch instead of corrupting it.
+          if (snap && v.hash !== snap.videoHash) {
+            const bl = document.getElementById("vm-boot-loader"); if (bl) bl.style.display = "none";
+            toast.error("הגרסה השמורה שייכת לסרטון אחר. יש להעלות שוב את אותו סרטון ואז לשחזר את הגרסה 🙏");
+            return;
+          }
           await handleResume(storedToFile(v), snap);
         })();
         return;
