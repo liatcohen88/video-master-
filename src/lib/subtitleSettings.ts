@@ -56,14 +56,33 @@ export function buildSubtitles(baseWords: TimedWord[], settings: SubtitleSetting
   const BREAK_AFTER = /[.,!?;:׃…]["'»)\]]*\s*$/;
   const SILENCE_GAP = 0.6; // seconds of silence that forces a new caption
 
+  // ADD commas at natural speech pauses when addPunctuation is ON. Whisper
+  // (esp. Hebrew) often returns no commas, so "keep punctuation" alone added
+  // nothing — Liat: "הוספת פסיקים סימנתי וזה לא באמת הוסיף". A medium pause
+  // (>= COMMA_GAP, but below SILENCE_GAP which already splits the caption)
+  // earns a trailing comma on the preceding word. Derived from word timings,
+  // so it's deterministic and fully reversible by unchecking the box.
+  const COMMA_GAP = 0.3;
+  const sourceWords: TimedWord[] = keepPunct
+    ? baseWords.map((w, i) => {
+        const nx = baseWords[i + 1];
+        if (!nx) return w;
+        const gap = nx.start - w.end;
+        if (gap >= COMMA_GAP && gap < SILENCE_GAP && !BREAK_AFTER.test(w.word)) {
+          return { ...w, word: w.word + "," };
+        }
+        return w;
+      })
+    : baseWords;
+
   // Each chunk records whether it ended on a HARD boundary (punctuation/
   // silence) — those are deliberate and must survive the min-words merge below.
   const chunks: { words: TimedWord[]; hard: boolean }[] = [];
   let cur: TimedWord[] = [];
-  for (let i = 0; i < baseWords.length; i++) {
-    const w = baseWords[i];
+  for (let i = 0; i < sourceWords.length; i++) {
+    const w = sourceWords[i];
     cur.push(w);
-    const next = baseWords[i + 1];
+    const next = sourceWords[i + 1];
     const endsClause = BREAK_AFTER.test(w.word);
     const silenceNext = !!next && next.start - w.end >= SILENCE_GAP;
     if (endsClause || silenceNext || cur.length >= size) {
