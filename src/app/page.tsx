@@ -35,8 +35,8 @@ import LogoMark from "@/components/LogoMark";
 import MasterCoin from "@/components/MasterCoin";
 import SavedIndicator from "@/components/SavedIndicator";
 import { getCredits, calcDynamicCost, CREDIT_COSTS } from "@/lib/credits";
-import { listNotifications, markNotificationRead, clearAllNotifications, addVideo } from "@/lib/userStore";
-import { pushVideoRow } from "@/lib/userData";
+import { listNotifications, markNotificationRead, clearAllNotifications, addVideo, setVideoStatus } from "@/lib/userStore";
+import { pushVideoRow, setVideoRowStatus } from "@/lib/userData";
 import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
 import LandingSections from "@/components/LandingSections";
 import MobilePip from "@/components/MobilePip";
@@ -349,6 +349,12 @@ export default function HomePage() {
   // "save to gallery" tap can call navigator.share() SYNCHRONOUSLY (iOS drops
   // share permission if you await between the tap and the share call).
   const exportBlobRef = useRef<Blob | null>(null);
+  // Live MP4 export progress (0–100) for the blocking loader's % bar — fed by
+  // polling render-status, mirroring the transcription % bar. Null = not exporting.
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
+  // On mobile the "save to gallery" share-sheet must fire from a user TAP, so
+  // when an export finishes we surface this popup with a single save button.
+  const [exportReady, setExportReady] = useState<{ jobId: string; filename: string } | null>(null);
   const [insufficientInfo, setInsufficientInfo] = useState<InsufficientInfo | null>(null);
   const [whisperModel, setWhisperModel] = useAutoSavedState<string>("whisperModel", "ivrit-ai/whisper-large-v3-turbo-ct2");
   const [effects, setEffects] = useAutoSavedState<VideoEffects>("effects", MODE_DEFAULT_EFFECTS.subtitles_only);
@@ -1160,6 +1166,43 @@ export default function HomePage() {
     void pollExportStatus(jobId, filename); // immediate first check
   }
 
+  // BLOCKING poll for the MP4 render: keeps the full-screen loader open and
+  // feeds it a live % bar (like transcription) until the job is done. Resolves
+  // on "done", throws on "failed"/"not found". Now that renders run on Lambda
+  // (~1 min) a clean loading screen beats the old background badge (Liat:
+  // "שיראה גם כמו התמלול באחוזים — עכשיו זה בסדר שיש מסך טעינה כי זה מהר").
+  async function awaitRenderWithProgress(jobId: string): Promise<void> {
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 2000));
+      let res: Response;
+      try {
+        res = await fetch(`/api/render-status/${jobId}`, { headers: await exportAuthHeader() });
+      } catch { continue; } // transient network hiccup → keep polling
+      if (res.status === 404) throw new Error("הייצוא לא נמצא — אפשר לנסות שוב");
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => ({} as { status?: string; progress?: number; error?: string }));
+      if (typeof data.progress === "number") setExportProgress(data.progress);
+      if (data.status === "done") { setExportProgress(100); return; }
+      if (data.status === "failed") throw new Error(data.error || "הייצוא נכשל — המאסטרים שלך הוחזרו");
+      // queued / rendering → keep polling
+    }
+  }
+
+  // Mobile "save to gallery" — fired from the post-export popup's button tap so
+  // the browser allows the native share-sheet (gallery save needs a user gesture).
+  async function saveReadyExport() {
+    const r = exportReady;
+    if (!r) return;
+    if (!exportBlobRef.current) await fetchExportBlob(r.jobId);
+    if (!exportBlobRef.current) { toast.error("ההורדה נכשלה — אפשר לנסות שוב"); return; }
+    const shared = await deliverExportFile(exportBlobRef.current, r.filename);
+    setExportReady(null);
+    setExportSavedVia(shared ? "share" : "download");
+    setDownloadSuccess(r.filename);
+    toast.success(shared ? "✓ יש לבחור 'שמור וידאו' בחלון — והסרטון בגלריה 📸" : "✓ הסרטון ירד");
+    setTimeout(() => setDownloadSuccess(null), 12000);
+  }
+
   async function exportProject(fmtArg?: ExportFormat) {
     // Output format is now chosen at export time via two buttons (MP4 vs SRT),
     // not upfront. The explicit arg wins; fall back to the saved state so the
@@ -1414,13 +1457,8 @@ export default function HomePage() {
       if (res.status === 202 || contentType.includes("application/json")) {
         const { jobId } = await res.json().catch(() => ({} as { jobId?: string }));
         if (!jobId) throw new Error("לא התקבל מזהה ייצוא מהשרת");
-        // Hand off to the GLOBAL <ExportJobBadge> (root layout): persist the
-        // job + fire an event. It polls progress and delivers the file, and
-        // survives navigating between pages.
-        try { localStorage.setItem("vm_export_job", JSON.stringify({ id: jobId, filename })); } catch {}
-        window.dispatchEvent(new CustomEvent("vm-export-started", { detail: { jobId, filename } }));
-        // Record this export in the user's profile ("הסרטונים שלי") so it shows
-        // up there immediately as "בעיבוד"; ExportJobBadge flips it to done/failed.
+        // Record this export in the user's profile ("הסרטונים שלי") as "בעיבוד";
+        // flipped to "done" below once the render finishes.
         try {
           let vidTitle = filename.replace(/\.mp4$/, "");
           const firstCap = (subtitles?.[0] as { text?: string } | undefined)?.text?.trim();
@@ -1434,8 +1472,28 @@ export default function HomePage() {
             status: "processing", createdAt: new Date().toISOString(),
           });
         } catch { /* profile recording is best-effort */ }
-        toast.success("🎬 הסרטון בעיבוד — אפשר להמשיך לעבוד, נודיע לך כשמוכן");
-        return; // finally{} closes the loader; the global badge tracks progress
+
+        // BLOCKING render with a live % bar (Lambda is fast). The loader stays up
+        // until done; on failure awaitRenderWithProgress throws → caught below.
+        setExportProgress(0);
+        setProgressMessage("מייצא וידאו…");
+        await awaitRenderWithProgress(jobId);
+
+        // Done → flip the gallery row to "done" + pre-fetch the finished bytes.
+        try { setVideoStatus(jobId, "done"); void setVideoRowStatus(jobId, "done"); } catch {}
+        await fetchExportBlob(jobId);
+
+        if (canShareVideoFiles()) {
+          // MOBILE: the gallery share-sheet needs a user TAP → show the save popup.
+          setExportReady({ jobId, filename });
+        } else {
+          // DESKTOP: download straight to the Downloads folder.
+          if (exportBlobRef.current) await deliverExportFile(exportBlobRef.current, filename);
+          setDownloadSuccess(filename);
+          toast.success("✓ הסרטון מוכן והורד בהצלחה!");
+          setTimeout(() => setDownloadSuccess(null), 10000);
+        }
+        return; // finally{} closes the loader + resets progress
       }
 
       const blob = await res.blob();
@@ -1451,6 +1509,7 @@ export default function HomePage() {
     } finally {
       setIsProcessing(false);
       setProgressMessage("");
+      setExportProgress(null);
       await releaseWakeLock(exportWakeLock);
     }
   }
@@ -1481,8 +1540,34 @@ export default function HomePage() {
         <AILoadingOverlay
           title={loaderTitle}
           subtitle={progressMessage || undefined}
-          progress={phase === "setup" && procProgress != null ? procProgress : undefined}
+          progress={phase === "setup"
+            ? (procProgress != null ? procProgress : undefined)
+            : (exportProgress != null ? exportProgress : undefined)}
         />
+      )}
+
+      {/* Post-export "save to gallery" popup (MOBILE) — the native share-sheet
+          that saves to the camera roll must be triggered by a user TAP, so we
+          surface a single big button after the render finishes. */}
+      {exportReady && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6"
+             role="dialog" aria-modal="true">
+          <div className="bg-bg-card border border-white/10 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div className="text-4xl mb-2">🎉</div>
+            <div className="text-lg font-bold mb-1">הסרטון מוכן!</div>
+            <div className="text-sm text-white/60 mb-5">לחיצה תשמור אותו ישירות לגלריה של הטלפון 📸</div>
+            <button
+              onClick={() => { void saveReadyExport(); }}
+              className="w-full bg-brand hover:bg-brand/90 text-white font-bold rounded-xl py-3 mb-2 transition-colors">
+              שמירת הסרטון בגלריה
+            </button>
+            <button
+              onClick={() => setExportReady(null)}
+              className="w-full text-white/40 hover:text-white/70 text-sm py-2 transition-colors">
+              אחר כך
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Background-export badge moved to the GLOBAL <ExportJobBadge> in the
