@@ -801,7 +801,30 @@ function UserEditModal({ user, onClose, onSaved }: { user: RegisteredUser; onClo
 }
 
 function VideosTab() {
-  const videos = listVideos();
+  // REAL video jobs from Supabase (user_videos) via /api/admin/videos. Falls back
+  // to the local store ONLY if Supabase isn't configured/reachable, so the admin
+  // sees what users actually rendered (Liat: "תוודא שהוא לוקח נתונים אמיתיים").
+  const [videos, setVideos] = useState<VideoJob[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/videos", { headers: await adminAuthHeaders() });
+        const j = await r.json();
+        if (!alive) return;
+        if (j?.configured && Array.isArray(j.videos)) setVideos(j.videos as VideoJob[]);
+        else setVideos(listVideos()); // Supabase off → local fallback
+      } catch {
+        if (alive) setVideos(listVideos());
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   return (
     <div className="bg-bg-card border border-white/10 rounded-xl overflow-hidden">
       <table className="w-full text-sm">
@@ -821,7 +844,7 @@ function VideosTab() {
             <tr key={v.id} className="border-t border-white/5">
               <td className="p-3 font-medium truncate max-w-[200px]">{v.fileName}</td>
               <td className="p-3">{v.userName}</td>
-              <td className="p-3 text-white/60 text-xs">{MODE_LABELS[v.mode]}</td>
+              <td className="p-3 text-white/60 text-xs">{MODE_LABELS[v.mode as VideoJob["mode"]] ?? v.mode}</td>
               <td className="p-3">{v.durationSec}s</td>
               <td className="p-3">{v.creditsUsed}</td>
               <td className="p-3">
@@ -837,6 +860,12 @@ function VideosTab() {
           ))}
         </tbody>
       </table>
+      {!loading && videos.length === 0 && (
+        <div className="p-8 text-center text-white/40 text-sm">עדיין אין סרטונים — ברגע שמשתמשים ייצאו, הם יופיעו כאן.</div>
+      )}
+      {loading && (
+        <div className="p-8 text-center text-white/40 text-sm">טוען נתונים…</div>
+      )}
     </div>
   );
 }
