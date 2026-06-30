@@ -189,35 +189,69 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-type AnalyticsRange = "today" | "yesterday" | "7d" | "30d";
+type AnalyticsRange = "today" | "yesterday" | "7d" | "30d" | "custom";
 const RANGE_LABELS: Record<AnalyticsRange, string> = {
-  today: "היום", yesterday: "אתמול", "7d": "7 ימים", "30d": "30 יום",
+  today: "היום", yesterday: "אתמול", "7d": "7 ימים", "30d": "30 יום", custom: "מותאם",
+};
+const DEVICE_LABELS: Record<string, string> = { mobile: "מובייל 📱", desktop: "מחשב 💻", tablet: "טאבלט", "—": "לא ידוע" };
+type Breakdown = { key: string; count: number };
+type Analytics = {
+  visitors: number; pageViews: number; signups: number; conversionRate: number;
+  trend: { day: string; visitors: number }[];
+  byDevice: Breakdown[]; topPages: Breakdown[]; byReferrer: Breakdown[]; byCountry: Breakdown[];
 };
 
-// REAL site traffic from /api/admin/analytics (our own site_visits counter),
-// with a date-range filter. Replaces the old demo numbers (Liat: "חייב אנליטקס
-// מתאים... תן לי אפשרות סינון - כמה נכנסו היום אתמול").
+// A labelled list of breakdown rows with proportional bars (all real data).
+function BreakdownCard({ title, rows, fmt }: { title: string; rows: Breakdown[]; fmt?: (k: string) => string }) {
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <div className="bg-bg-input/60 rounded-lg p-3">
+      <div className="text-[11px] font-bold text-white/60 mb-2">{title}</div>
+      {rows.length === 0 ? (
+        <div className="text-[11px] text-white/30">—</div>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map((r) => (
+            <div key={r.key} className="flex items-center gap-2 text-[11px]">
+              <span className="text-white/70 truncate flex-1" title={r.key}>{fmt ? fmt(r.key) : r.key}</span>
+              <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-brand rounded-full" style={{ width: `${(r.count / max) * 100}%` }} />
+              </div>
+              <span className="text-white/50 w-6 text-left tabular-nums">{r.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// REAL site traffic from /api/admin/analytics (our own site_visits counter):
+// visitors / pageviews / signups / conversion + device / pages / referrer /
+// country breakdowns, with today/yesterday/7d/30d/custom filters. No demo data
+// (Liat: "כמה שיותר מידע על משתמשים שהכל יהיה אמיתי ללא פייק").
 function TrafficSection() {
   const [range, setRange] = useState<AnalyticsRange>("today");
-  const [data, setData] = useState<{
-    visitors: number; pageViews: number; signups: number; conversionRate: number;
-    trend: { day: string; visitors: number }[];
-  } | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (range === "custom" && !(from && to)) return; // wait for both dates
     let alive = true;
     setLoading(true);
     (async () => {
       try {
-        const r = await fetch(`/api/admin/analytics?range=${range}`, { headers: await adminAuthHeaders() });
+        const qs = range === "custom" ? `from=${from}&to=${to}` : `range=${range}`;
+        const r = await fetch(`/api/admin/analytics?${qs}`, { headers: await adminAuthHeaders() });
         const j = await r.json();
         if (alive) setData(j?.configured ? j : null);
       } catch { if (alive) setData(null); }
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [range]);
+  }, [range, from, to]);
 
   const trend = data?.trend ?? [];
   const maxTrend = Math.max(...trend.map((t) => t.visitors), 1);
@@ -236,12 +270,31 @@ function TrafficSection() {
           ))}
         </div>
       </div>
+      {range === "custom" && (
+        <div className="flex items-center gap-2 mb-3 text-[11px] text-white/60">
+          <span>מ־</span>
+          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)}
+            className="bg-bg-input border border-white/10 rounded-md px-2 py-1 text-white/80" />
+          <span>עד</span>
+          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
+            className="bg-bg-input border border-white/10 rounded-md px-2 py-1 text-white/80" />
+        </div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <StatCard label="כניסות לאתר"   value={loading ? "…" : (data?.visitors ?? 0).toLocaleString()} hint="מבקרים ייחודיים" />
         <StatCard label="צפיות בעמודים" value={loading ? "…" : (data?.pageViews ?? 0).toLocaleString()} />
         <StatCard label="הרשמות חדשות"  value={loading ? "…" : String(data?.signups ?? 0)} />
         <StatCard label="אחוז המרה"     value={loading ? "…" : `${data?.conversionRate ?? 0}%`} hint="כניסות → הרשמות" />
       </div>
+
+      {/* Breakdowns — devices / top pages / referrers / countries (all real) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <BreakdownCard title="מכשירים" rows={data?.byDevice ?? []} fmt={(k) => DEVICE_LABELS[k] ?? k} />
+        <BreakdownCard title="עמודים מובילים" rows={data?.topPages ?? []} />
+        <BreakdownCard title="מקור הגעה" rows={data?.byReferrer ?? []} fmt={(k) => (k === "direct" ? "ישיר" : k)} />
+        <BreakdownCard title="מדינות" rows={data?.byCountry ?? []} />
+      </div>
+
       <div className="text-[10px] text-white/30 mb-1">מבקרים ייחודיים · 7 ימים אחרונים</div>
       <div className="flex items-end gap-1.5 h-16">
         {trend.map((t, i) => (

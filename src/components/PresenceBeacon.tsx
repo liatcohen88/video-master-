@@ -24,16 +24,28 @@ function sessionId(): string {
   }
 }
 
+/** Referring host this tab arrived from ('direct' if none / same-site). */
+function referrerHost(): string {
+  try {
+    const r = document.referrer;
+    if (!r) return "direct";
+    const h = new URL(r).hostname;
+    if (h === location.hostname) return "direct"; // internal navigation
+    return h.replace(/^www\./, "");
+  } catch { return "direct"; }
+}
+
 export default function PresenceBeacon() {
   const pathname = usePathname();
 
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin")) return;
+    const ref = referrerHost();
     const ping = () => {
       fetch("/api/presence", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionId(), path: pathname }),
+        body: JSON.stringify({ sessionId: sessionId(), path: pathname, ref }),
         keepalive: true,
       }).catch(() => {});
     };
