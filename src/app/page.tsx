@@ -1600,14 +1600,16 @@ export default function HomePage() {
                   <HeroBadge icon={<Zap className="w-3.5 h-3.5" />}          color="cyan">{heroBadge4}</HeroBadge>
                   <HeroBadge icon={<FileDown className="w-3.5 h-3.5" />}     color="emerald">{heroBadge5}</HeroBadge>
                 </div>
-                {/* Free-trial gift banner — directly under the trust badges,
-                    above the uploader, so a first-time visitor sees the offer
-                    right where they start (Liat). */}
-                <div className="flex justify-center pt-1">
-                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-brand/25 to-accent-pink/20 border border-brand/40 text-white font-bold text-sm md:text-base rounded-full px-5 py-2.5 shadow-lg shadow-brand/20">
-                    נסו אותנו, 25 מאסטרים עלינו במתנה 😉🎁
+                {/* Free-trial gift banner — only for NOT-logged-in visitors; a
+                    logged-in user already got the gift, so hiding it for them
+                    (Liat: "שיופיע רק למשתמשים חדשים לא למי שמחובר כבר"). */}
+                {auth.status === "guest" && (
+                  <div className="flex justify-center pt-1">
+                    <div className="inline-flex items-center gap-2 bg-gradient-to-r from-brand/25 to-accent-pink/20 border border-brand/40 text-white font-bold text-sm md:text-base rounded-full px-5 py-2.5 shadow-lg shadow-brand/20">
+                      נסו אותנו, 25 מאסטרים עלינו במתנה 😉🎁
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Browser mockup moved down to LandingSections — between "How it

@@ -189,6 +189,73 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
+type AnalyticsRange = "today" | "yesterday" | "7d" | "30d";
+const RANGE_LABELS: Record<AnalyticsRange, string> = {
+  today: "היום", yesterday: "אתמול", "7d": "7 ימים", "30d": "30 יום",
+};
+
+// REAL site traffic from /api/admin/analytics (our own site_visits counter),
+// with a date-range filter. Replaces the old demo numbers (Liat: "חייב אנליטקס
+// מתאים... תן לי אפשרות סינון - כמה נכנסו היום אתמול").
+function TrafficSection() {
+  const [range, setRange] = useState<AnalyticsRange>("today");
+  const [data, setData] = useState<{
+    visitors: number; pageViews: number; signups: number; conversionRate: number;
+    trend: { day: string; visitors: number }[];
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    (async () => {
+      try {
+        const r = await fetch(`/api/admin/analytics?range=${range}`, { headers: await adminAuthHeaders() });
+        const j = await r.json();
+        if (alive) setData(j?.configured ? j : null);
+      } catch { if (alive) setData(null); }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [range]);
+
+  const trend = data?.trend ?? [];
+  const maxTrend = Math.max(...trend.map((t) => t.visitors), 1);
+  const dow = (day: string) => ["א", "ב", "ג", "ד", "ה", "ו", "ש"][new Date(day + "T00:00:00").getDay()];
+
+  return (
+    <div className="bg-bg-card border border-white/10 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="text-sm font-bold">תנועת אתר <span className="text-[10px] text-emerald-300/80 font-normal">· נתונים אמיתיים ✓</span></div>
+        <div className="flex gap-1 bg-bg-input rounded-lg p-0.5">
+          {(Object.keys(RANGE_LABELS) as AnalyticsRange[]).map((k) => (
+            <button key={k} onClick={() => setRange(k)}
+              className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${range === k ? "bg-brand text-white font-bold" : "text-white/50 hover:text-white/80"}`}>
+              {RANGE_LABELS[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <StatCard label="כניסות לאתר"   value={loading ? "…" : (data?.visitors ?? 0).toLocaleString()} hint="מבקרים ייחודיים" />
+        <StatCard label="צפיות בעמודים" value={loading ? "…" : (data?.pageViews ?? 0).toLocaleString()} />
+        <StatCard label="הרשמות חדשות"  value={loading ? "…" : String(data?.signups ?? 0)} />
+        <StatCard label="אחוז המרה"     value={loading ? "…" : `${data?.conversionRate ?? 0}%`} hint="כניסות → הרשמות" />
+      </div>
+      <div className="text-[10px] text-white/30 mb-1">מבקרים ייחודיים · 7 ימים אחרונים</div>
+      <div className="flex items-end gap-1.5 h-16">
+        {trend.map((t, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="w-full rounded-t bg-gradient-to-t from-brand/40 to-brand"
+                 style={{ height: `${Math.max(6, (t.visitors / maxTrend) * 100)}%` }} title={`${t.visitors} מבקרים`} />
+            <span className="text-[9px] text-white/30">{dow(t.day)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OverviewTab() {
   const demo = getStats();
   const demoRecent = listVideos().slice(0, 5);
@@ -228,36 +295,8 @@ function OverviewTab() {
         <StatCard label="אחוז הצלחה"        value={`${successRate}%`} hint="ייצוא תקין מתוך כלל הניסיונות" />
       </div>
 
-      {/* ── Site traffic ─────────────────────────────────────── */}
-      <div className="bg-bg-card border border-white/10 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-bold">תנועת אתר · 7 ימים אחרונים</div>
-          {!demo.traffic.isReal && (
-            <span className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5">
-              נתוני דמו — יתחבר לאנליטיקה אמיתית אחרי העלייה
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <StatCard label="כניסות לאתר"     value={demo.traffic.visitors7d.toLocaleString()} />
-          <StatCard label="צפיות בעמודים"   value={demo.traffic.pageViews7d.toLocaleString()} />
-          <StatCard label="הרשמות חדשות"    value={String(demo.traffic.signups7d)} />
-          <StatCard label="אחוז המרה"       value={`${demo.traffic.conversionRate}%`} hint="כניסות → משתמשים" />
-        </div>
-        {/* mini bar chart */}
-        <div className="flex items-end gap-1.5 h-16">
-          {demo.traffic.trend7d.map((v, i) => {
-            const max = Math.max(...demo.traffic.trend7d, 1);
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full rounded-t bg-gradient-to-t from-brand/40 to-brand"
-                     style={{ height: `${Math.max(8, (v / max) * 100)}%` }} title={`${v} כניסות`} />
-                <span className="text-[9px] text-white/30">{["א","ב","ג","ד","ה","ו","ש"][i]}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Site traffic — REAL, with date filter ─────────────── */}
+      <TrafficSection />
       <div className="bg-bg-card border border-white/10 rounded-xl p-4">
         <div className="text-sm font-bold mb-3">פעילות אחרונה</div>
         <ul className="space-y-2">

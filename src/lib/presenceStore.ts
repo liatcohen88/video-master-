@@ -27,6 +27,17 @@ export function touch(sessionId: string, path: string, country: string | null, n
   if (sessions.size > 5000) prune(now); // opportunistic cap so it can't grow unbounded
 }
 
+// Per-process dedup so we hit Supabase at most ONCE per (session|path|day) —
+// the 20s heartbeats and the PK conflict both collapse, but this avoids even
+// sending the redundant insert. Cleared if it grows unreasonably large.
+const loggedVisits = new Set<string>();
+export function markVisitLogged(key: string): boolean {
+  if (loggedVisits.has(key)) return false;
+  loggedVisits.add(key);
+  if (loggedVisits.size > 50_000) loggedVisits.clear();
+  return true;
+}
+
 export type LiveSnapshot = {
   count: number;
   byPath: { path: string; count: number }[];
