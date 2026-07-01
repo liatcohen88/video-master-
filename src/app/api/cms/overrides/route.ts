@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { revalidateTag } from "next/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +90,10 @@ export async function POST(req: NextRequest) {
     updated_by: updatedBy,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // The root layout's loadOverridesServer() is cached for 60s (perf fix for
+  // concurrent-load response times) — bust it now so this edit is visible
+  // to new visitors immediately instead of waiting out the window.
+  revalidateTag("content-overrides");
   return NextResponse.json({ ok: true });
 }
 
@@ -104,5 +109,6 @@ export async function DELETE(req: NextRequest) {
   const admin = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false } });
   const { error } = await admin.from("content_overrides").delete().eq("key", key);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  revalidateTag("content-overrides");
   return NextResponse.json({ ok: true });
 }
