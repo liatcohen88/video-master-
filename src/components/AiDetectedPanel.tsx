@@ -407,6 +407,13 @@ function ElementEditorPopover({
       className="fixed inset-x-3 bottom-3 z-50 md:absolute md:inset-x-auto md:bottom-auto md:top-full md:right-0 md:mt-2 md:min-w-[220px] bg-bg-card border border-white/15 rounded-xl shadow-2xl shadow-black/60 p-3"
       dir="rtl"
     >
+      {/* Prominent close button — the bottom text link alone got lost on the
+          mobile bottom-sheet (Liat: "אין לי אפשרות לצאת אחרי ששיחקתי"). */}
+      <button onClick={onClose} title={labels.close}
+        className="absolute top-2 left-2 w-7 h-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+        <X size={16} />
+      </button>
+
       {/* Visual size slider — same UX as the custom-logo slider in EffectsPanel
           so Liat doesn't have to type a number. ✕ on the right resets to auto. */}
       <div className="text-[10px] text-white/40 mb-1 flex items-center justify-between">

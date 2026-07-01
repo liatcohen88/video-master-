@@ -42,6 +42,7 @@ export const BRAND_LOGOS: BrandLogo[] = [
     color: "E62E04",
     patterns: [
       heWord("אליאקספרס"), heWord("אלי\\s*אקספרס"),
+      heWord("עליאקספרס"), heWord("עלי\\s*אקספרס"), // common alternate spelling (ע instead of א)
       /\baliexpress\b/i, /\bali\s*express\b/i,
     ],
   },
