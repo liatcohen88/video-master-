@@ -8,6 +8,12 @@ import { rateLimit } from "@/lib/rateLimit";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+// Hard upload cap. This route is anonymous (guest preview) and buffers the
+// whole file into RAM via arrayBuffer() before writing to disk — without a
+// cap a single multi-GB POST can OOM the small box. 300MB is generous for a
+// short reel while staying well under available memory.
+const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   // Security (audit C2): IP-rate-limit only. Like /transcribe, analyze is
   // part of the guest preview flow (face detect / emphasis) — we don't
@@ -19,6 +25,9 @@ export async function POST(req: NextRequest) {
   const file = formData.get("video") as File | null;
   if (!file) {
     return NextResponse.json({ error: "No video file" }, { status: 400 });
+  }
+  if (file.size > MAX_VIDEO_BYTES) {
+    return NextResponse.json({ error: "הקובץ גדול מדי (מקס׳ 300MB)" }, { status: 413 });
   }
 
   const tempDir = join(tmpdir(), "subtitles-studio");

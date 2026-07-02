@@ -56,13 +56,15 @@ export async function refundCredits(userId: string, amount: number): Promise<voi
   const supa = adminClient();
   if (!supa) return;
   try {
-    const { data: row } = await supa
-      .from("profiles")
-      .select("credits")
-      .eq("id", userId)
-      .maybeSingle();
-    const current = Number(row?.credits ?? 0);
-    await supa.from("profiles").update({ credits: current + amount }).eq("id", userId);
+    // Atomic increment via the add_credits RPC (same one the webhooks use).
+    // The old select-then-update was a read-modify-write: a concurrent
+    // spend_credits landing between the read and the write got silently
+    // clobbered, letting a user keep spent credits AND get the refund.
+    const { error } = await supa.rpc("add_credits", {
+      p_user_id: userId,
+      p_credits: amount,
+    });
+    if (error) console.error("[refundCredits] RPC failed:", error.message);
   } catch (e) {
     console.error("[refundCredits] failed:", e);
   }

@@ -16,6 +16,16 @@ import { saveCurrentMusic, clearCurrentMusic } from "@/lib/projectStorage";
 import SfxPicker from "./SfxPicker";
 import LottieGallery from "./LottieGallery";
 
+/** Bearer header for authed API calls (remove-logo-bg is now login-gated).
+ *  Returns {} when signed out so the fetch still runs and gets a clean 401. */
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const { browserClient } = await import("@/lib/supabase");
+    const token = (await browserClient()?.auth.getSession())?.data.session?.access_token;
+    return token ? { authorization: `Bearer ${token}` } : {};
+  } catch { return {}; }
+}
+
 /** Internal tabs the user switches between inside the effects panel. We
  *  group features by intent (special effects / color / brand+aspect /
  *  subtitle-look) so the panel doesn't read as one infinite scroll. */
@@ -1047,7 +1057,7 @@ function CustomLogoSection({
     try {
       const res = await fetch("/api/remove-logo-bg", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
         body: JSON.stringify({ src: logo.srcOriginal ?? logo.src }),
       });
       if (!res.ok) {
@@ -1095,7 +1105,7 @@ function CustomLogoSection({
       try {
         const res = await fetch("/api/remove-logo-bg", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(await authHeader()) },
           body: JSON.stringify({ src: url }),
         });
         if (res.ok) {

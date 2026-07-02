@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { removeBackground } from "@/lib/imageBackgroundRemoval";
 import { rateLimit } from "@/lib/rateLimit";
+import { requireUser } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,9 +20,13 @@ const MAX_IMAGE_BYTES = 12 * 1024 * 1024; // 12 MB
  * SVG inputs are returned unchanged because they already support alpha.
  */
 export async function POST(req: NextRequest) {
-  // Background removal is a heavy sharp operation. Cap how often a single IP
-  // can trigger it so it can't be used to exhaust CPU/memory on the server.
-  const limited = rateLimit(req, { key: "remove-logo-bg", max: 10, windowSec: 60 });
+  // Auth first: background removal is heavy sharp compute — an anonymous
+  // caller (even IP-rate-limited) could pin CPU/RAM on the shared box. Only
+  // logged-in users edit logos, so gate it behind a real session.
+  const user = await requireUser(req);
+  if (user instanceof NextResponse) return user;
+  // Cap how often a single user can trigger it, as a second layer.
+  const limited = rateLimit(req, { key: `remove-logo-bg:${user.id}`, max: 10, windowSec: 60 });
   if (limited) return limited;
 
   const body = await req.json().catch(() => null);

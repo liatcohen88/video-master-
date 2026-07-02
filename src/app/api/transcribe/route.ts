@@ -36,6 +36,12 @@ export const maxDuration = 600;
 // need to slice the audio with ffmpeg first (future work — flag in error).
 const OPENAI_MAX_BYTES = 25 * 1024 * 1024;
 
+// Hard cap on the RAW upload (before audio extraction). This route is
+// anonymous (guest preview) and buffers the whole file into RAM, so without
+// a ceiling a single multi-GB POST can OOM the box. 300MB comfortably covers
+// a short reel; the extracted audio is checked against OPENAI_MAX_BYTES later.
+const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   // Security (audit C2): IP-based rate-limit. We deliberately do NOT
   // require auth here — guest visitors are supposed to upload + transcribe
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest) {
 
   if (!file) {
     return NextResponse.json({ error: "לא נמצא קובץ וידאו" }, { status: 400 });
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "הקובץ גדול מדי (מקס׳ 300MB)" }, { status: 413 });
   }
 
   // Preferred path: OpenAI Whisper API. Costs ~$0.006/minute, no infra to run.

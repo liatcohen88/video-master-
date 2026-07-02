@@ -25,11 +25,22 @@ function sweep() {
 }
 
 export function clientIp(req: Request): string {
-  // Vercel / most CDNs set x-forwarded-for. Fall back to a constant
-  // so dev (no header) shares one bucket — fine for local.
+  // Trust the proxy-set header FIRST. Our Traefik/Coolify front-end overwrites
+  // x-real-ip with the real peer IP on every request, so a client can't forge
+  // it. The leftmost x-forwarded-for value, by contrast, is fully
+  // client-controlled — trusting it let an attacker send a random XFF per
+  // request and land in a fresh rate-limit bucket every time, defeating the
+  // only DoS/cost control we have (e.g. the guest /transcribe OpenAI spend).
+  const real = req.headers.get("x-real-ip");
+  if (real) return real.trim();
+  // Fallback for environments without x-real-ip: take the LAST XFF hop (the
+  // one added by the closest trusted proxy), not the spoofable first one.
   const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "dev-local";
+  if (fwd) {
+    const parts = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "dev-local";
 }
 
 /**

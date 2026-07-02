@@ -12,10 +12,22 @@ export const dynamic = "force-dynamic";
  * If env vars are missing, we just redirect home — the OAuth flow can't
  * have started anyway.
  */
+/**
+ * Only allow same-origin relative redirect targets. `new URL(next, base)`
+ * ignores `base` when `next` is absolute, so a raw `?next=https://evil.com`
+ * (or `//evil.com`) would bounce the just-logged-in user off-site (phishing).
+ * Accept only a path that starts with a single "/" and isn't "//" or "/\".
+ */
+function safeNext(next: string | null): string {
+  if (!next || !next.startsWith("/")) return "/dashboard";
+  if (next.startsWith("//") || next.startsWith("/\\")) return "/dashboard";
+  return next;
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/dashboard";
+  const next = safeNext(url.searchParams.get("next"));
 
   const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
