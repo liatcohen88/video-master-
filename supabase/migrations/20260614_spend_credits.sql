@@ -44,5 +44,10 @@ begin
 end;
 $$;
 
-revoke all on function public.spend_credits(uuid, int) from public;
-grant execute on function public.spend_credits(uuid, int) to authenticated, service_role;
+-- Service-role ONLY. The app always calls this from the server (serverCredits.ts)
+-- with the service-role key. Granting `authenticated` here was a griefing hole:
+-- the body has no `auth.uid()` check, so any authenticated (or anon) caller could
+-- pass someone else's id and drain their credits. Locked down in
+-- 20260702_lock_credit_functions.sql — keep this in sync.
+revoke all on function public.spend_credits(uuid, int) from public, anon, authenticated;
+grant execute on function public.spend_credits(uuid, int) to service_role;

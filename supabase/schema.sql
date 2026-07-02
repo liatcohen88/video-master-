@@ -69,7 +69,15 @@ create policy "own profile read"  on public.profiles
 
 drop policy if exists "own profile update" on public.profiles;
 create policy "own profile update" on public.profiles
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- IMPORTANT: RLS gates WHICH row, not which columns. Without a column grant the
+-- authenticated role could PATCH its own `credits` via PostgREST and self-grant
+-- unlimited balance. Restrict writes to the columns a user may legitimately edit;
+-- all balance changes go through the SECURITY DEFINER RPCs (service-role only).
+-- See migration 20260702_lock_credit_functions.sql.
+revoke update on table public.profiles from anon, authenticated;
+grant  update (display_name) on table public.profiles to authenticated;
 
 -- Revenue table is service-role only (no public policies) — never exposed
 -- to the browser.
