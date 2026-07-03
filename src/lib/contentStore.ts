@@ -995,7 +995,7 @@ export const CONTENT_DEFAULTS = {
   "home.multi.badge":       "✨ חדש",
   "home.multi.desc":        "להעלות כמה סרטונים + תסריט. ה-AI מחבר אותם לסרטון אחד לפי הסדר שכתבתם.",
   "home.replace":           "החלף",
-  "home.cta.transcribe":    "ה-AI יתמלל ויערוך",
+  "home.cta.transcribe":    "תן ל-AI לערוך",
   "home.cta.processing":    "AI מתמלל...",
   "home.retranscribe":      "למחוק את התמלול השמור ולהריץ AI מחדש על הסרטון?\n\n💡 לתשומת לב: ירדו קרדיטים שוב כי זה ייחשב כתמלול חדש.",
   "home.progress.upload":   "מעלה את הסרטון לשרת...",

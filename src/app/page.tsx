@@ -1650,27 +1650,23 @@ export default function HomePage() {
                 onScrollToUpload={() => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
               />
 
-              {/* Floating, fixed CTAs — stay put while scrolling the long
-                  landing page so "upload / let AI edit" is always one tap away
-                  (Liat). Bottom-CENTER so they don't collide with the WhatsApp
-                  bubble (bottom-right). Both open the same validated picker;
-                  picking a video kicks off the AI edit flow. pointer-events are
-                  scoped to the buttons so the gap doesn't block the page. */}
+              {/* Floating, fixed upload CTA — MOBILE ONLY (md:hidden). Stays put
+                  while scrolling the long landing page so "upload a video" is
+                  always one tap away (Liat). Bottom-CENTER so it doesn't collide
+                  with the WhatsApp bubble (bottom-right). Opens the same
+                  validated picker; picking a video kicks off the AI edit flow.
+                  pointer-events scoped to the button so the gap doesn't block
+                  the page behind it. On desktop the big upload zone is already
+                  visible, so no floating button there. */}
               <div
-                className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[55] flex flex-col items-stretch gap-2 pointer-events-none"
+                className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[55] pointer-events-none"
                 dir="rtl"
               >
                 <button
                   onClick={() => uploaderRef.current?.open()}
-                  className="pointer-events-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card/95 backdrop-blur border border-white/15 text-white text-sm font-bold shadow-xl shadow-black/40 hover:border-brand/60 transition-colors"
-                >
-                  <Upload className="w-4 h-4" /> העלאת סרטון
-                </button>
-                <button
-                  onClick={() => uploaderRef.current?.open()}
                   className="pointer-events-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-brand to-accent-pink text-white text-sm font-black shadow-xl shadow-brand/40 hover:scale-[1.03] active:scale-95 transition-transform"
                 >
-                  <Sparkles className="w-4 h-4" /> תן ל-AI לערוך
+                  <Upload className="w-4 h-4" /> העלאת סרטון
                 </button>
               </div>
             </>
