@@ -1,13 +1,18 @@
 "use client";
 
 import { Upload, Film, Clock, Loader2 } from "lucide-react";
-import { useState, useRef, DragEvent, ChangeEvent } from "react";
+import { useState, useRef, forwardRef, useImperativeHandle, DragEvent, ChangeEvent } from "react";
 import { toast } from "@/components/Toaster";
 import { useContent } from "@/lib/useContent";
 
 type Props = {
   onVideoSelected: (file: File) => void;
 };
+
+/** Imperative handle so outside callers (e.g. the floating home CTAs) can
+ *  open the OS file picker and reuse ALL the validation below — no duplicated
+ *  type/duration checks. */
+export type VideoUploaderHandle = { open: () => void };
 
 // Upload duration cap. The old 60s value dated to the Vercel 60s function
 // timeout; render now runs as a background Remotion job on Hetzner, so the
@@ -27,7 +32,7 @@ function probeDuration(file: File): Promise<number> {
   });
 }
 
-export default function VideoUploader({ onVideoSelected }: Props) {
+const VideoUploader = forwardRef<VideoUploaderHandle, Props>(function VideoUploader({ onVideoSelected }, ref) {
   // CMS-driven copy for the drop zone — Liat asked for a softer call-to-action
   const dropTitle    = useContent("uploader.dropTitle") as string;
   const dragingTitle = useContent("uploader.dragingTitle") as string;
@@ -39,6 +44,9 @@ export default function VideoUploader({ onVideoSelected }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [checking, setChecking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Let the floating home-page CTAs trigger this same picker.
+  useImperativeHandle(ref, () => ({ open: () => { if (!checking) inputRef.current?.click(); } }), [checking]);
 
   async function accept(file: File) {
     if (!file.type.startsWith("video/")) return;
@@ -132,4 +140,6 @@ export default function VideoUploader({ onVideoSelected }: Props) {
       </div>
     </div>
   );
-}
+});
+
+export default VideoUploader;

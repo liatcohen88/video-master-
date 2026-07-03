@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, FileDown } from "lucide-react";
+import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, FileDown, Upload } from "lucide-react";
 
-import VideoUploader from "@/components/VideoUploader";
+import VideoUploader, { type VideoUploaderHandle } from "@/components/VideoUploader";
 import ModeSelector from "@/components/ModeSelector";
 import SubtitleSettingsPanel from "@/components/SubtitleSettingsPanel";
 import VideoPreview from "@/components/VideoPreview";
@@ -308,6 +308,9 @@ export default function HomePage() {
   const [videoHash, setVideoHash] = useState<string | null>(null);
   // Ref so landing-page CTAs can smooth-scroll back up to the upload area
   const uploadRef = useRef<HTMLDivElement>(null);
+  // Imperative handle into the uploader so the floating home CTAs can open the
+  // file picker directly (reuses the uploader's type/duration validation).
+  const uploaderRef = useRef<VideoUploaderHandle>(null);
 
   // ── Auto-saved project state — survives a page refresh.
   // The video File itself can't be persisted; user has to re-upload if they
@@ -1640,12 +1643,36 @@ export default function HomePage() {
                 {/* If a previous video is still cached, show one-click resume.
                     Self-hides when no cached video exists. */}
                 <ResumeProjectBanner onResume={handleResume} />
-                <VideoUploader onVideoSelected={handleVideo} />
+                <VideoUploader ref={uploaderRef} onVideoSelected={handleVideo} />
               </div>
               {/* ── Landing page sections — only when no video uploaded ── */}
               <LandingSections
                 onScrollToUpload={() => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
               />
+
+              {/* Floating, fixed CTAs — stay put while scrolling the long
+                  landing page so "upload / let AI edit" is always one tap away
+                  (Liat). Bottom-CENTER so they don't collide with the WhatsApp
+                  bubble (bottom-right). Both open the same validated picker;
+                  picking a video kicks off the AI edit flow. pointer-events are
+                  scoped to the buttons so the gap doesn't block the page. */}
+              <div
+                className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[55] flex flex-col items-stretch gap-2 pointer-events-none"
+                dir="rtl"
+              >
+                <button
+                  onClick={() => uploaderRef.current?.open()}
+                  className="pointer-events-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card/95 backdrop-blur border border-white/15 text-white text-sm font-bold shadow-xl shadow-black/40 hover:border-brand/60 transition-colors"
+                >
+                  <Upload className="w-4 h-4" /> העלאת סרטון
+                </button>
+                <button
+                  onClick={() => uploaderRef.current?.open()}
+                  className="pointer-events-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-brand to-accent-pink text-white text-sm font-black shadow-xl shadow-brand/40 hover:scale-[1.03] active:scale-95 transition-transform"
+                >
+                  <Sparkles className="w-4 h-4" /> תן ל-AI לערוך
+                </button>
+              </div>
             </>
           ) : (
             <div className="bg-bg-panel border border-brand/30 rounded-2xl p-4 flex items-center gap-4">
