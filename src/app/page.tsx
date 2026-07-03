@@ -1772,6 +1772,26 @@ export default function HomePage() {
                   <div className="text-red-300/80">{errorMessage}</div>
                 </div>
               )}
+
+              {/* Floating "let AI edit" CTA — MOBILE ONLY. The inline start
+                  button sits BELOW the mode picker + settings panels, so on a
+                  phone it's off-screen and looks missing (Liat: "אין כפתור").
+                  This keeps it one tap away. Hidden while processing (the inline
+                  button turns into the progress indicator then). Bottom-center
+                  to clear the WhatsApp bubble. */}
+              {!isProcessing && (
+                <div
+                  className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[55] pointer-events-none"
+                  dir="rtl"
+                >
+                  <button
+                    onClick={() => startTranscription()}
+                    className="pointer-events-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-brand to-accent-pink text-white text-sm font-black shadow-xl shadow-brand/40 hover:scale-[1.03] active:scale-95 transition-transform"
+                  >
+                    <Wand2 className="w-4 h-4" /> {ctaTranscribe}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
