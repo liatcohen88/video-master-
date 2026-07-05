@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, FileDown, Upload } from "lucide-react";
+import { Wand2, Download, Sparkles, ArrowLeft, Cloud, Coins, Languages, Zap, FileDown, Upload, Play, X } from "lucide-react";
 
 import VideoUploader, { type VideoUploaderHandle } from "@/components/VideoUploader";
 import ModeSelector from "@/components/ModeSelector";
@@ -311,6 +311,17 @@ export default function HomePage() {
   // Imperative handle into the uploader so the floating home CTAs can open the
   // file picker directly (reuses the uploader's type/duration validation).
   const uploaderRef = useRef<VideoUploaderHandle>(null);
+  // "Try a sample" + first-run onboarding — cut bounce for cold ad traffic that
+  // lands unsure what to do or without a video ready.
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    try { if (!localStorage.getItem("vm_onboarding_seen")) setShowOnboarding(true); } catch {}
+  }, []);
+  function dismissOnboarding() {
+    setShowOnboarding(false);
+    try { localStorage.setItem("vm_onboarding_seen", "1"); } catch {}
+  }
 
   // ── Auto-saved project state — survives a page refresh.
   // The video File itself can't be persisted; user has to re-upload if they
@@ -647,6 +658,30 @@ export default function HomePage() {
       // at whatever scroll position the upload-zone was at, which leaves the
       // brand-new video preview off-screen. (Liat: "ישר קופץ למטה ולא לראש".)
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
+    }
+  }
+
+  /**
+   * "Try a sample" — fetch a bundled demo clip and run it through the exact
+   * same flow as a real upload (handleVideo → transcribe → edit). Removes the
+   * single biggest friction for cold ad traffic: needing a video ready. The
+   * clip is a public/ asset so it ships with the build; swap the file to change
+   * the demo. Best-effort: a fetch failure surfaces a gentle Hebrew message.
+   */
+  async function handleTrySample() {
+    if (sampleLoading) return;
+    dismissOnboarding();
+    setSampleLoading(true);
+    try {
+      const res = await fetch("/showcase-woman.mp4");
+      if (!res.ok) throw new Error(`sample ${res.status}`);
+      const blob = await res.blob();
+      const file = new File([blob], "סרטון-לדוגמה.mp4", { type: blob.type || "video/mp4" });
+      await handleVideo(file);
+    } catch {
+      setErrorMessage("לא הצלחנו לטעון את סרטון הדוגמה כרגע. אפשר להעלות סרטון משלך 🙂");
+    } finally {
+      setSampleLoading(false);
     }
   }
 
@@ -1639,11 +1674,48 @@ export default function HomePage() {
                   <div className="text-brand-light group-hover:translate-x-1 transition-transform text-2xl">←</div>
                 </div>
               </a>}
+              {/* First-run onboarding — a 3-step "how it works" so cold ad
+                  traffic understands the flow instead of bouncing. Shows once
+                  (localStorage), dismissible, and only in the no-video view. */}
+              {showOnboarding && (
+                <div className="relative bg-gradient-to-br from-brand/15 to-accent-pink/10 border border-brand/30 rounded-2xl p-4 md:p-5 mb-4" dir="rtl">
+                  <button onClick={dismissOnboarding} aria-label="סגירה"
+                    className="absolute top-2 left-2 w-7 h-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                    <X size={16} />
+                  </button>
+                  <div className="font-black text-base md:text-lg mb-3">איך זה עובד? 3 צעדים ✨</div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 text-sm text-white/80">
+                    {[
+                      "מעלים סרטון (או נסו דוגמה מוכנה)",
+                      "ה-AI מוסיף כתוביות ואפקטים אוטומטית",
+                      "מורידים ומשתפים 🎉",
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black">{i + 1}</span>
+                        <span>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div ref={uploadRef}>
                 {/* If a previous video is still cached, show one-click resume.
                     Self-hides when no cached video exists. */}
                 <ResumeProjectBanner onResume={handleResume} />
                 <VideoUploader ref={uploaderRef} onVideoSelected={handleVideo} />
+                {/* "Try a sample" — removes the "I don't have a video ready"
+                    friction for first-time / ad visitors. Runs the real flow. */}
+                <button
+                  onClick={handleTrySample}
+                  disabled={sampleLoading}
+                  className="w-full mt-3 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-brand/50 text-white/80 hover:text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {sampleLoading ? (
+                    <>טוען סרטון דוגמה…</>
+                  ) : (
+                    <><Play className="w-4 h-4" /> אין לכם סרטון? נסו דוגמה מוכנה</>
+                  )}
+                </button>
               </div>
               {/* ── Landing page sections — only when no video uploaded ── */}
               <LandingSections
