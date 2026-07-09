@@ -5,7 +5,7 @@ import {
   Sparkles, AlertTriangle, Shield, RefreshCw,
   Subtitles, Wand2, Mic, Layers, ArrowRight,
 } from "lucide-react";
-import { getCredits, ADVANCED_EFFECTS_CAP } from "@/lib/credits";
+import { getCredits, ADVANCED_EFFECTS_CAP, NEW_USER_GIFT } from "@/lib/credits";
 import { getProfile } from "@/lib/userStore";
 import { useAuth } from "@/lib/useAuth";
 import { useContent } from "@/lib/useContent";
@@ -75,7 +75,11 @@ export default function CreditsPage() {
   // storage is only a guest/offline fallback — it can drift (Liat saw the
   // header show 0 while /credits showed a stale local number).
   const isGuest = auth.status === "guest";
-  const credits = isGuest ? 0 : (auth.profile?.credits ?? localCredits);
+  // Guests see the 25-master gift as their teaser balance — consistent with
+  // the header (SiteHeader shows NEW_USER_GIFT for guests) and the gift banner
+  // above. Was 0, which contradicted the "25 במתנה" text right next to it
+  // (Liat: "רשום 0 מאסטרים ובצד 25").
+  const credits = isGuest ? NEW_USER_GIFT : (auth.profile?.credits ?? localCredits);
   useEffect(() => {
     setLocalCredits(getCredits());
     setHydrated(true);

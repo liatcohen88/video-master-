@@ -253,7 +253,11 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
   basic_effects: {
     ...DEFAULT_EFFECTS,
     cutSilence: false, // Liat: silence-cut must be user-activated, never auto
-    zoomEffect: "subtle",
+    // Auto-zoom OFF by default — an uploaded video must stay 100% original with
+    // NO cropping (a zoom scales the frame up and clips the edges). Liat:
+    // "שהסרטון אוטומטי כשמעלים יהיה מקורי, ללא חיתוך". Zoom is opt-in via the
+    // Effects panel.
+    zoomEffect: "none",
     zoomIntensity: 0.05,
     cinematicColor: true,
     contextualElements: true,
@@ -291,7 +295,10 @@ export const MODE_DEFAULT_EFFECTS: Record<EditMode, VideoEffects> = {
     ...DEFAULT_EFFECTS,
     aspectRatio: "original",
     cutSilence: false, // Liat: silence-cut must be user-activated, never auto
-    zoomEffect: "punch",           // זיהוי פנים + זום אוטומטי — the headline feature
+    // Auto-zoom OFF by default — uploads must stay 100% original, no crop
+    // (Liat 2026-07-06). Face-zoom / punch is still available in the panel as
+    // opt-in; it just no longer crops the frame automatically on upload.
+    zoomEffect: "none",
     cinematicColor: true,
     subtitleAnimation: "auto-mix",
     contextualElements: true,
