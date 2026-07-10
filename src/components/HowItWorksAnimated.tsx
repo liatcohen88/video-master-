@@ -276,18 +276,22 @@ const CZ_STYLES = [
     chip: "linear-gradient(135deg,#e55c00,#ff8c00)",
     color: "#fde047", stroke: "#000",
     glow: "rgba(255,140,0,0.45)",
+    // real loaded Hebrew fonts so the caption FONT visibly changes per template
+    font: "var(--font-suez), sans-serif", weight: 400, ls: "0",
   },
   {
     name: "TikTok", icon: "⚡",
     chip: "linear-gradient(135deg,#4c1d95,#7c3aed)",
     color: "#ffffff", stroke: "#5b21b6",
     glow: "rgba(124,58,237,0.5)",
+    font: "var(--font-secular), sans-serif", weight: 400, ls: "-0.5px",
   },
   {
     name: "נאון", icon: "💎",
     chip: "linear-gradient(135deg,#0891b2,#22d3ee)",
     color: "#67e8f9", stroke: "#083344",
     glow: "rgba(34,211,238,0.4)",
+    font: "var(--font-varela), sans-serif", weight: 400, ls: "0.5px",
   },
 ];
 
@@ -318,6 +322,14 @@ function StageCustomize({ reduced }: { reduced: boolean }) {
           />
         ))}
 
+        {/* twinkling sparkles = effects/animation is happening */}
+        {!reduced && ["12%","78%","22%","88%"].map((left, i) => (
+          <span key={i} className="absolute text-[13px]" style={{
+            left, top: `${18 + (i % 2) * 44}%`,
+            animation: `hiw-tw ${1.4 + i * 0.3}s ease-in-out ${i * 0.4}s infinite`,
+          }}>✨</span>
+        ))}
+
         {/* emoji + free-edit pill */}
         <div className="absolute top-3 right-3 text-2xl drop-shadow" style={reduced ? undefined : { animation: "hiw-spring .5s .25s both" }}>❤️</div>
         <div
@@ -328,14 +340,30 @@ function StageCustomize({ reduced }: { reduced: boolean }) {
           <span className="text-[8px] font-black text-white/85">עריכה חופשית</span>
         </div>
 
-        {/* ONE caption, restyling itself — crossfading variants stacked */}
-        <div className="absolute inset-x-0 bottom-6 grid place-items-center h-9">
+        {/* sound = animated equalizer bars, bottom-left */}
+        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 backdrop-blur px-2 py-1 border border-white/15">
+          <span className="text-[10px]">🎵</span>
+          <span className="flex items-end gap-[2px] h-3">
+            {[0,1,2,3].map(i => (
+              <span key={i} className="w-[2px] rounded-full bg-cyan-300" style={{
+                height: "100%", transformOrigin: "bottom",
+                ...(reduced ? { transform: "scaleY(0.5)" } : { animation: `hiw-eq ${0.6 + i * 0.12}s ease-in-out ${i * 0.1}s infinite` }),
+              }} />
+            ))}
+          </span>
+        </div>
+
+        {/* ONE caption, restyling itself — color + FONT change per template */}
+        <div className="absolute inset-x-0 bottom-7 grid place-items-center h-9">
           {CZ_STYLES.map((s, i) => (
             <span
               key={i}
-              className="col-start-1 row-start-1 text-[19px] font-black tracking-tight"
+              className="col-start-1 row-start-1 text-[20px]"
               style={{
                 color: s.color,
+                fontFamily: s.font,
+                fontWeight: s.weight,
+                letterSpacing: s.ls,
                 WebkitTextStroke: `2.5px ${s.stroke}`,
                 paintOrder: "stroke fill",
                 textShadow: `0 0 14px ${s.glow}`,
@@ -349,19 +377,21 @@ function StageCustomize({ reduced }: { reduced: boolean }) {
         </div>
       </div>
 
-      {/* template cards — the matching one lights up in sync with the caption */}
-      <div className="shrink-0 bg-[#111128]/95 border-t border-white/10 px-2.5 pt-2 pb-2.5">
-        <div className="text-[8px] text-white/45 font-bold mb-1.5 flex items-center gap-1">
-          <Sparkles size={9} className="text-violet-300" /> החליפו סגנון בקליק
+      {/* what's included — animations, effects, sounds, templates */}
+      <div className="shrink-0 bg-[#111128]/95 border-t border-white/10 px-2.5 pt-1.5 pb-2.5">
+        <div className="flex items-center justify-center gap-2 text-[8px] font-bold text-white/55 mb-1.5">
+          <span>🎬 אנימציות</span><span className="text-white/20">·</span>
+          <span>✨ אפקטים</span><span className="text-white/20">·</span>
+          <span>🎵 סאונד</span>
         </div>
         <div className="grid grid-cols-3 gap-1.5">
           {CZ_STYLES.map((t, i) => (
             <div
               key={i}
-              className="relative h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 ring-1 ring-white/10 overflow-visible"
+              className="relative h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 ring-1 ring-white/10 overflow-visible"
               style={{ background: t.chip }}
             >
-              <span className="text-base leading-none drop-shadow">{t.icon}</span>
+              <span className="text-sm leading-none drop-shadow">{t.icon}</span>
               <span className="text-[8px] font-black text-white/95 leading-none">{t.name}</span>
               {/* synced highlight ring + glow */}
               <span
@@ -449,4 +479,6 @@ const KEYFRAMES = `
 @keyframes hiw-o0 { 0%{opacity:0} 6%,27%{opacity:1} 33%,100%{opacity:0} }
 @keyframes hiw-o1 { 0%,33%{opacity:0} 39%,60%{opacity:1} 66%,100%{opacity:0} }
 @keyframes hiw-o2 { 0%,66%{opacity:0} 72%,94%{opacity:1} 100%{opacity:0} }
+@keyframes hiw-eq { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
+@keyframes hiw-tw { 0%,100%{opacity:.15;transform:scale(.5)} 50%{opacity:1;transform:scale(1.15)} }
 `;
