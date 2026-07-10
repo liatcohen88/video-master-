@@ -91,11 +91,18 @@ export default function HeroBrowserMockup() {
         @keyframes hbm-chip-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes hbm-prog { from{width:0%} to{width:100%} }
         @keyframes hbm-hero { from{opacity:0;transform:translateY(24px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-        /* Mobile: stack the mock editor vertically (video on top, settings below) — the desktop side-by-side layout gets unreadable below ~640px. Also hide the floating chips since they sit outside the frame and collide with the page on narrow viewports. */
+        /* Mobile: the full editor mockup (style panel + subtitle list) makes the
+           card very tall for little payoff — the controls are unreadable at that
+           size. So on phones we CUT the bottom: keep only the browser frame +
+           the portrait video with its burned-in captions (the real "wow"), and
+           hide the style panel + subtitle list. Also hide the floating chips
+           since they sit outside the frame and collide on narrow viewports.
+           (Liat: "בטלפון החלק הזה ארוך — נחתוך את כל הלמטה".) */
         @media (max-width: 768px) {
-          .hbm-body { flex-direction: column-reverse !important; height: auto !important; }
-          .hbm-left { width: 100% !important; border-right: none !important; border-top: 1px solid rgba(255,255,255,0.06) !important; }
-          .hbm-video-wrap { flex: 0 0 auto !important; padding: 14px 0 10px !important; }
+          .hbm-body { flex-direction: column !important; height: auto !important; }
+          .hbm-left { display: none !important; }
+          .hbm-subs { display: none !important; }
+          .hbm-video-wrap { flex: 0 0 auto !important; padding: 16px 0 !important; }
           .hbm-chips-side { display: none !important; }
         }
       `}</style>
@@ -264,8 +271,9 @@ export default function HeroBrowserMockup() {
                 </div>
               </div>
 
-              {/* subtitle editor */}
-              <div style={{ flex: 1, borderTop: "1px solid rgba(255,255,255,0.07)", overflowY: "auto", direction: "rtl" }}>
+              {/* subtitle editor — hidden on mobile (.hbm-subs) to cut the long
+                  bottom; desktop keeps it. */}
+              <div className="hbm-subs" style={{ flex: 1, borderTop: "1px solid rgba(255,255,255,0.07)", overflowY: "auto", direction: "rtl" }}>
                 <div style={{ position: "sticky", top: 0, background: "#111128", zIndex: 2, borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "8px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "var(--font-heebo), sans-serif" }}>עריכת כתוביות</span>
