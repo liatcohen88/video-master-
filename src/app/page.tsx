@@ -39,6 +39,7 @@ import { listNotifications, markNotificationRead, clearAllNotifications, addVide
 import { pushVideoRow, setVideoRowStatus } from "@/lib/userData";
 import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
 import LandingSections from "@/components/LandingSections";
+import HowItWorksAnimated from "@/components/HowItWorksAnimated";
 import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
 import InsufficientCreditsModal, { type InsufficientInfo } from "@/components/InsufficientCreditsModal";
@@ -1684,18 +1685,14 @@ export default function HomePage() {
                     <X size={16} />
                   </button>
                   <div className="font-black text-base md:text-lg mb-3">איך זה עובד? 3 צעדים ✨</div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 text-sm text-white/80">
-                    {[
-                      "מעלים סרטון (או נסו דוגמה מוכנה)",
-                      "ה-AI מוסיף כתוביות ואפקטים אוטומטית",
-                      "מורידים ומשתפים 🎉",
-                    ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black">{i + 1}</span>
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <HowItWorksAnimated
+                    compact
+                    steps={[
+                      { title: "מעלים סרטון", body: "או נסו דוגמה מוכנה" },
+                      { title: "ה-AI עורך", body: "כתוביות ואפקטים אוטומטית" },
+                      { title: "מורידים ומשתפים", body: "MP4 מוכן לרילס 🎉" },
+                    ]}
+                  />
                 </div>
               )}
               <div ref={uploadRef}>

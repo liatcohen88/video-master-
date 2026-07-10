@@ -23,6 +23,7 @@ import AiAutoShowcase from "./AiAutoShowcase";
 import PremiumPkgCard, { SharedFeatures } from "./PremiumPkgCard";
 import PackagesCarousel from "./PackagesCarousel";
 import HeroBrowserMockup from "./HeroBrowserMockup";
+import HowItWorksAnimated from "./HowItWorksAnimated";
 
 export default function LandingSections({ onScrollToUpload }: { onScrollToUpload?: () => void }) {
   const multiEnabled = useContent("feature.multi.enabled") as boolean;
@@ -93,13 +94,20 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
           live in case admin wants to re-introduce a duplicate strip
           below the upload zone — for now we keep the landing flat. */}
 
-      {/* ── How it works (3 steps — NO NUMBERS, just icons) ── */}
+      {/* ── How it works — LIVE animated mini-reel demoing the 3 steps
+              (upload → AI edits → export & share). Replaces the old static
+              icon grid (Liat: "אנימציה ממש שמראה כל דבר וזזה"). Copy still
+              from CMS (landing.step*). ── */}
       <section>
         <SectionHeader eyebrow={howEy} title={howT} subtitle={howS} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
-          <Step icon={<Upload className="w-7 h-7" />}   title={s1T} body={s1B} color="violet" />
-          <Step icon={<Wand2 className="w-7 h-7" />}    title={s2T} body={s2B} color="fuchsia" featured />
-          <Step icon={<Download className="w-7 h-7" />} title={s3T} body={s3B} color="pink" />
+        <div className="mt-10">
+          <HowItWorksAnimated
+            steps={[
+              { title: s1T, body: s1B },
+              { title: s2T, body: s2B },
+              { title: s3T, body: s3B },
+            ]}
+          />
         </div>
       </section>
 
