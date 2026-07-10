@@ -267,70 +267,87 @@ function StageEdit({ reduced }: { reduced: boolean }) {
   );
 }
 
+// Real editor templates + effects, mirrored from the actual StylePanel /
+// HeroBrowserMockup so the "customize" stage reads as the real product.
+const CZ_TEMPLATES = [
+  { bg: "#1a1a2e", label: "רגיל", icon: "" },
+  { bg: "linear-gradient(135deg,#c0392b,#e74c3c)", label: "פודקאסט", icon: "🎙" },
+  { bg: "linear-gradient(135deg,#e55c00,#ff8c00)", label: "Hormozi", icon: "🔥" },
+  { bg: "linear-gradient(135deg,#6c3483,#a855f7)", label: "אינסטגרם", icon: "💎" },
+  { bg: "linear-gradient(135deg,#0d4f4f,#1a7a7a)", label: "שקט", icon: "🎙" },
+  { bg: "linear-gradient(135deg,#4c1d95,#7c3aed)", label: "TikTok", icon: "⚡", active: true },
+];
+const CZ_FX = [
+  { icon: "🎸", label: "רעד" },
+  { icon: "🥊", label: "פאנץ׳", active: true },
+  { icon: "🌪", label: "וייפ" },
+  { icon: "🌊", label: "זום" },
+  { icon: "🚀", label: "סלייד" },
+  { icon: "⚡", label: "פלאש" },
+];
+
 /**
- * Stage 2 — "עריכה כרצונכם": after the AI's first pass you fine-tune it. A live
- * editor scene: Reels captions type in word-by-word (middle word highlighted),
- * an emoji pops, and a row of style swatches shows manual control (one active).
- * Liat: "אפשרות לערוך כרצונך עם אנימציה יפה שממש מראה כתוביות וכו'".
+ * Stage 2 — "עריכה כרצונכם": shows the REAL editor UI (template gallery + tabs +
+ * effects grid) inside a mini video preview, so it's instantly recognizable as
+ * the actual product and lands the "wow". Mirrors StylePanel / HeroBrowserMockup.
+ * Liot: "שזה יהיה דומה למערכת עצמה — כל התבניות אפקטים... מובן וואוו".
  */
 function StageCustomize({ reduced }: { reduced: boolean }) {
-  const words = ["עורכים", "בקליק", "מושלם"];
-  const swatches = [
-    "linear-gradient(135deg,#7c3aed,#a855f7)",
-    "linear-gradient(135deg,#e55c00,#ff8c00)",
-    "linear-gradient(135deg,#0d4f4f,#1a7a7a)",
-    "linear-gradient(135deg,#c0392b,#e74c3c)",
-  ];
   return (
-    <div className="absolute inset-0 bg-gradient-to-b from-[#241b3d] to-[#160f28]">
-      {/* "video" surface */}
-      <div className="absolute inset-0 grid place-items-center text-5xl opacity-90">🧑‍💻</div>
-
-      {/* emoji pop — top corner */}
-      <div
-        className="absolute top-3 right-3 text-2xl drop-shadow"
-        style={reduced ? undefined : { animation: "hiw-spring .5s .35s both" }}
-      >❤️</div>
-
-      {/* style swatches — manual control (2nd active with a ring) */}
-      <div className="absolute top-3 left-3 flex gap-1.5">
-        {swatches.map((g, i) => (
-          <span
-            key={i}
-            className={`w-5 h-5 rounded-md ${i === 1 ? "ring-2 ring-white shadow-lg" : "ring-1 ring-white/20"}`}
-            style={{
-              background: g,
-              ...(reduced ? {} : { animation: `hiw-spring .4s ${0.15 + i * 0.1}s both` }),
-            }}
-          />
-        ))}
+    <div className="absolute inset-0 bg-[#0d0d1f] flex flex-col text-white" dir="rtl">
+      {/* mini video preview with a Reels caption + emoji */}
+      <div className="relative shrink-0 h-[92px] bg-[#0a0a18] grid place-items-center border-b border-white/10">
+        <div className="relative w-[52px] h-[78px] rounded-md overflow-hidden shadow-lg" style={{ background: "linear-gradient(135deg,#3b2a5e,#241b3d)" }}>
+          <div className="absolute inset-0 grid place-items-center text-2xl">🧑‍💻</div>
+          <div
+            className="absolute inset-x-0 bottom-1 text-center text-[9px] font-black"
+            style={{ WebkitTextStroke: "1.5px #000", paintOrder: "stroke fill", color: "#fbbf24", ...(reduced ? {} : { animation: "hiw-pop .4s .2s both" }) }}
+          >מושלם ✨</div>
+        </div>
+        <div className="absolute top-2 right-2 text-lg" style={reduced ? undefined : { animation: "hiw-spring .5s .3s both" }}>❤️</div>
+        <div
+          className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-1.5 py-0.5 border border-white/15"
+          style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
+        >
+          <SlidersHorizontal size={9} className="text-violet-300" />
+          <span className="text-[7px] font-black text-white/80">עריכה חופשית</span>
+        </div>
       </div>
 
-      {/* edit pill */}
-      <div
-        className="absolute top-1/2 right-3 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-2 py-1 border border-white/15"
-        style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
-      >
-        <SlidersHorizontal size={11} className="text-cyan-300" />
-        <span className="text-[9px] font-black text-white/80">עריכה חופשית</span>
-      </div>
+      {/* editor panel — templates + effects, like the real StylePanel */}
+      <div className="flex-1 min-h-0 p-2 flex flex-col gap-1.5 overflow-hidden bg-[#111128]">
+        <div className="text-[8px] text-white/45 font-bold">תבניות מוכנות</div>
+        <div className="grid grid-cols-3 gap-1">
+          {CZ_TEMPLATES.map((t, i) => (
+            <div
+              key={i}
+              className={`relative h-8 rounded-md flex flex-col items-center justify-center gap-0.5 ${t.active ? "ring-2 ring-violet-400" : "ring-1 ring-white/10"}`}
+              style={{
+                background: t.bg,
+                boxShadow: t.active ? "0 0 10px rgba(124,58,237,0.6)" : "none",
+                ...(reduced ? {} : { animation: `hiw-spring .4s ${0.05 + i * 0.06}s both` }),
+              }}
+            >
+              {t.icon && <span className="text-[11px] leading-none">{t.icon}</span>}
+              <span className="text-[6.5px] font-bold text-white/85 leading-none">{t.label}</span>
+              {t.active && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-violet-300" />}
+            </div>
+          ))}
+        </div>
 
-      {/* Reels-style captions typing in word-by-word */}
-      <div className="absolute inset-x-0 bottom-6 flex flex-wrap justify-center gap-1 px-3">
-        {words.map((w, i) => (
-          <span
-            key={i}
-            className="text-[15px] font-black text-white"
-            style={{
-              WebkitTextStroke: "2px #000",
-              paintOrder: "stroke fill",
-              ...(reduced ? {} : { animation: `hiw-pop .35s ${0.25 + i * 0.28}s both` }),
-              ...(i === 1 ? { color: "#fbbf24" } : {}),
-            }}
-          >
-            {w}
-          </span>
-        ))}
+        <div className="text-[8px] text-white/45 font-bold mt-0.5">אפקטים ואנימציות</div>
+        <div className="grid grid-cols-3 gap-1">
+          {CZ_FX.map((f, i) => (
+            <div
+              key={i}
+              className={`h-8 rounded-md flex flex-col items-center justify-center gap-0.5 ${f.active ? "bg-violet-600/30 ring-1 ring-violet-400/60" : "bg-white/[0.05] ring-1 ring-white/10"}`}
+              style={reduced ? undefined : { animation: `hiw-spring .4s ${0.35 + i * 0.06}s both` }}
+            >
+              <span className="text-[11px] leading-none">{f.icon}</span>
+              <span className={`text-[6.5px] font-bold leading-none ${f.active ? "text-violet-200" : "text-white/55"}`}>{f.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
