@@ -267,84 +267,111 @@ function StageEdit({ reduced }: { reduced: boolean }) {
   );
 }
 
-// Real editor templates + effects, mirrored from the actual StylePanel /
-// HeroBrowserMockup so the "customize" stage reads as the real product.
-const CZ_TEMPLATES = [
-  { bg: "#1a1a2e", label: "רגיל", icon: "" },
-  { bg: "linear-gradient(135deg,#c0392b,#e74c3c)", label: "פודקאסט", icon: "🎙" },
-  { bg: "linear-gradient(135deg,#e55c00,#ff8c00)", label: "Hormozi", icon: "🔥" },
-  { bg: "linear-gradient(135deg,#6c3483,#a855f7)", label: "אינסטגרם", icon: "💎" },
-  { bg: "linear-gradient(135deg,#0d4f4f,#1a7a7a)", label: "שקט", icon: "🎙" },
-  { bg: "linear-gradient(135deg,#4c1d95,#7c3aed)", label: "TikTok", icon: "⚡", active: true },
-];
-const CZ_FX = [
-  { icon: "🎸", label: "רעד" },
-  { icon: "🥊", label: "פאנץ׳", active: true },
-  { icon: "🌪", label: "וייפ" },
-  { icon: "🌊", label: "זום" },
-  { icon: "🚀", label: "סלייד" },
-  { icon: "⚡", label: "פלאש" },
+// Three real template looks, cycled in sync: the caption restyles itself, the
+// matching template card lights up below, and a colored glow washes the video —
+// exactly the real editor interaction (pick a template → captions change).
+const CZ_STYLES = [
+  {
+    name: "Hormozi", icon: "🔥",
+    chip: "linear-gradient(135deg,#e55c00,#ff8c00)",
+    color: "#fde047", stroke: "#000",
+    glow: "rgba(255,140,0,0.45)",
+  },
+  {
+    name: "TikTok", icon: "⚡",
+    chip: "linear-gradient(135deg,#4c1d95,#7c3aed)",
+    color: "#ffffff", stroke: "#5b21b6",
+    glow: "rgba(124,58,237,0.5)",
+  },
+  {
+    name: "נאון", icon: "💎",
+    chip: "linear-gradient(135deg,#0891b2,#22d3ee)",
+    color: "#67e8f9", stroke: "#083344",
+    glow: "rgba(34,211,238,0.4)",
+  },
 ];
 
 /**
- * Stage 2 — "עריכה כרצונכם": shows the REAL editor UI (template gallery + tabs +
- * effects grid) inside a mini video preview, so it's instantly recognizable as
- * the actual product and lands the "wow". Mirrors StylePanel / HeroBrowserMockup.
- * Liot: "שזה יהיה דומה למערכת עצמה — כל התבניות אפקטים... מובן וואוו".
+ * Stage 2 — "עריכה כרצונכם". The video fills the frame and ONE caption visibly
+ * flips between three real template looks (Hormozi → TikTok → נאון) while the
+ * matching template card lights up underneath and a synced color-glow washes
+ * the scene — the actual editor interaction, dramatized. All on a 3s loop that
+ * fits exactly inside the stage's window, CSS-only.
  */
 function StageCustomize({ reduced }: { reduced: boolean }) {
   return (
     <div className="absolute inset-0 bg-[#0d0d1f] flex flex-col text-white" dir="rtl">
-      {/* mini video preview with a Reels caption + emoji */}
-      <div className="relative shrink-0 h-[92px] bg-[#0a0a18] grid place-items-center border-b border-white/10">
-        <div className="relative w-[52px] h-[78px] rounded-md overflow-hidden shadow-lg" style={{ background: "linear-gradient(135deg,#3b2a5e,#241b3d)" }}>
-          <div className="absolute inset-0 grid place-items-center text-2xl">🧑‍💻</div>
+      {/* VIDEO HERO */}
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-[#251c42] to-[#130d24]">
+        <div className="absolute inset-0 grid place-items-center text-6xl opacity-90">🧑‍💻</div>
+
+        {/* synced color washes — one per template look */}
+        {CZ_STYLES.map((s, i) => (
           <div
-            className="absolute inset-x-0 bottom-1 text-center text-[9px] font-black"
-            style={{ WebkitTextStroke: "1.5px #000", paintOrder: "stroke fill", color: "#fbbf24", ...(reduced ? {} : { animation: "hiw-pop .4s .2s both" }) }}
-          >מושלם ✨</div>
-        </div>
-        <div className="absolute top-2 right-2 text-lg" style={reduced ? undefined : { animation: "hiw-spring .5s .3s both" }}>❤️</div>
+            key={i}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse 90% 55% at 50% 100%, ${s.glow}, transparent 70%)`,
+              opacity: reduced ? (i === 0 ? 1 : 0) : 0,
+              ...(reduced ? {} : { animation: `hiw-o${i} 3s linear infinite` }),
+            }}
+          />
+        ))}
+
+        {/* emoji + free-edit pill */}
+        <div className="absolute top-3 right-3 text-2xl drop-shadow" style={reduced ? undefined : { animation: "hiw-spring .5s .25s both" }}>❤️</div>
         <div
-          className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-1.5 py-0.5 border border-white/15"
+          className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 backdrop-blur px-2 py-1 border border-white/15"
           style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
         >
-          <SlidersHorizontal size={9} className="text-violet-300" />
-          <span className="text-[7px] font-black text-white/80">עריכה חופשית</span>
+          <SlidersHorizontal size={10} className="text-violet-300" />
+          <span className="text-[8px] font-black text-white/85">עריכה חופשית</span>
+        </div>
+
+        {/* ONE caption, restyling itself — crossfading variants stacked */}
+        <div className="absolute inset-x-0 bottom-6 grid place-items-center h-9">
+          {CZ_STYLES.map((s, i) => (
+            <span
+              key={i}
+              className="col-start-1 row-start-1 text-[19px] font-black tracking-tight"
+              style={{
+                color: s.color,
+                WebkitTextStroke: `2.5px ${s.stroke}`,
+                paintOrder: "stroke fill",
+                textShadow: `0 0 14px ${s.glow}`,
+                opacity: reduced ? (i === 0 ? 1 : 0) : 0,
+                ...(reduced ? {} : { animation: `hiw-win${i} 3s ease-in-out infinite` }),
+              }}
+            >
+              מושלם ✨
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* editor panel — templates + effects, like the real StylePanel */}
-      <div className="flex-1 min-h-0 p-2 flex flex-col gap-1.5 overflow-hidden bg-[#111128]">
-        <div className="text-[8px] text-white/45 font-bold">תבניות מוכנות</div>
-        <div className="grid grid-cols-3 gap-1">
-          {CZ_TEMPLATES.map((t, i) => (
-            <div
-              key={i}
-              className={`relative h-8 rounded-md flex flex-col items-center justify-center gap-0.5 ${t.active ? "ring-2 ring-violet-400" : "ring-1 ring-white/10"}`}
-              style={{
-                background: t.bg,
-                boxShadow: t.active ? "0 0 10px rgba(124,58,237,0.6)" : "none",
-                ...(reduced ? {} : { animation: `hiw-spring .4s ${0.05 + i * 0.06}s both` }),
-              }}
-            >
-              {t.icon && <span className="text-[11px] leading-none">{t.icon}</span>}
-              <span className="text-[6.5px] font-bold text-white/85 leading-none">{t.label}</span>
-              {t.active && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-violet-300" />}
-            </div>
-          ))}
+      {/* template cards — the matching one lights up in sync with the caption */}
+      <div className="shrink-0 bg-[#111128]/95 border-t border-white/10 px-2.5 pt-2 pb-2.5">
+        <div className="text-[8px] text-white/45 font-bold mb-1.5 flex items-center gap-1">
+          <Sparkles size={9} className="text-violet-300" /> החליפו סגנון בקליק
         </div>
-
-        <div className="text-[8px] text-white/45 font-bold mt-0.5">אפקטים ואנימציות</div>
-        <div className="grid grid-cols-3 gap-1">
-          {CZ_FX.map((f, i) => (
+        <div className="grid grid-cols-3 gap-1.5">
+          {CZ_STYLES.map((t, i) => (
             <div
               key={i}
-              className={`h-8 rounded-md flex flex-col items-center justify-center gap-0.5 ${f.active ? "bg-violet-600/30 ring-1 ring-violet-400/60" : "bg-white/[0.05] ring-1 ring-white/10"}`}
-              style={reduced ? undefined : { animation: `hiw-spring .4s ${0.35 + i * 0.06}s both` }}
+              className="relative h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 ring-1 ring-white/10 overflow-visible"
+              style={{ background: t.chip }}
             >
-              <span className="text-[11px] leading-none">{f.icon}</span>
-              <span className={`text-[6.5px] font-bold leading-none ${f.active ? "text-violet-200" : "text-white/55"}`}>{f.label}</span>
+              <span className="text-base leading-none drop-shadow">{t.icon}</span>
+              <span className="text-[8px] font-black text-white/95 leading-none">{t.name}</span>
+              {/* synced highlight ring + glow */}
+              <span
+                className="absolute -inset-0.5 rounded-xl ring-2 ring-white pointer-events-none"
+                style={{
+                  boxShadow: `0 0 16px ${t.glow}`,
+                  opacity: reduced ? (i === 0 ? 1 : 0) : 0,
+                  ...(reduced ? {} : { animation: `hiw-o${i} 3s linear infinite` }),
+                }}
+              />
             </div>
           ))}
         </div>
@@ -414,4 +441,12 @@ const KEYFRAMES = `
 @keyframes hiw-dot-bounce { 0%,80%,100%{opacity:.25;transform:translateY(0)} 40%{opacity:1;transform:translateY(-4px)} }
 .hiw-dot { display:inline-block; animation:hiw-dot-bounce 1.4s ease-in-out infinite; }
 .hiw-dot:nth-child(2){ animation-delay:.15s } .hiw-dot:nth-child(3){ animation-delay:.3s }
+/* 3s loop split into three 1s windows — caption look, template highlight and
+   color wash all keyed to the SAME windows so they switch together. */
+@keyframes hiw-win0 { 0%{opacity:0;transform:translateY(8px) scale(.8)} 6%,27%{opacity:1;transform:translateY(0) scale(1)} 33%,100%{opacity:0;transform:translateY(-4px) scale(.92)} }
+@keyframes hiw-win1 { 0%,33%{opacity:0;transform:translateY(8px) scale(.8)} 39%,60%{opacity:1;transform:translateY(0) scale(1)} 66%,100%{opacity:0;transform:translateY(-4px) scale(.92)} }
+@keyframes hiw-win2 { 0%,66%{opacity:0;transform:translateY(8px) scale(.8)} 72%,94%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-4px) scale(.92)} }
+@keyframes hiw-o0 { 0%{opacity:0} 6%,27%{opacity:1} 33%,100%{opacity:0} }
+@keyframes hiw-o1 { 0%,33%{opacity:0} 39%,60%{opacity:1} 66%,100%{opacity:0} }
+@keyframes hiw-o2 { 0%,66%{opacity:0} 72%,94%{opacity:1} 100%{opacity:0} }
 `;
