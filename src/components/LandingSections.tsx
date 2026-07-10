@@ -105,6 +105,7 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
             steps={[
               { title: s1T, body: s1B },
               { title: s2T, body: s2B },
+              { title: "עריכה כרצונכם", body: "מכוונים כתוביות, אמוג'ים, צבעים ואפקטים בקליק — עריכה חיה וקלה." },
               { title: s3T, body: s3B },
             ]}
           />

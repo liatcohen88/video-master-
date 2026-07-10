@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Wand2, Download, Check, Share2, Sparkles } from "lucide-react";
+import { Upload, Wand2, Download, Check, Share2, Sparkles, SlidersHorizontal } from "lucide-react";
 import LogoMark from "./LogoMark";
 
 type StepCopy = { title: string; body: string };
@@ -28,11 +28,13 @@ type StepCopy = { title: string; body: string };
 const ACCENTS = [
   { dot: "bg-violet-400",  text: "text-violet-200",  ring: "ring-violet-400/40",  glow: "shadow-violet-500/40",  from: "from-violet-500",  to: "to-violet-700" },
   { dot: "bg-fuchsia-400", text: "text-fuchsia-200", ring: "ring-fuchsia-400/40", glow: "shadow-fuchsia-500/40", from: "from-fuchsia-500", to: "to-pink-600" },
+  { dot: "bg-cyan-400",    text: "text-cyan-200",    ring: "ring-cyan-400/40",    glow: "shadow-cyan-500/40",    from: "from-cyan-500",    to: "to-blue-600" },
   { dot: "bg-pink-400",    text: "text-pink-200",    ring: "ring-pink-400/40",    glow: "shadow-pink-500/40",    from: "from-pink-500",    to: "to-rose-600" },
 ] as const;
 
-const STEP_ICONS = [Upload, Wand2, Download] as const;
-const STEP_MS = 3200;
+// 4 steps: upload → AI transcribes/edits → you fine-tune → export & share
+const STEP_ICONS = [Upload, Wand2, SlidersHorizontal, Download] as const;
+const STEP_MS = 3000;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -46,16 +48,16 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-/** Auto-advancing 0→1→2→0 index, pausable. Freezes at 1 when reduced-motion. */
-function useCycle(paused: boolean, reduced: boolean) {
+/** Auto-advancing 0→…→count-1→0 index, pausable. Freezes at 1 when reduced-motion. */
+function useCycle(paused: boolean, reduced: boolean, count: number) {
   const [active, setActive] = useState(reduced ? 1 : 0);
   const ref = useRef(active);
   ref.current = active;
   useEffect(() => {
     if (reduced || paused) return;
-    const id = setInterval(() => setActive((a) => (a + 1) % 3), STEP_MS);
+    const id = setInterval(() => setActive((a) => (a + 1) % count), STEP_MS);
     return () => clearInterval(id);
-  }, [paused, reduced]);
+  }, [paused, reduced, count]);
   return [active, setActive] as const;
 }
 
@@ -63,12 +65,12 @@ export default function HowItWorksAnimated({
   steps,
   compact = false,
 }: {
-  steps: [StepCopy, StepCopy, StepCopy];
+  steps: StepCopy[];
   compact?: boolean;
 }) {
   const reduced = usePrefersReducedMotion();
   const [paused, setPaused] = useState(false);
-  const [active, setActive] = useCycle(paused, reduced);
+  const [active, setActive] = useCycle(paused, reduced, steps.length);
 
   return (
     <div
@@ -96,17 +98,17 @@ export default function HowItWorksAnimated({
   );
 }
 
-/* ── The 3 step rows / chips with a filling progress connector ── */
+/* ── The step rows / chips with a filling progress connector ── */
 function StepChips({
   steps, active, onPick, compact = false,
 }: {
-  steps: [StepCopy, StepCopy, StepCopy];
+  steps: StepCopy[];
   active: number;
   onPick: (i: number) => void;
   compact?: boolean;
 }) {
-  // progress 0..1 across the 3 steps for the connector fill
-  const progress = (active + 1) / 3;
+  // progress 0..1 across the steps for the connector fill
+  const progress = (active + 1) / steps.length;
   return (
     <div className={compact ? "flex items-stretch gap-2 sm:gap-3" : "relative flex flex-col gap-3"}>
       {/* connector rail */}
@@ -176,7 +178,8 @@ function DemoFrame({ active, reduced }: { active: number; reduced: boolean }) {
         <div key={active} className="absolute inset-0">
           {active === 0 && <StageUpload reduced={reduced} />}
           {active === 1 && <StageEdit reduced={reduced} />}
-          {active === 2 && <StageExport reduced={reduced} />}
+          {active === 2 && <StageCustomize reduced={reduced} />}
+          {active === 3 && <StageExport reduced={reduced} />}
         </div>
       </div>
     </div>
@@ -234,7 +237,10 @@ function StageEdit({ reduced }: { reduced: boolean }) {
             className="absolute inset-0 -m-5 rounded-full bg-gradient-to-br from-brand/40 to-pink-500/25 blur-2xl"
             style={reduced ? undefined : { animation: "hiw-glow 2s ease-in-out infinite" }}
           />
-          <LogoMark size={76} mode={reduced ? "static" : "spinning"} />
+          {/* "breathing" = calm continuous pulse (the logo "working"), NOT the
+              full spin which read as comical (Liat). Lighter than "reveal" too,
+              which matters for a demo that loops forever on the landing page. */}
+          <LogoMark size={76} mode={reduced ? "static" : "breathing"} />
         </div>
 
         <div>
@@ -256,6 +262,75 @@ function StageEdit({ reduced }: { reduced: boolean }) {
             style={reduced ? { width: "60%" } : { animation: "hiw-shimmer 1.5s ease-in-out infinite" }}
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Stage 2 — "עריכה כרצונכם": after the AI's first pass you fine-tune it. A live
+ * editor scene: Reels captions type in word-by-word (middle word highlighted),
+ * an emoji pops, and a row of style swatches shows manual control (one active).
+ * Liat: "אפשרות לערוך כרצונך עם אנימציה יפה שממש מראה כתוביות וכו'".
+ */
+function StageCustomize({ reduced }: { reduced: boolean }) {
+  const words = ["עורכים", "בקליק", "מושלם"];
+  const swatches = [
+    "linear-gradient(135deg,#7c3aed,#a855f7)",
+    "linear-gradient(135deg,#e55c00,#ff8c00)",
+    "linear-gradient(135deg,#0d4f4f,#1a7a7a)",
+    "linear-gradient(135deg,#c0392b,#e74c3c)",
+  ];
+  return (
+    <div className="absolute inset-0 bg-gradient-to-b from-[#241b3d] to-[#160f28]">
+      {/* "video" surface */}
+      <div className="absolute inset-0 grid place-items-center text-5xl opacity-90">🧑‍💻</div>
+
+      {/* emoji pop — top corner */}
+      <div
+        className="absolute top-3 right-3 text-2xl drop-shadow"
+        style={reduced ? undefined : { animation: "hiw-spring .5s .35s both" }}
+      >❤️</div>
+
+      {/* style swatches — manual control (2nd active with a ring) */}
+      <div className="absolute top-3 left-3 flex gap-1.5">
+        {swatches.map((g, i) => (
+          <span
+            key={i}
+            className={`w-5 h-5 rounded-md ${i === 1 ? "ring-2 ring-white shadow-lg" : "ring-1 ring-white/20"}`}
+            style={{
+              background: g,
+              ...(reduced ? {} : { animation: `hiw-spring .4s ${0.15 + i * 0.1}s both` }),
+            }}
+          />
+        ))}
+      </div>
+
+      {/* edit pill */}
+      <div
+        className="absolute top-1/2 right-3 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-2 py-1 border border-white/15"
+        style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
+      >
+        <SlidersHorizontal size={11} className="text-cyan-300" />
+        <span className="text-[9px] font-black text-white/80">עריכה חופשית</span>
+      </div>
+
+      {/* Reels-style captions typing in word-by-word */}
+      <div className="absolute inset-x-0 bottom-6 flex flex-wrap justify-center gap-1 px-3">
+        {words.map((w, i) => (
+          <span
+            key={i}
+            className="text-[15px] font-black text-white"
+            style={{
+              WebkitTextStroke: "2px #000",
+              paintOrder: "stroke fill",
+              ...(reduced ? {} : { animation: `hiw-pop .35s ${0.25 + i * 0.28}s both` }),
+              ...(i === 1 ? { color: "#fbbf24" } : {}),
+            }}
+          >
+            {w}
+          </span>
+        ))}
       </div>
     </div>
   );
