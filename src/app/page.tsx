@@ -39,7 +39,6 @@ import { listNotifications, markNotificationRead, clearAllNotifications, addVide
 import { pushVideoRow, setVideoRowStatus } from "@/lib/userData";
 import { applySubtitleSettings, flattenWords, type TimedWord } from "@/lib/subtitleSettings";
 import LandingSections from "@/components/LandingSections";
-import HowItWorksAnimated from "@/components/HowItWorksAnimated";
 import MobilePip from "@/components/MobilePip";
 import AuthSuccessModal from "@/components/AuthSuccessModal";
 import InsufficientCreditsModal, { type InsufficientInfo } from "@/components/InsufficientCreditsModal";
@@ -1675,26 +1674,10 @@ export default function HomePage() {
                   <div className="text-brand-light group-hover:translate-x-1 transition-transform text-2xl">←</div>
                 </div>
               </a>}
-              {/* First-run onboarding — a 3-step "how it works" so cold ad
-                  traffic understands the flow instead of bouncing. Shows once
-                  (localStorage), dismissible, and only in the no-video view. */}
-              {showOnboarding && (
-                <div className="relative bg-gradient-to-br from-brand/15 to-accent-pink/10 border border-brand/30 rounded-2xl p-4 md:p-5 mb-4" dir="rtl">
-                  <button onClick={dismissOnboarding} aria-label="סגירה"
-                    className="absolute top-2 left-2 w-7 h-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-                    <X size={16} />
-                  </button>
-                  <div className="font-black text-base md:text-lg mb-3">איך זה עובד? 3 צעדים ✨</div>
-                  <HowItWorksAnimated
-                    compact
-                    steps={[
-                      { title: "מעלים סרטון", body: "או נסו דוגמה מוכנה" },
-                      { title: "ה-AI עורך", body: "כתוביות ואפקטים אוטומטית" },
-                      { title: "מורידים ומשתפים", body: "MP4 מוכן לרילס 🎉" },
-                    ]}
-                  />
-                </div>
-              )}
+              {/* The top "3 steps" onboarding strip was removed (Liat: "אין צורך
+                  בזה") — the full animated "how it works" now lives in the
+                  landing sections below, so a compact duplicate here is
+                  redundant. */}
               <div ref={uploadRef}>
                 {/* If a previous video is still cached, show one-click resume.
                     Self-hides when no cached video exists. */}

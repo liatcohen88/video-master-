@@ -21,6 +21,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Upload, Wand2, Download, Check, Share2, Sparkles } from "lucide-react";
+import LogoMark from "./LogoMark";
 
 type StepCopy = { title: string; body: string };
 
@@ -217,57 +218,44 @@ function StageUpload({ reduced }: { reduced: boolean }) {
   );
 }
 
+/**
+ * Stage 1 mirrors the REAL Master Video processing screen the user sees while
+ * the AI transcribes + edits (AILoadingOverlay): spinning brand logo in a glow,
+ * "מתמלל ועורך את הסרטון…" with bouncing dots, and a shimmer progress bar.
+ * Liat: "ב-AI עורך נעשה את עמוד הטעינה של מאסטר וידאו שהוא עורך ומתמלל".
+ */
 function StageEdit({ reduced }: { reduced: boolean }) {
-  const words = ["הכתוביות", "מופיעות", "אוטומטית"];
   return (
-    <div className="absolute inset-0 bg-gradient-to-b from-[#241b3d] to-[#160f28]">
-      {/* "video" surface */}
-      <div className="absolute inset-0 grid place-items-center text-5xl opacity-90">🧑‍💻</div>
+    <div className="absolute inset-0 grid place-items-center bg-gradient-to-b from-[#1a1330] to-[#120c22] px-4">
+      <div className="flex flex-col items-center text-center gap-4">
+        {/* brand logo in a pulsing glow — same as the live loader */}
+        <div className="relative">
+          <div
+            className="absolute inset-0 -m-5 rounded-full bg-gradient-to-br from-brand/40 to-pink-500/25 blur-2xl"
+            style={reduced ? undefined : { animation: "hiw-glow 2s ease-in-out infinite" }}
+          />
+          <LogoMark size={76} mode={reduced ? "static" : "spinning"} />
+        </div>
 
-      {/* AI scan-line sweep */}
-      {!reduced && (
-        <div
-          className="absolute inset-x-0 h-16 bg-gradient-to-b from-transparent via-cyan-300/25 to-transparent"
-          style={{ animation: "hiw-scan 2.2s ease-in-out infinite" }}
-        />
-      )}
+        <div>
+          <div className="text-[15px] font-black text-white leading-snug">
+            מתמלל ועורך
+            <span className="inline-block whitespace-nowrap mr-1 align-baseline">
+              <span className="hiw-dot">.</span>
+              <span className="hiw-dot">.</span>
+              <span className="hiw-dot">.</span>
+            </span>
+          </div>
+          <div className="text-[10px] text-white/55 mt-1 font-bold">כתוביות · אפקטים · סאונד — אוטומטית</div>
+        </div>
 
-      {/* emoji pop — top corner */}
-      <div
-        className="absolute top-3 right-3 text-2xl drop-shadow"
-        style={reduced ? undefined : { animation: "hiw-spring .5s .3s both" }}
-      >🔥</div>
-      {/* ⚡ badge */}
-      <div
-        className="absolute top-3 left-3 grid place-items-center w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-sm shadow-lg"
-        style={reduced ? undefined : { animation: "hiw-spring .5s .6s both" }}
-      >⚡</div>
-
-      {/* AI badge pill */}
-      <div
-        className="absolute top-1/2 right-3 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-black/40 backdrop-blur px-2 py-1 border border-white/15"
-        style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
-      >
-        <Wand2 size={11} className="text-fuchsia-300" />
-        <span className="text-[9px] font-black text-white/80">AI עורך…</span>
-      </div>
-
-      {/* Reels-style captions typing in word-by-word */}
-      <div className="absolute inset-x-0 bottom-6 flex flex-wrap justify-center gap-1 px-3">
-        {words.map((w, i) => (
-          <span
-            key={i}
-            className="text-[15px] font-black text-white"
-            style={{
-              WebkitTextStroke: "2px #000",
-              paintOrder: "stroke fill",
-              ...(reduced ? {} : { animation: `hiw-pop .35s ${0.25 + i * 0.28}s both` }),
-              ...(i === 1 ? { color: "#fbbf24" } : {}),
-            }}
-          >
-            {w}
-          </span>
-        ))}
+        {/* indeterminate shimmer bar — matches AILoadingOverlay */}
+        <div className="w-40 h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full w-1/3 rounded-full bg-gradient-to-r from-brand to-pink-500"
+            style={reduced ? { width: "60%" } : { animation: "hiw-shimmer 1.5s ease-in-out infinite" }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -329,4 +317,9 @@ const KEYFRAMES = `
 @keyframes hiw-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 @keyframes hiw-fill { from{width:0%} to{width:100%} }
 @keyframes hiw-scan { 0%{top:-20%} 100%{top:110%} }
+@keyframes hiw-glow { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.12)} }
+@keyframes hiw-shimmer { 0%{transform:translateX(-120%)} 100%{transform:translateX(420%)} }
+@keyframes hiw-dot-bounce { 0%,80%,100%{opacity:.25;transform:translateY(0)} 40%{opacity:1;transform:translateY(-4px)} }
+.hiw-dot { display:inline-block; animation:hiw-dot-bounce 1.4s ease-in-out infinite; }
+.hiw-dot:nth-child(2){ animation-delay:.15s } .hiw-dot:nth-child(3){ animation-delay:.3s }
 `;
