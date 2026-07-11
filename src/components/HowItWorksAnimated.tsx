@@ -83,11 +83,15 @@ export default function HowItWorksAnimated({
       {compact ? (
         <StepChips steps={steps} active={active} onPick={setActive} compact />
       ) : (
-        <div className="flex flex-col items-center gap-7">
-          {/* Live demo frame on top */}
-          <DemoFrame active={active} reduced={reduced} />
-          {/* Steps in a clean row below (side by side, not stacked) */}
-          <StepChips steps={steps} active={active} onPick={setActive} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 items-center">
+          {/* Live demo frame */}
+          <div className="order-1 md:order-2 flex justify-center">
+            <DemoFrame active={active} reduced={reduced} />
+          </div>
+          {/* Steps + progress */}
+          <div className="order-2 md:order-1">
+            <StepChips steps={steps} active={active} onPick={setActive} />
+          </div>
         </div>
       )}
     </div>
@@ -103,8 +107,47 @@ function StepChips({
   onPick: (i: number) => void;
   compact?: boolean;
 }) {
+  // progress 0..1 across the steps for the connector fill
+  const progress = (active + 1) / steps.length;
+  // Rail geometry — measured so the line runs exactly from the FIRST badge's
+  // center to the LAST badge's center, threading through all of them (Liat:
+  // "שהקו עובר דרכם, לא שבור"). Static offsets broke because the last card's
+  // height varies with text wrapping, so we measure instead.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [rail, setRail] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    if (compact) return;
+    const el = listRef.current;
+    if (!el) return;
+    const compute = () => {
+      const badges = el.querySelectorAll<HTMLElement>("[data-step-badge]");
+      if (badges.length < 2) { setRail(null); return; }
+      const c = el.getBoundingClientRect();
+      const f = badges[0].getBoundingClientRect();
+      const l = badges[badges.length - 1].getBoundingClientRect();
+      const top = f.top + f.height / 2 - c.top;
+      setRail({ top, height: l.top + l.height / 2 - (f.top + f.height / 2) });
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact, steps.length]);
   return (
-    <div className={compact ? "flex items-stretch gap-2 sm:gap-3" : "grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-3xl"}>
+    <div ref={listRef} className={compact ? "flex items-stretch gap-2 sm:gap-3" : "relative flex flex-col gap-3"}>
+      {/* connector rail — through the badge centers (badges are solid + z-10
+          so the line reads as threading through the circles) */}
+      {!compact && rail && (
+        <div
+          className="absolute right-[29px] w-[2px] bg-white/10 rounded-full overflow-hidden"
+          style={{ top: rail.top, height: rail.height }}
+        >
+          <div
+            className="w-full bg-gradient-to-b from-violet-400 via-fuchsia-400 to-pink-400 rounded-full transition-[height] duration-700 ease-out"
+            style={{ height: `${progress * 100}%` }}
+          />
+        </div>
+      )}
       {steps.map((s, i) => {
         const a = ACCENTS[i];
         const Icon = STEP_ICONS[i];
@@ -126,24 +169,25 @@ function StepChips({
             </button>
           );
         }
-        // Clean icon-on-top card, side by side (not a stacked vertical timeline).
         return (
           <button
             key={i}
             onClick={() => onPick(i)}
-            className={`flex flex-col items-center text-center gap-2 rounded-2xl p-3.5 border transition-all duration-300
+            className={`relative flex items-start gap-3.5 rounded-2xl p-3.5 pr-2.5 border text-right transition-all duration-300
               ${on ? `bg-gradient-to-br ${a.from}/15 ${a.to}/5 border-white/25 shadow-xl ${a.glow}` : "bg-white/[0.02] border-white/10 hover:border-white/20"}`}
           >
-            <span className={`relative grid place-items-center w-11 h-11 rounded-xl ring-2 transition-all duration-300
-              ${on ? `bg-gradient-to-br ${a.from} ${a.to} text-white ${a.ring} scale-105` : `bg-white/5 ${a.text} ring-white/10`}`}>
-              {done ? <Check size={20} strokeWidth={3} /> : <Icon size={20} />}
+            <span data-step-badge className={`relative z-10 shrink-0 grid place-items-center w-10 h-10 rounded-xl ring-2 transition-all duration-300
+              ${on ? `bg-gradient-to-br ${a.from} ${a.to} text-white ${a.ring} scale-105` : `bg-[#17122e] ${a.text} ring-white/10`}`}>
+              {done ? <Check size={18} strokeWidth={3} /> : <Icon size={18} />}
               {on && <span className={`absolute inset-0 rounded-xl ${a.dot} opacity-40 animate-ping`} style={{ animationDuration: "1.6s" }} />}
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-black w-4 h-4 grid place-items-center rounded-full ${a.dot} text-black/70`}>{i + 1}</span>
-              <span className={`text-[13px] font-black leading-tight ${on ? "text-white" : "text-white/85"}`}>{s.title}</span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-2">
+                <span className={`text-[15px] font-black ${on ? "text-white" : "text-white/80"}`}>{s.title}</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${a.dot} text-black/70`}>{i + 1}</span>
+              </span>
+              <span className={`block text-[12.5px] leading-relaxed mt-0.5 transition-colors ${on ? "text-white/75" : "text-white/45"}`}>{s.body}</span>
             </span>
-            <span className={`text-[11px] leading-relaxed transition-colors ${on ? "text-white/70" : "text-white/45"}`}>{s.body}</span>
           </button>
         );
       })}

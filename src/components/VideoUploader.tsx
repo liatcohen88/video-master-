@@ -7,6 +7,15 @@ import { useContent } from "@/lib/useContent";
 
 type Props = {
   onVideoSelected: (file: File) => void;
+  /** Fired the INSTANT a file is picked (before duration probing) so the page
+   *  can raise its full-screen loader immediately. On mobile the OS gallery
+   *  gives no clear feedback, and probeDuration alone can take seconds on a
+   *  fresh-from-camera file — users thought nothing was happening and left
+   *  (Liat: "זה לא מובן בכלל שעולה סרטון מה שגורם למשתמשים לעזוב"). */
+  onPickStart?: () => void;
+  /** Fired if the picked file is rejected (wrong type / too long) so the page
+   *  can dismiss the loader raised by onPickStart. */
+  onPickAbort?: () => void;
 };
 
 /** Imperative handle so outside callers (e.g. the floating home CTAs) can
@@ -32,7 +41,7 @@ function probeDuration(file: File): Promise<number> {
   });
 }
 
-const VideoUploader = forwardRef<VideoUploaderHandle, Props>(function VideoUploader({ onVideoSelected }, ref) {
+const VideoUploader = forwardRef<VideoUploaderHandle, Props>(function VideoUploader({ onVideoSelected, onPickStart, onPickAbort }, ref) {
   // CMS-driven copy for the drop zone — Liat asked for a softer call-to-action
   const dropTitle    = useContent("uploader.dropTitle") as string;
   const dragingTitle = useContent("uploader.dragingTitle") as string;
@@ -50,6 +59,9 @@ const VideoUploader = forwardRef<VideoUploaderHandle, Props>(function VideoUploa
 
   async function accept(file: File) {
     if (!file.type.startsWith("video/")) return;
+    // Raise the page-level FULL-SCREEN loader right now — before the duration
+    // probe, which can take seconds on mobile for a large gallery video.
+    onPickStart?.();
     setChecking(true);
     const dur = await probeDuration(file);
     setChecking(false);
@@ -59,6 +71,7 @@ const VideoUploader = forwardRef<VideoUploaderHandle, Props>(function VideoUploa
           .replace("{{max}}", String(MAX_VIDEO_SECONDS))
           .replace("{{dur}}", String(Math.round(dur))),
       );
+      onPickAbort?.();
       return;
     }
     onVideoSelected(file);

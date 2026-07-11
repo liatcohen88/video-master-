@@ -1682,7 +1682,14 @@ export default function HomePage() {
                 {/* If a previous video is still cached, show one-click resume.
                     Self-hides when no cached video exists. */}
                 <ResumeProjectBanner onResume={handleResume} />
-                <VideoUploader ref={uploaderRef} onVideoSelected={handleVideo} />
+                <VideoUploader
+                  ref={uploaderRef}
+                  onVideoSelected={handleVideo}
+                  // Full-screen loader from the very first instant a file is
+                  // picked — before duration probing (seconds on mobile).
+                  onPickStart={() => { setIsProcessing(true); setProgressMessage(progLoadVideo); }}
+                  onPickAbort={() => { setIsProcessing(false); setProgressMessage(""); }}
+                />
                 {/* "Try a sample" — removes the "I don't have a video ready"
                     friction for first-time / ad visitors. Runs the real flow. */}
                 <button
