@@ -264,11 +264,11 @@ const CZ_WORDS = [
 // The real editor tab bar (EffectsPanel), decorative here — RTL order so
 // "כתוביות" sits rightmost and "אפקטים" (active) leftmost, like the screenshot.
 const CZ_TABS = [
-  { label: "כתוביות", Icon: Type },
+  { label: "כתוביות", Icon: Type, active: true },
   { label: "סאונדים", Icon: Music },
   { label: "לוגואים", Icon: ImagePlus },
   { label: "צבע",     Icon: Palette },
-  { label: "אפקטים",  Icon: Wand2, active: true },
+  { label: "אפקטים",  Icon: Wand2 },
 ];
 
 /**
