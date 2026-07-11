@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Wand2, Download, Check, Share2, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Upload, Wand2, Download, Check, Share2, Sparkles, SlidersHorizontal, Palette, ImagePlus, Music, Type } from "lucide-react";
 import LogoMark from "./LogoMark";
 
 type StepCopy = { title: string; body: string };
@@ -267,144 +267,71 @@ function StageEdit({ reduced }: { reduced: boolean }) {
   );
 }
 
-// Three real template looks, cycled in sync: the caption restyles itself, the
-// matching template card lights up below, and a colored glow washes the video —
-// exactly the real editor interaction (pick a template → captions change).
-const CZ_STYLES = [
-  {
-    name: "Hormozi", icon: "🔥",
-    chip: "linear-gradient(135deg,#e55c00,#ff8c00)",
-    color: "#fde047", stroke: "#000",
-    glow: "rgba(255,140,0,0.45)",
-    // real loaded Hebrew fonts so the caption FONT visibly changes per template
-    font: "var(--font-suez), sans-serif", weight: 400, ls: "0",
-  },
-  {
-    name: "TikTok", icon: "⚡",
-    chip: "linear-gradient(135deg,#4c1d95,#7c3aed)",
-    color: "#ffffff", stroke: "#5b21b6",
-    glow: "rgba(124,58,237,0.5)",
-    font: "var(--font-secular), sans-serif", weight: 400, ls: "-0.5px",
-  },
-  {
-    name: "נאון", icon: "💎",
-    chip: "linear-gradient(135deg,#0891b2,#22d3ee)",
-    color: "#67e8f9", stroke: "#083344",
-    glow: "rgba(34,211,238,0.4)",
-    font: "var(--font-varela), sans-serif", weight: 400, ls: "0.5px",
-  },
+// The caption cycles "זה → פשוט → מטורף", one word per 1s window of the 3s
+// loop. Each word gets a DIFFERENT entrance (pop / bounce / zoom) — the real
+// "AI מערבב" feature. All in the Assistant font; the middle word sits in a
+// colored box (like the Beast/Instagram templates). Liat: "רק זה — וידאו +
+// כתובית + טאבים, בלי מה שמתחת. פונט Assistant. חלק עם רקע".
+const CZ_WORDS = [
+  { t: "זה",    color: "#FACC15", bg: null,        anim: "hiw-cw0" },
+  { t: "פשוט",  color: "#ffffff", bg: "#7C3AED",   anim: "hiw-cw1" },
+  { t: "מטורף", color: "#22D3EE", bg: null,        anim: "hiw-cw2" },
+];
+// The real editor tab bar (EffectsPanel), decorative here — RTL order so
+// "כתוביות" sits rightmost and "אפקטים" (active) leftmost, like the screenshot.
+const CZ_TABS = [
+  { label: "כתוביות", Icon: Type },
+  { label: "סאונדים", Icon: Music },
+  { label: "לוגואים", Icon: ImagePlus },
+  { label: "צבע",     Icon: Palette },
+  { label: "אפקטים",  Icon: Wand2, active: true },
 ];
 
 /**
- * Stage 2 — "עריכה כרצונכם". The video fills the frame and ONE caption visibly
- * flips between three real template looks (Hormozi → TikTok → נאון) while the
- * matching template card lights up underneath and a synced color-glow washes
- * the scene — the actual editor interaction, dramatized. All on a 3s loop that
- * fits exactly inside the stage's window, CSS-only.
+ * Stage 2 — the clip fills the frame with a caption that types itself out
+ * ("זה" → "פשוט" → "מטורף", each with a different AI-mixed entrance animation),
+ * over the real editor's tab bar. Nothing below the tabs — clean.
  */
 function StageCustomize({ reduced }: { reduced: boolean }) {
   return (
-    <div className="absolute inset-0 bg-[#0d0d1f] flex flex-col text-white" dir="rtl">
-      {/* VIDEO HERO */}
-      <div className="relative flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-[#251c42] to-[#130d24]">
-        <div className="absolute inset-0 grid place-items-center text-6xl opacity-90">🧑‍💻</div>
-
-        {/* synced color washes — one per template look */}
-        {CZ_STYLES.map((s, i) => (
-          <div
+    <div className="absolute inset-0 bg-[#0d0b1a] flex flex-col text-white" dir="rtl">
+      {/* video with the AI-mixed caption */}
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-gradient-to-br from-[#3a2c5e] to-[#1a1030] grid place-items-center">
+        {CZ_WORDS.map((w, i) => (
+          <span
             key={i}
-            className="absolute inset-0 pointer-events-none"
+            className="col-start-1 row-start-1 text-[26px] font-black rounded-lg"
             style={{
-              background: `radial-gradient(ellipse 90% 55% at 50% 100%, ${s.glow}, transparent 70%)`,
+              fontFamily: "var(--font-assistant), sans-serif",
+              color: w.color,
+              background: w.bg ?? "transparent",
+              padding: w.bg ? "3px 14px" : "0",
+              WebkitTextStroke: w.bg ? "0" : "2.5px #000",
+              paintOrder: "stroke fill",
               opacity: reduced ? (i === 0 ? 1 : 0) : 0,
-              ...(reduced ? {} : { animation: `hiw-o${i} 3s linear infinite` }),
+              ...(reduced ? {} : { animation: `${w.anim} 3s ease-in-out infinite` }),
             }}
-          />
-        ))}
-
-        {/* twinkling sparkles = effects/animation is happening */}
-        {!reduced && ["12%","78%","22%","88%"].map((left, i) => (
-          <span key={i} className="absolute text-[13px]" style={{
-            left, top: `${18 + (i % 2) * 44}%`,
-            animation: `hiw-tw ${1.4 + i * 0.3}s ease-in-out ${i * 0.4}s infinite`,
-          }}>✨</span>
-        ))}
-
-        {/* emoji + free-edit pill */}
-        <div className="absolute top-3 right-3 text-2xl drop-shadow" style={reduced ? undefined : { animation: "hiw-spring .5s .25s both" }}>❤️</div>
-        <div
-          className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 backdrop-blur px-2 py-1 border border-white/15"
-          style={reduced ? undefined : { animation: "hiw-fade .4s .1s both" }}
-        >
-          <SlidersHorizontal size={10} className="text-violet-300" />
-          <span className="text-[8px] font-black text-white/85">עריכה חופשית</span>
-        </div>
-
-        {/* sound = animated equalizer bars, bottom-left */}
-        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 backdrop-blur px-2 py-1 border border-white/15">
-          <span className="text-[10px]">🎵</span>
-          <span className="flex items-end gap-[2px] h-3">
-            {[0,1,2,3].map(i => (
-              <span key={i} className="w-[2px] rounded-full bg-cyan-300" style={{
-                height: "100%", transformOrigin: "bottom",
-                ...(reduced ? { transform: "scaleY(0.5)" } : { animation: `hiw-eq ${0.6 + i * 0.12}s ease-in-out ${i * 0.1}s infinite` }),
-              }} />
-            ))}
+          >
+            {w.t}
           </span>
-        </div>
-
-        {/* ONE caption, restyling itself — color + FONT change per template */}
-        <div className="absolute inset-x-0 bottom-7 grid place-items-center h-9">
-          {CZ_STYLES.map((s, i) => (
-            <span
-              key={i}
-              className="col-start-1 row-start-1 text-[20px]"
-              style={{
-                color: s.color,
-                fontFamily: s.font,
-                fontWeight: s.weight,
-                letterSpacing: s.ls,
-                WebkitTextStroke: `2.5px ${s.stroke}`,
-                paintOrder: "stroke fill",
-                textShadow: `0 0 14px ${s.glow}`,
-                opacity: reduced ? (i === 0 ? 1 : 0) : 0,
-                ...(reduced ? {} : { animation: `hiw-win${i} 3s ease-in-out infinite` }),
-              }}
-            >
-              מושלם ✨
-            </span>
-          ))}
-        </div>
+        ))}
       </div>
 
-      {/* what's included — animations, effects, sounds, templates */}
-      <div className="shrink-0 bg-[#111128]/95 border-t border-white/10 px-2.5 pt-1.5 pb-2.5">
-        <div className="flex items-center justify-center gap-2 text-[8px] font-bold text-white/55 mb-1.5">
-          <span>🎬 אנימציות</span><span className="text-white/20">·</span>
-          <span>✨ אפקטים</span><span className="text-white/20">·</span>
-          <span>🎵 סאונד</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {CZ_STYLES.map((t, i) => (
+      {/* real editor tab bar — nothing below it */}
+      <div className="shrink-0 bg-[#15122b] border-t border-white/10 flex gap-1 p-2">
+        {CZ_TABS.map((tb, i) => {
+          const Icon = tb.Icon;
+          const on = !!tb.active;
+          return (
             <div
               key={i}
-              className="relative h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 ring-1 ring-white/10 overflow-visible"
-              style={{ background: t.chip }}
+              className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg ${on ? "bg-brand/25 border border-brand/60" : "border border-transparent"}`}
             >
-              <span className="text-sm leading-none drop-shadow">{t.icon}</span>
-              <span className="text-[8px] font-black text-white/95 leading-none">{t.name}</span>
-              {/* synced highlight ring + glow */}
-              <span
-                className="absolute -inset-0.5 rounded-xl ring-2 ring-white pointer-events-none"
-                style={{
-                  boxShadow: `0 0 16px ${t.glow}`,
-                  opacity: reduced ? (i === 0 ? 1 : 0) : 0,
-                  ...(reduced ? {} : { animation: `hiw-o${i} 3s linear infinite` }),
-                }}
-              />
+              <Icon className="w-4 h-4" style={{ color: on ? "#fff" : "rgba(255,255,255,0.45)" }} />
+              <span className="text-[8px] font-bold" style={{ color: on ? "#fff" : "rgba(255,255,255,0.45)" }}>{tb.label}</span>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -471,14 +398,9 @@ const KEYFRAMES = `
 @keyframes hiw-dot-bounce { 0%,80%,100%{opacity:.25;transform:translateY(0)} 40%{opacity:1;transform:translateY(-4px)} }
 .hiw-dot { display:inline-block; animation:hiw-dot-bounce 1.4s ease-in-out infinite; }
 .hiw-dot:nth-child(2){ animation-delay:.15s } .hiw-dot:nth-child(3){ animation-delay:.3s }
-/* 3s loop split into three 1s windows — caption look, template highlight and
-   color wash all keyed to the SAME windows so they switch together. */
-@keyframes hiw-win0 { 0%{opacity:0;transform:translateY(8px) scale(.8)} 6%,27%{opacity:1;transform:translateY(0) scale(1)} 33%,100%{opacity:0;transform:translateY(-4px) scale(.92)} }
-@keyframes hiw-win1 { 0%,33%{opacity:0;transform:translateY(8px) scale(.8)} 39%,60%{opacity:1;transform:translateY(0) scale(1)} 66%,100%{opacity:0;transform:translateY(-4px) scale(.92)} }
-@keyframes hiw-win2 { 0%,66%{opacity:0;transform:translateY(8px) scale(.8)} 72%,94%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-4px) scale(.92)} }
-@keyframes hiw-o0 { 0%{opacity:0} 6%,27%{opacity:1} 33%,100%{opacity:0} }
-@keyframes hiw-o1 { 0%,33%{opacity:0} 39%,60%{opacity:1} 66%,100%{opacity:0} }
-@keyframes hiw-o2 { 0%,66%{opacity:0} 72%,94%{opacity:1} 100%{opacity:0} }
-@keyframes hiw-eq { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
-@keyframes hiw-tw { 0%,100%{opacity:.15;transform:scale(.5)} 50%{opacity:1;transform:scale(1.15)} }
+/* Caption words: 3s loop, three 1s windows, each word a DIFFERENT entrance
+   (pop / bounce / zoom-burst) = the "AI מערבב" feature. */
+@keyframes hiw-cw0 { 0%{opacity:0;transform:scale(.4)} 6%{opacity:1} 14%{transform:scale(1.15)} 22%,30%{opacity:1;transform:scale(1)} 36%,100%{opacity:0} }
+@keyframes hiw-cw1 { 0%,33%{opacity:0;transform:translateY(22px)} 39%{opacity:1} 47%{transform:translateY(-9px)} 54%,63%{opacity:1;transform:translateY(0)} 69%,100%{opacity:0} }
+@keyframes hiw-cw2 { 0%,66%{opacity:0;transform:scale(2.3)} 72%{opacity:1} 80%,96%{opacity:1;transform:scale(1)} 100%{opacity:0} }
 `;
