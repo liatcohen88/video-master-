@@ -23,8 +23,10 @@ export default function SubtitleSettingsPanel({
   // Editable model names + all panel labels via CMS
   const hebrewName    = useContent("whisper.modelName.hebrew");
   const universalName = useContent("whisper.modelName.universal");
+  const translateName = useContent("whisper.modelName.translate") as string;
   const hebrewDesc    = useContent("whisper.modelDesc.hebrew") as string;
   const universalDesc = useContent("whisper.modelDesc.universal") as string;
+  const translateDesc = useContent("whisper.modelDesc.translate") as string;
   const recBadge      = useContent("whisper.recommendedBadge") as string;
   const cTitle        = useContent("settings.title") as string;
   const cModelLabel   = useContent("settings.modelLabel") as string;
@@ -103,6 +105,33 @@ export default function SubtitleSettingsPanel({
               </button>
             );
           })}
+
+          {/* Translate-to-Hebrew — a pseudo-model below the language models.
+              Transcribes a non-Hebrew video (auto-detect) and translates the
+              subtitles to Hebrew. id "translate-he" is handled specially by
+              the transcribe route. */}
+          {(() => {
+            const isSelected = modelId === "translate-he";
+            return (
+              <button
+                onClick={() => onModelChange("translate-he")}
+                className={`
+                  w-full text-right p-3 rounded-xl border transition-all
+                  ${isSelected
+                    ? "border-brand bg-brand/10 shadow-md shadow-brand/20"
+                    : "border-white/10 bg-bg-input hover:border-white/30"}
+                `}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm">{translateName}</span>
+                    <span className="text-[11px]">🇬🇧→🇮🇱</span>
+                  </div>
+                </div>
+                <p className="text-xs text-white/50">{translateDesc}</p>
+              </button>
+            );
+          })()}
         </div>
       </div>
 

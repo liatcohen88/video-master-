@@ -71,7 +71,11 @@ export async function POST(req: NextRequest) {
   // Preferred path: OpenAI Whisper API. Costs ~$0.006/minute, no infra to run.
   if (process.env.OPENAI_API_KEY) {
     try {
-      const result = await transcribeWithOpenAI(file, maxWordsPerLine);
+      // "translate-he" is a pseudo-model the user picks in the settings panel:
+      // transcribe in the source language (auto-detect) then translate the
+      // subtitle lines to Hebrew. Every other model → normal Hebrew transcription.
+      const translateToHebrew = model === "translate-he";
+      const result = await transcribeWithOpenAI(file, maxWordsPerLine, translateToHebrew);
       return NextResponse.json(result);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -119,7 +123,7 @@ async function extractAudioForWhisper(file: File): Promise<File | null> {
 }
 
 // ── OpenAI Whisper API path ──────────────────────────────────────────
-async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
+async function transcribeWithOpenAI(file: File, maxWordsPerLine: number, translateToHebrew = false) {
   // Shrink to a tiny audio track first (faster upload + bypasses the 25MB
   // video cliff). On any extraction failure we send the original file.
   const audio = await extractAudioForWhisper(file);
@@ -134,12 +138,15 @@ async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
   const form = new FormData();
   form.append("file", upload, upload.name);
   form.append("model", "whisper-1");
-  form.append("language", "he");
+  // Normal mode forces Hebrew (accuracy + Hebrew script). Translate mode lets
+  // Whisper auto-detect the source language (English etc.) — we translate the
+  // lines to Hebrew afterwards.
+  if (!translateToHebrew) form.append("language", "he");
   form.append("response_format", "verbose_json");
   // Word-level timestamps so we can re-chunk into the editor's "N words per line" format
   form.append("timestamp_granularities[]", "word");
   // Hebrew prompt nudges OpenAI to transcribe in Hebrew script (not transliterated)
-  form.append("prompt", "תמלול בעברית: ");
+  if (!translateToHebrew) form.append("prompt", "תמלול בעברית: ");
 
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -165,14 +172,125 @@ async function transcribeWithOpenAI(file: File, maxWordsPerLine: number) {
   })).filter((w) => w.word.length > 0);
 
   const cleaned = cleanFillers(rawWords);
-  const subtitles = chunkIntoSubtitles(cleaned, maxWordsPerLine);
+  let subtitles = chunkIntoSubtitles(cleaned, maxWordsPerLine);
+
+  // Translate mode: translate at SENTENCE granularity (not the tiny display
+  // chunks) so gpt gets whole-sentence context and returns natural Hebrew,
+  // then re-chunk the translated word stream back to the display size. Keeps
+  // timings in sync via evenly-spread word timings. Best-effort — on any
+  // failure we fall back to the source-language lines rather than failing the
+  // whole transcription.
+  if (translateToHebrew && cleaned.length > 0) {
+    try {
+      const sentences = groupIntoSentences(cleaned);
+      const translated = await translateLinesToHebrew(sentences);
+      const hebrewWords = translated.flatMap((s) => s.words);
+      if (hebrewWords.length > 0) subtitles = chunkIntoSubtitles(hebrewWords, maxWordsPerLine);
+    } catch (e) {
+      console.error("[transcribe] translate-to-Hebrew failed:", e instanceof Error ? e.message : e);
+    }
+  }
 
   return {
-    language: data.language ?? "he",
+    language: translateToHebrew ? "he" : (data.language ?? "he"),
     duration: Math.round((data.duration ?? 0) * 1000) / 1000,
-    model: "whisper-1",
+    model: translateToHebrew ? "translate-he" : "whisper-1",
     subtitles,
   };
+}
+
+// Translate an array of subtitle lines to Hebrew in ONE gpt-4o-mini call
+// (~fractions of a cent). Sends a numbered list, expects the same count back,
+// maps each translation onto its original line's timing. Each translated line's
+// text is re-split into evenly-timed Hebrew words (word order differs across
+// languages, so the source per-word timings can't carry over) — this keeps the
+// line shaped like a normal transcription line, so the editor's live re-chunk
+// to "N words per line" works identically to Hebrew transcription.
+type TimedWord = { word: string; start: number; end: number };
+type SubLine = { id: string; start: number; end: number; text: string; words: TimedWord[] };
+
+// Split a translated line into words with timings spread evenly across the
+// line's [start, end] span. Approximate, but good enough for a 2-words-per-line
+// caption and — crucially — lets buildSubtitles re-chunk it like any other line.
+function evenWords(text: string, start: number, end: number): TimedWord[] {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return [];
+  const dur = Math.max(0.001, (end - start) / parts.length);
+  return parts.map((word, i) => ({
+    word,
+    start: start + i * dur,
+    end: i === parts.length - 1 ? end : start + (i + 1) * dur,
+  }));
+}
+// Group a word stream into sentence-level lines for translation. A sentence
+// ends on strong punctuation (. ! ? …), on a real pause (>= SENTENCE_GAP), or
+// when it grows past MAX_SENTENCE_WORDS (so a run-on without punctuation still
+// gets broken into translatable units). Each line carries its [start, end] so
+// the Hebrew translation can be spread back across the same span.
+function groupIntoSentences(words: TimedWord[]): SubLine[] {
+  const SENTENCE_END = /[.!?׃…]["'»)\]]*\s*$/;
+  const SENTENCE_GAP = 0.7; // seconds of silence that closes a sentence
+  const MAX_SENTENCE_WORDS = 40;
+  const lines: SubLine[] = [];
+  let cur: TimedWord[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    cur.push(w);
+    const next = words[i + 1];
+    const endsSentence = SENTENCE_END.test(w.word);
+    const pauseNext = !!next && next.start - w.end >= SENTENCE_GAP;
+    if (endsSentence || pauseNext || cur.length >= MAX_SENTENCE_WORDS || !next) {
+      lines.push({
+        id: String(lines.length + 1),
+        start: cur[0].start,
+        end: cur[cur.length - 1].end,
+        text: cur.map((x) => x.word).join(" "),
+        words: cur,
+      });
+      cur = [];
+    }
+  }
+  return lines;
+}
+
+async function translateLinesToHebrew(subs: SubLine[]): Promise<SubLine[]> {
+  const numbered = subs.map((s, i) => `${i + 1}. ${s.text}`).join("\n");
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You translate video subtitle lines into natural, concise Hebrew. " +
+            "You will get a numbered list of lines. Return EXACTLY the same number of lines, " +
+            "in the same order, each prefixed with its number and a dot. Output ONLY the Hebrew " +
+            "translation per line — no transliteration, no notes, no original text. Keep each line " +
+            "short enough to read as a subtitle.",
+        },
+        { role: "user", content: numbered },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`translate failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const out = data.choices?.[0]?.message?.content ?? "";
+  const map = new Map<number, string>();
+  for (const line of out.split("\n")) {
+    const m = line.match(/^\s*(\d+)[.)\-–]\s*(.+?)\s*$/);
+    if (m) map.set(parseInt(m[1], 10), m[2].trim());
+  }
+  return subs.map((s, i) => {
+    const t = map.get(i + 1);
+    if (!t) return s; // untranslated line falls back to source text
+    return { ...s, text: t, words: evenWords(t, s.start, s.end) };
+  });
 }
 
 // Port of the Python cleanup logic: drop hesitation fillers + collapse

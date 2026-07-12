@@ -220,8 +220,10 @@ export const CONTENT_DEFAULTS = {
   // ── Whisper model names (shown in subtitle settings panel) ──
   "whisper.modelName.hebrew":    "עברית מקצועי",
   "whisper.modelName.universal": "כללי מדויק",
+  "whisper.modelName.translate": "תרגום לעברית",
   "whisper.modelDesc.hebrew":    "מאומן ספציפית לעברית — הכי מדויק. מומלץ!",
   "whisper.modelDesc.universal": "מודל גדול ומדויק לכל השפות",
+  "whisper.modelDesc.translate": "סרטון באנגלית? מתמלל ומתרגם את הכתוביות לעברית אוטומטית",
   "whisper.recommendedBadge":    "מומלץ",
 
   // ── Subtitle-settings panel labels (fully editable) ──────────
