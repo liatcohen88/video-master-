@@ -115,12 +115,11 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
       {/* ── 2.5. Feature showcase — hidden ── */}
       {/* <FeatureShowcase /> */}
 
-      {/* ── 3. Browser mockup — sits between "3 steps" and "features grid"
-              so the user sees the abstract steps, then the concrete UI,
-              then the feature list. Moved here from the page hero per Liat. */}
-      <section className="px-2 overflow-visible">
-        <HeroBrowserMockup />
-      </section>
+      {/* Browser mockup (talking-head clip) moved to the bottom of the page,
+          desktop-only. Liat: "נמחק לגמרי במובייל, נשאיר רק במחשב ונוריד אותו
+          כמעט למטה שלא יראה עמוס מידי באנימציות" — the mobile page was
+          crowded with two big animations back-to-back, and the mockup adds
+          nothing beyond the animated 3-step demo above. */}
 
       {/* ── 4. Features grid (6) ── */}
       <section>
@@ -169,6 +168,12 @@ export default function LandingSections({ onScrollToUpload }: { onScrollToUpload
             {pCta} <ArrowLeft className="w-4 h-4" />
           </Link>
         </div>
+      </section>
+
+      {/* Browser mockup — moved here (near-bottom, DESKTOP ONLY) per Liat.
+          Hidden on mobile to reduce animation crowding. */}
+      <section className="hidden md:block px-2 overflow-visible">
+        <HeroBrowserMockup />
       </section>
 
       {/* ── 7. Final CTA ── */}
