@@ -37,8 +37,6 @@ export default function SubtitleSettingsPanel({
   const cPunctHint    = useContent("settings.punctuation.hint") as string;
   const cStretchLabel = useContent("settings.stretch.label") as string;
   const cStretchHint  = useContent("settings.stretch.hint") as string;
-  const cHebrewAcc    = useContent("settings.modelCard.hebrewAccuracy") as string;
-  const cSpeed        = useContent("settings.modelCard.speed") as string;
   function nameFor(m: { id: string; name: string }) {
     if (m.id === "ivrit-ai/whisper-large-v3-turbo-ct2") return hebrewName;
     if (m.id === "large-v3") return universalName;
@@ -81,27 +79,15 @@ export default function SubtitleSettingsPanel({
                     : "border-white/10 bg-bg-input hover:border-white/30"}
                 `}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">{nameFor(m)}</span>
-                    {m.id === "ivrit-ai/whisper-large-v3-turbo-ct2" && (
-                      <span className="text-[10px] bg-accent-pink/20 text-accent-pink px-1.5 py-0.5 rounded-full">
-                        {recBadge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-white/40 font-mono">{m.size}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-sm">{nameFor(m)}</span>
+                  {m.id === "ivrit-ai/whisper-large-v3-turbo-ct2" && (
+                    <span className="text-[10px] bg-accent-pink/20 text-accent-pink px-1.5 py-0.5 rounded-full">
+                      {recBadge}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-white/50 mb-2">{descFor(m)}</p>
-                <div className="flex items-center gap-3 text-[11px]">
-                  <span className="text-white/40">
-                    {cHebrewAcc}<span className="text-yellow-400">{"★".repeat(m.hebrewQuality)}</span>
-                    <span className="text-white/10">{"★".repeat(5 - m.hebrewQuality)}</span>
-                  </span>
-                  <span className="text-white/40">
-                    {cSpeed}<span className="text-cyan-400">{"⚡".repeat(m.speedRealtime)}</span>
-                  </span>
-                </div>
+                <p className="text-xs text-white/50">{descFor(m)}</p>
               </button>
             );
           })}
@@ -122,11 +108,8 @@ export default function SubtitleSettingsPanel({
                     : "border-white/10 bg-bg-input hover:border-white/30"}
                 `}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">{translateName}</span>
-                    <span className="text-[11px]">🇬🇧→🇮🇱</span>
-                  </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-sm">{translateName}</span>
                 </div>
                 <p className="text-xs text-white/50">{translateDesc}</p>
               </button>
