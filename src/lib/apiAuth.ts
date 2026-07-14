@@ -58,6 +58,17 @@ export async function requireUser(
     return NextResponse.json({ error: "auth backend not configured" }, { status: 503 });
   }
 
+  // Bot delegation: a trusted server-to-server caller (the WhatsApp bot's
+  // /api/whatsapp/process orchestrator) can act on behalf of an already-resolved
+  // user by presenting the shared secret + the target user id. Guarded by the
+  // secret; never grants admin. Lets the existing render pipeline run headlessly
+  // for a WhatsApp user without minting a real JWT.
+  const botSecret = process.env.MV_BOT_SECRET;
+  if (botSecret && req.headers.get("x-mv-bot-secret") === botSecret) {
+    const uid = req.headers.get("x-mv-user-id");
+    if (uid) return { id: uid, email: "", isAdmin: false };
+  }
+
   const token = tokenFromReq(req);
   if (!token) {
     return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
@@ -77,4 +88,13 @@ export async function requireUser(
   }
 
   return { id: data.user.id, email, isAdmin };
+}
+
+/**
+ * True when a request carries the shared WhatsApp-bot secret. Use to guard the
+ * server-to-server /api/whatsapp/* endpoints (the bot is the only caller).
+ */
+export function botSecretOk(req: NextRequest): boolean {
+  const s = process.env.MV_BOT_SECRET;
+  return !!s && req.headers.get("x-mv-bot-secret") === s;
 }
