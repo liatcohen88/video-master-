@@ -61,10 +61,11 @@ export const DEFAULT_HEADLESS_STYLE: SubtitleStyle = {
   strokeWidth: 6,
   backgroundColor: "#000000",
   backgroundOpacity: 0,
-  // Bottom, NOT middle — middle sat right on the speaker's face in the first
-  // real WhatsApp delivery (Liat 15/7: "המלל כשהוא כאן הוא ממש מסתיר").
-  position: "bottom",
-  positionOffset: 0,
+  // "Middle" with a positive offset = just BELOW center — clears the speaker's
+  // face but isn't stuck at the very bottom (Liat 16/7: "די באמצע וטיפה למטה").
+  // offset is in 1080-tall reference space; +200 ≈ 18% below center.
+  position: "middle",
+  positionOffset: 200,
   textAlign: "center",
   highlightColor: "#facc15",
   shadow: true,
@@ -82,7 +83,16 @@ export function buildHeadlessProject(mode: EditMode): {
 } {
   return {
     style: { ...DEFAULT_HEADLESS_STYLE },
-    effects: { ...MODE_DEFAULT_EFFECTS[mode] },
+    effects: {
+      ...MODE_DEFAULT_EFFECTS[mode],
+      // SFX tuning from Liat's real deliveries (16/7):
+      //  - contextualSfx OFF: no auto-sound on emojis/keywords — they were
+      //    loud AND often unrelated ("מתי שיש אמוגים אל תוסיף סאונד אפקט רק
+      //    כשיש לוגו"). Brand-LOGO sounds are a separate gate → still play.
+      //  - quieter master so any remaining sound sits under the speech.
+      contextualSfx: false,
+      sfxMasterVolume: 0.4,
+    },
     // Force punctuation + stretch ON for every WhatsApp delivery regardless of
     // the mode defaults (advanced_effects ships them off) — headless users get
     // no editor to toggle them, and Liat wants them always on (15/7).

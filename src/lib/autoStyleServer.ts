@@ -149,8 +149,11 @@ export async function autoStyleForVideo(
   finally { unlink(tmp).catch(() => {}); }
 
   const base = TEMPLATES.find((t) => t.id === preset.templateId);
+  // Force a consistent "just below center" position for WhatsApp regardless of
+  // the template's own placement — clears the face, not stuck at the bottom
+  // (Liat 16/7). offset in 1080-space; +200 ≈ 18% below center.
   const style: SubtitleStyle = base
-    ? { ...base.style, position: "bottom", highlightColor: accent }
+    ? { ...base.style, position: "middle", positionOffset: 200, highlightColor: accent }
     : { ...DEFAULT_HEADLESS_STYLE, highlightColor: accent };
   return { templateId: preset.templateId, style };
 }
