@@ -17,6 +17,10 @@ import { resolveUserByPhone, buildHeadlessProject, coerceMode, normalizePhone, c
 import { getCreditBalance } from "@/lib/serverCredits";
 import { flattenWords, buildSubtitles } from "@/lib/subtitleSettings";
 import type { Subtitle } from "@/lib/types";
+import { MODE_DEFAULT_TEMPLATE } from "@/lib/types";
+import { jobOutputPath } from "@/lib/renderJobs";
+import { writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -113,6 +117,29 @@ export async function POST(req: NextRequest) {
     if (!rRes.ok || !rData.jobId) {
       return NextResponse.json({ error: rData.error || "render_failed" }, { status: 502 });
     }
+
+    // Persist the SOURCE video + the full project next to the job output so
+    // the editor deep-link ("לעריכה ושכלול") can open THIS exact project —
+    // video, captions, style, effects — instead of a bare /dashboard (Liat
+    // 15/7: "שישים את הקישור של הסרטון עצמו... ממש את איזור העריכה").
+    // Same lifecycle as the job folder (cleaned by cleanupOldJobs). Best-effort.
+    try {
+      const dir = dirname(jobOutputPath(rData.jobId));
+      await writeFile(join(dir, "wa-source.mp4"), videoBuf);
+      await writeFile(join(dir, "wa-project.json"), JSON.stringify({
+        mode,
+        exportFormat: "mp4",
+        settings,
+        templateId: MODE_DEFAULT_TEMPLATE[mode],
+        style,
+        subtitles,
+        effects,
+        whisperModel: model || "ivrit-ai/whisper-large-v3-turbo-ct2",
+      }));
+    } catch (e) {
+      console.error("[whatsapp/process] project persist failed:", e instanceof Error ? e.message : e);
+    }
+
     return NextResponse.json({ jobId: rData.jobId });
   } catch (e) {
     console.error("[whatsapp/process] render error:", e instanceof Error ? e.message : e);

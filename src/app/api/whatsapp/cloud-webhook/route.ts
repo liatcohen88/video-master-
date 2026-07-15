@@ -175,10 +175,12 @@ async function processVideo(from: string, choice: { mode: string; model: string;
     if (!job) break;
     const status = job.status === "done" && !outputReady(job.id) ? "rendering" : job.status;
     if (status === "done") {
-      const url = `${SITE_URL}/api/whatsapp/result?jobId=${encodeURIComponent(jobId)}&token=${resultToken(jobId)}`;
-      // Send the actual video (Meta fetches the link; 16MB cap) + editor link.
+      const tok = resultToken(jobId);
+      const url = `${SITE_URL}/api/whatsapp/result?jobId=${encodeURIComponent(jobId)}&token=${tok}`;
+      // Send the actual video (Meta fetches the link; 16MB cap) + a DEEP editor
+      // link that reopens THIS exact project (source video + captions + style).
       await waSend({ to: from, type: "video", video: { link: url, caption: "הסרטון שלכם מוכן! ✨🎬" } });
-      await sendText(from, `✏️ לעריכה ושכלול במאסטר וידאו:\n${SITE_URL}/dashboard`);
+      await sendText(from, `✏️ לעריכה ושכלול של הסרטון הזה במאסטר וידאו:\n${SITE_URL}/?waedit=${encodeURIComponent(jobId)}&token=${tok}`);
       notifyOwner(`🎬 סרטון נוצר מוואטסאפ (רשמי)\nמאת: ${from}\nמצב: ${choice.label}`);
       return;
     }

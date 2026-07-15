@@ -392,7 +392,8 @@ export default function HomePage() {
       pending =
         sessionStorage.getItem("vm_active_edit") === "1" ||
         sessionStorage.getItem("vm_autoload_video") === "1" ||
-        new URLSearchParams(window.location.search).has("restore");
+        new URLSearchParams(window.location.search).has("restore") ||
+        new URLSearchParams(window.location.search).has("waedit");
     } catch { /* private mode */ }
     if (!pending) { hide(); return; }
     const t = window.setTimeout(hide, 12000);
@@ -401,6 +402,43 @@ export default function HomePage() {
 
   // Toast once on first paint if we restored saved state from a prior session.
   useEffect(() => {
+    // WhatsApp-bot deep link → /?waedit=<jobId>&token=<hmac>: the bot rendered
+    // a video server-side; this pulls the SOURCE video + the exact project
+    // (captions/style/effects) from the server and drops straight into the
+    // editor — "לעריכה ושכלול" opens the real editing area, not /dashboard.
+    if (typeof window !== "undefined") {
+      const waParams = new URLSearchParams(window.location.search);
+      const waJobId = waParams.get("waedit");
+      const waToken = waParams.get("token");
+      if (waJobId && waToken) {
+        window.history.replaceState({}, "", "/");
+        (async () => {
+          try {
+            const q = `jobId=${encodeURIComponent(waJobId)}&token=${encodeURIComponent(waToken)}`;
+            const [projRes, srcRes] = await Promise.all([
+              fetch(`/api/whatsapp/edit-bundle?${q}&what=project`),
+              fetch(`/api/whatsapp/edit-bundle?${q}&what=source`),
+            ]);
+            if (!projRes.ok || !srcRes.ok) throw new Error("expired");
+            const payload = await projRes.json();
+            const blob = await srcRes.blob();
+            const file = new File([blob], "whatsapp-video.mp4", { type: "video/mp4" });
+            await handleResume(file, {
+              at: Date.now(),
+              label: "וואטסאפ 🎬",
+              videoHash: "",
+              payload,
+            });
+          } catch {
+            toast.error("הקישור פג תוקף — שלחו את הסרטון שוב בוואטסאפ 🙏");
+          } finally {
+            const bl = document.getElementById("vm-boot-loader");
+            if (bl) bl.style.display = "none";
+          }
+        })();
+        return;
+      }
+    }
     // Dashboard "שחזר גרסה" → /?restore=<snapshotId>: restore that EXACT saved
     // version (not just the latest), so a user can roll back to an earlier
     // styled version after a reset (Liat lost her styling on a reload).

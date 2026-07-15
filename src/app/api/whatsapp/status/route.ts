@@ -32,6 +32,6 @@ export async function GET(req: NextRequest) {
     resultUrl: status === "done"
       ? `${SITE_URL}/api/whatsapp/result?jobId=${encodeURIComponent(job.id)}&token=${resultToken(job.id)}`
       : undefined,
-    editorUrl: `${SITE_URL}/dashboard`,
+    editorUrl: `${SITE_URL}/?waedit=${encodeURIComponent(job.id)}&token=${resultToken(job.id)}`,
   });
 }
