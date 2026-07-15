@@ -227,6 +227,10 @@ export const DEFAULT_EFFECTS: VideoEffects = {
   contextualElements: true,
   // SFX defaults on too — synthesized cheaply by FFmpeg, gives big WOW
   contextualSfx: true,
+  // Softer default loudness — full-gain auto-SFX drowned the speech in the
+  // first WhatsApp deliveries (Liat 16/7: "תנמיך את הסאונד אפקט קצת").
+  // Users can still raise it with the volume slider.
+  sfxMasterVolume: 0.65,
 };
 
 // Effects defaults per editing mode

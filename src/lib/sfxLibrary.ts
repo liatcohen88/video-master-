@@ -206,10 +206,12 @@ export const SFX_CATEGORY_LABEL: Record<SfxCategory, string> = {
  */
 export const DEFAULT_SFX_FOR_KIND: Record<SfxKind, string> = {
   ding: "1432",         // דינג התראה
-  zap: "2018",          // צ'ה־צ'ינג (sharp + electric)
+  zap: "1019",          // קליק/פופ עדין (was "2018" sharp cha-ching — too harsh
+                        // as an AUTO default; Liat 16/7: "סאונד כמו פופ")
   whoosh: "1109",       // וושש קצר
   "cha-ching": "888",   // מטבעות
-  boom: "951",          // אימפקט קולנועי
+  boom: "1109",         // וושש קצר (was "951" cinematic impact — overwhelming as
+                        // an AUTO default; 951 stays available in the picker)
   chime: "270",         // ניצחון משחק
 };
 

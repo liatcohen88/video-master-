@@ -16,6 +16,7 @@ import { botSecretOk } from "@/lib/apiAuth";
 import { resolveUserByPhone, buildHeadlessProject, coerceMode, normalizePhone, connectToken } from "@/lib/whatsappHeadless";
 import { getCreditBalance } from "@/lib/serverCredits";
 import { flattenWords, buildSubtitles } from "@/lib/subtitleSettings";
+import { autoStyleForVideo } from "@/lib/autoStyleServer";
 import type { Subtitle } from "@/lib/types";
 import { MODE_DEFAULT_TEMPLATE } from "@/lib/types";
 import { jobOutputPath } from "@/lib/renderJobs";
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "no_credits", buyUrl: `${SITE_URL}/pricing` }, { status: 402 });
   }
 
-  const { style, effects, settings } = buildHeadlessProject(mode);
+  const { style: defaultStyle, effects, settings } = buildHeadlessProject(mode);
   const videoBuf = Buffer.from(await file.arrayBuffer());
   const videoType = file.type || "video/mp4";
   const videoName = file.name || "input.mp4";
@@ -96,6 +97,20 @@ export async function POST(req: NextRequest) {
     console.error("[whatsapp/process] rechunk failed (keeping raw):", e instanceof Error ? e.message : e);
   }
 
+  // Auto-style: pick a professional look for THIS footage (deterministic
+  // template preset + real dominant-color sampling), like the browser editor
+  // does — instead of one fixed style for every WhatsApp video (Liat 16/7:
+  // "שים לב שאתה בוחר תבניות לפי מה שמתאים לסרטון... צבעים פונט סגנון").
+  let templateId = "";
+  let style = defaultStyle;
+  try {
+    const auto = await autoStyleForVideo(videoBuf, mode, durationSec);
+    templateId = auto.templateId;
+    style = auto.style;
+  } catch (e) {
+    console.error("[whatsapp/process] auto-style failed (default stands):", e instanceof Error ? e.message : e);
+  }
+
   // 4. Render (internal) under bot-delegated auth → jobId.
   try {
     const rForm = new FormData();
@@ -130,7 +145,7 @@ export async function POST(req: NextRequest) {
         mode,
         exportFormat: "mp4",
         settings,
-        templateId: MODE_DEFAULT_TEMPLATE[mode],
+        templateId: templateId || MODE_DEFAULT_TEMPLATE[mode],
         style,
         subtitles,
         effects,
