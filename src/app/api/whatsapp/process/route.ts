@@ -15,6 +15,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { botSecretOk } from "@/lib/apiAuth";
 import { resolveUserByPhone, buildHeadlessProject, coerceMode, normalizePhone, connectToken } from "@/lib/whatsappHeadless";
 import { getCreditBalance } from "@/lib/serverCredits";
+import { flattenWords, buildSubtitles } from "@/lib/subtitleSettings";
+import type { Subtitle } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -77,6 +79,17 @@ export async function POST(req: NextRequest) {
   }
   if (!subtitles.length) {
     return NextResponse.json({ error: "no_speech" }, { status: 422 });
+  }
+
+  // Smart re-chunk — the SAME engine the editor uses (punctuation + silence
+  // breaks, auto-commas, min-words merge, stretch). The transcribe route only
+  // does a dumb fixed-size chunk; without this pass the WhatsApp output broke
+  // lines mid-sentence and had no commas (Liat 15/7: "שיבין מתי לעבור שורה").
+  try {
+    const base = flattenWords(subtitles as Subtitle[]);
+    if (base.length) subtitles = buildSubtitles(base, settings);
+  } catch (e) {
+    console.error("[whatsapp/process] rechunk failed (keeping raw):", e instanceof Error ? e.message : e);
   }
 
   // 4. Render (internal) under bot-delegated auth → jobId.

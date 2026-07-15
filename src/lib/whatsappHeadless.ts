@@ -61,7 +61,9 @@ export const DEFAULT_HEADLESS_STYLE: SubtitleStyle = {
   strokeWidth: 6,
   backgroundColor: "#000000",
   backgroundOpacity: 0,
-  position: "middle",
+  // Bottom, NOT middle — middle sat right on the speaker's face in the first
+  // real WhatsApp delivery (Liat 15/7: "המלל כשהוא כאן הוא ממש מסתיר").
+  position: "bottom",
   positionOffset: 0,
   textAlign: "center",
   highlightColor: "#facc15",
@@ -81,7 +83,10 @@ export function buildHeadlessProject(mode: EditMode): {
   return {
     style: { ...DEFAULT_HEADLESS_STYLE },
     effects: { ...MODE_DEFAULT_EFFECTS[mode] },
-    settings: { ...MODE_DEFAULT_SETTINGS[mode] },
+    // Force punctuation + stretch ON for every WhatsApp delivery regardless of
+    // the mode defaults (advanced_effects ships them off) — headless users get
+    // no editor to toggle them, and Liat wants them always on (15/7).
+    settings: { ...MODE_DEFAULT_SETTINGS[mode], addPunctuation: true, stretchSubtitles: true },
   };
 }
 
