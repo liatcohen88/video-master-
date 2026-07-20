@@ -40,7 +40,13 @@ const ALL_ON: ModeCaps = {
 // MODE_DEFAULT_EFFECTS, so e.g. subtitles_only auto-applies nothing — the
 // user just sees the side panel and can choose to add what they want.
 const CAPS: Record<EditMode, ModeCaps> = {
-  subtitles_only:   ALL_ON,
+  // EXCEPTION to the all-access rule above (Liat 2026-07-16): "כתוביות בלבד"
+  // must not show emojis/elements AT ALL — its own mode card promises "בלי
+  // אפקטים/אמוג'ים/סאונד", but the editor was still rendering the per-line
+  // emoji button, the auto-detected elements and the "אמוג'ים, אלמנטים,
+  // סאונדים" hint. Other modes keep full access (podcast's card explicitly
+  // lists אמוג'י/איקונים, so it must stay on).
+  subtitles_only:   { ...ALL_ON, elements: false },
   podcast:          ALL_ON,
   basic_effects:    ALL_ON,
   advanced_effects: ALL_ON,
