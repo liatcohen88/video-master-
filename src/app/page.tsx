@@ -1729,7 +1729,11 @@ export default function HomePage() {
                   onPickAbort={() => { setIsProcessing(false); setProgressMessage(""); }}
                 />
                 {/* "Try a sample" — removes the "I don't have a video ready"
-                    friction for first-time / ad visitors. Runs the real flow. */}
+                    friction for first-time / ad visitors. Runs the real flow.
+                    HIDDEN for now (Liat 16/7: "הסתר את זה לבינתיים"). The
+                    handler + sample asset stay in place — flip this flag back
+                    to true to restore the button as-is. */}
+                {false && (
                 <button
                   onClick={handleTrySample}
                   disabled={sampleLoading}
@@ -1741,6 +1745,7 @@ export default function HomePage() {
                     <><Play className="w-4 h-4" /> אין לכם סרטון? נסו דוגמה מוכנה</>
                   )}
                 </button>
+                )}
               </div>
               {/* ── Landing page sections — only when no video uploaded ── */}
               <LandingSections
