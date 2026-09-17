@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 import { rateLimit } from "@/lib/rateLimit";
+import { botSecretOk } from "@/lib/apiAuth";
 
 // Nix store paths shift between builds, but PyAV / ctranslate2 / libsndfile
 // inside the venv only link via DT_NEEDED (the loader walks LD_LIBRARY_PATH).
@@ -49,8 +50,13 @@ export async function POST(req: NextRequest) {
   // enough that a single IP can't drain OpenAI ($0.006/min × 60 = ~$0.36
   // worst case per hour) while still letting an honest guest test the
   // product without friction.
-  const limited = rateLimit(req, { key: "transcribe", max: 10, windowSec: 60 * 60 });
-  if (limited) return limited;
+  // Server-to-server callers (the WhatsApp bot) carry the shared secret and are
+  // already gated upstream per phone — without this bypass every internal
+  // 127.0.0.1 call would share ONE 10/hour bucket and starve the bot.
+  if (!botSecretOk(req)) {
+    const limited = rateLimit(req, { key: "transcribe", max: 10, windowSec: 60 * 60 });
+    if (limited) return limited;
+  }
 
   const formData = await req.formData();
   const file = formData.get("video") as File | null;
@@ -60,6 +66,9 @@ export async function POST(req: NextRequest) {
   // model param kept for API compatibility but only used by the local Python
   // path. OpenAI side always uses whisper-1.
   const model = (formData.get("model") as string) || "small";
+  // engine="local" forces the on-box faster-whisper venv (zero API cost) even
+  // when an OpenAI key is set — how the WhatsApp voice path can run for free.
+  const engine = ((formData.get("engine") as string) || "").toLowerCase();
 
   if (!file) {
     return NextResponse.json({ error: "לא נמצא קובץ וידאו" }, { status: 400 });
@@ -69,7 +78,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Preferred path: OpenAI Whisper API. Costs ~$0.006/minute, no infra to run.
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.OPENAI_API_KEY && engine !== "local") {
     try {
       // "translate-he" is a pseudo-model the user picks in the settings panel:
       // transcribe in the source language (auto-detect) then translate the
@@ -191,10 +200,18 @@ async function transcribeWithOpenAI(file: File, maxWordsPerLine: number, transla
     }
   }
 
+  // One flowing, punctuated transcript alongside the display chunks — what the
+  // WhatsApp voice bot sends back as text. Translate mode has to rebuild it from
+  // the translated lines (data.text is still the SOURCE language).
+  const fullText = (
+    translateToHebrew ? subtitles.map((s) => s.text).join(" ") : (data.text ?? subtitles.map((s) => s.text).join(" "))
+  ).replace(/\s+/g, " ").trim();
+
   return {
     language: translateToHebrew ? "he" : (data.language ?? "he"),
     duration: Math.round((data.duration ?? 0) * 1000) / 1000,
     model: translateToHebrew ? "translate-he" : "whisper-1",
+    text: fullText,
     subtitles,
   };
 }
@@ -380,7 +397,16 @@ async function transcribeWithLocalPython(file: File, maxWordsPerLine: number, mo
     let lastErr: unknown = null;
     for (const m of fallbackModels) {
       try {
-        const result = await runPython(tempPath, maxWordsPerLine, m);
+        const result = (await runPython(tempPath, maxWordsPerLine, m)) as Record<string, unknown>;
+        // The Python script emits chunked subtitles only — synthesize the same
+        // flowing `text` the OpenAI path returns so callers can rely on it.
+        if (!result.text && Array.isArray(result.subtitles)) {
+          result.text = (result.subtitles as { text?: string }[])
+            .map((x) => x.text ?? "")
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
         return NextResponse.json(result);
       } catch (err: unknown) {
         lastErr = err;

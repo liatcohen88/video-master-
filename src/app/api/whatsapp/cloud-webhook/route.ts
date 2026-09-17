@@ -34,6 +34,40 @@ const PHONE_ID = () => process.env.WA_CLOUD_PHONE_ID || "";
 const VERIFY_TOKEN = () => process.env.WA_VERIFY_TOKEN || "";
 const BOT_SECRET = () => process.env.MV_BOT_SECRET || "";
 
+// ── Voice notes → text (free: no credits, no render) ─────────────────
+// Transcription is the cheap half of the pipeline (~$0.006/min on OpenAI, or
+// $0 with WA_VOICE_ENGINE=local on the box's own faster-whisper), so it is NOT
+// charged in מאסטרים. The caps below are what keeps it that way.
+const VOICE_ENABLED = () => (process.env.WA_VOICE_ENABLED || "true") !== "false";
+const VOICE_ENGINE = () => process.env.WA_VOICE_ENGINE || "";
+const VOICE_REQUIRE_LINK = () => (process.env.WA_VOICE_REQUIRE_LINK || "true") !== "false";
+const VOICE_DAILY_MAX = () => Math.max(1, Number(process.env.WA_VOICE_DAILY_MAX || 40));
+// Numbers that skip the linked-account gate entirely (Liat's own phone by
+// default) — so the owner can use the bot before linking anything.
+const voiceAllowList = () =>
+  new Set(
+    (process.env.WA_VOICE_ALLOW || process.env.MV_OWNER_PHONE || "0507766429")
+      .split(",")
+      .map((x) => normalizePhone(x))
+      .filter(Boolean),
+  );
+
+// Per-phone daily cap. In-memory like the rest of this file's state — a deploy
+// resets it, which only ever makes us MORE generous.
+const voiceQuota = new Map<string, { day: string; n: number }>();
+function voiceQuotaExceeded(from: string): boolean {
+  const day = new Date().toISOString().slice(0, 10);
+  const prev = voiceQuota.get(from);
+  const rec = prev && prev.day === day ? prev : { day, n: 0 };
+  if (rec.n >= VOICE_DAILY_MAX()) {
+    voiceQuota.set(from, rec);
+    return true;
+  }
+  rec.n += 1;
+  voiceQuota.set(from, rec);
+  return false;
+}
+
 // ── Conversation state (in-memory; single container) ─────────────────
 type Convo = {
   step: "await_choice";
@@ -102,9 +136,10 @@ const CHOICES: Record<string, { mode: string; model: string; label: string }> = 
 
 const HELP =
   "היי! זה הבוט של *מאסטר וידאו* 🎬\n\n" +
-  "פשוט שולחים סרטון וכאן מחזירים אותו ערוך עם כתוביות.\n\n" +
+  "• *סרטון* → מחזירים אותו ערוך עם כתוביות\n" +
+  "• *הקלטה קולית* → מחזירים אותה בטקסט, בחינם 🎧\n\n" +
   "פקודות:\n• *מאסטרים* — כמה מאסטרים נשארו\n• *לקנות* — קניית מאסטרים\n• *עזרה* — התפריט הזה\n\n" +
-  "לשליחת סרטון עכשיו והתחלה 👇";
+  "אפשר לשלוח סרטון או הקלטה עכשיו 👇";
 
 // ── Media download (Graph: media_id → url → bytes) ───────────────────
 async function downloadMedia(mediaId: string): Promise<{ buf: Buffer; mime: string } | null> {
@@ -196,6 +231,107 @@ async function processVideo(from: string, choice: { mode: string; model: string;
   await sendText(from, "העריכה לוקחת קצת יותר מהצפוי — נשלח לכאן ברגע שהסרטון מוכן 🙏");
 }
 
+// ── Voice note pipeline: audio in → text back ────────────────────────
+// Extension matters: the transcribe route hands the file to ffmpeg/PyAV, which
+// pick their demuxer by name when the container isn't obvious.
+function audioExt(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m.includes("ogg") || m.includes("opus")) return ".ogg";
+  if (m.includes("mpeg") || m.includes("mp3")) return ".mp3";
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return ".m4a";
+  if (m.includes("amr")) return ".amr";
+  if (m.includes("wav")) return ".wav";
+  return ".ogg";
+}
+
+// WhatsApp caps a text body at 4096 chars. Split a long transcript on a
+// sentence/line break so a message never ends mid-word.
+const WA_TEXT_MAX = 3500;
+function splitTranscript(text: string): string[] {
+  const clean = text.trim();
+  const parts: string[] = [];
+  let rest = clean;
+  while (rest.length > WA_TEXT_MAX) {
+    const window = rest.slice(0, WA_TEXT_MAX);
+    let cut = Math.max(
+      window.lastIndexOf("\n"),
+      window.lastIndexOf(". "),
+      window.lastIndexOf("! "),
+      window.lastIndexOf("? "),
+      window.lastIndexOf("׃ "),
+    );
+    if (cut < WA_TEXT_MAX * 0.5) cut = window.lastIndexOf(" ");
+    // A boundary found in the first few characters would slice off a sliver and
+    // loop ~forever on a long transcript — take the full window instead.
+    cut = cut > WA_TEXT_MAX * 0.1 ? cut + 1 : WA_TEXT_MAX;
+    const part = rest.slice(0, cut).trim();
+    if (part) parts.push(part);
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) parts.push(rest);
+  if (parts.length <= 1) return [`📝 *תמלול:*\n\n${parts[0] ?? clean}`];
+  return parts.map((part, i) => `📝 *תמלול* (${i + 1}/${parts.length})\n\n${part}`);
+}
+
+async function processVoice(from: string, mediaId: string, mimeType: string) {
+  await sendText(from, "🎧 קיבלנו את ההקלטה — מתמללים, רגע אחד...");
+
+  const media = await downloadMedia(mediaId);
+  if (!media) {
+    await sendText(from, "לא הצלחנו לקרוא את ההקלטה. אפשר לנסות לשלוח שוב? 🙏");
+    return;
+  }
+
+  try {
+    const mime = media.mime || mimeType || "audio/ogg";
+    const form = new FormData();
+    form.append("audio", new Blob([new Uint8Array(media.buf)], { type: mime }), `voice${audioExt(mime)}`);
+    form.append("phone", from);
+    if (VOICE_ENGINE()) form.append("engine", VOICE_ENGINE());
+
+    const res = await fetch(`${INTERNAL_URL}/api/whatsapp/voice`, {
+      method: "POST",
+      headers: { "x-mv-bot-secret": BOT_SECRET() },
+      body: form,
+    });
+    const data = (await res.json().catch(() => ({}))) as { text?: string; summary?: string; error?: string };
+    if (res.status === 422) {
+      await sendText(from, "לא זיהינו דיבור בהקלטה 🤔 אפשר לנסות שוב עם הקלטה ברורה יותר.");
+      return;
+    }
+    if (!res.ok || !data.text) throw new Error(data.error || `status ${res.status}`);
+
+    for (const part of splitTranscript(data.text)) await sendText(from, part);
+    if (data.summary) await sendText(from, `📌 *בקצרה:*\n${data.summary}`);
+  } catch (e) {
+    console.error("[cloud-webhook] voice:", e instanceof Error ? e.message : e);
+    await sendText(from, "אופס, התמלול לא הצליח הפעם. אפשר לנסות לשלוח את ההקלטה שוב 🙏");
+  }
+}
+
+/**
+ * Who may use the free transcription. Returns null when allowed, or the reply
+ * to send instead. Allow-listed numbers skip the account gate; everyone else
+ * needs a linked Master Video account (same gate as video) so the number
+ * doesn't become an open, unattributed transcription service.
+ */
+async function voiceDenyReply(from: string): Promise<string | null> {
+  if (!voiceAllowList().has(normalizePhone(from))) {
+    if (VOICE_REQUIRE_LINK() && !(await resolveUserByPhone(from))) {
+      const p = normalizePhone(from);
+      return (
+        "כמעט שם! ✨ תמלול הקלטות הוא בחינם — צריך רק פעם אחת לחבר את המספר לחשבון מאסטר וידאו:\n\n" +
+        `${SITE_URL}/connect-whatsapp?phone=${encodeURIComponent(p)}&token=${connectToken(p)}\n\n` +
+        "אחרי החיבור — פשוט שלחו את ההקלטה שוב 🎧"
+      );
+    }
+  }
+  if (voiceQuotaExceeded(from)) {
+    return "הגענו למכסת התמלולים להיום 🙏 אפשר להמשיך מחר, או לשלוח סרטון לעריכה.";
+  }
+  return null;
+}
+
 // Owner notification — best-effort WhatsApp to Liat via the same Cloud number.
 // (Only works while she's a registered test recipient / after production number.)
 function notifyOwner(text: string) {
@@ -251,6 +387,7 @@ type WaMessage = {
   type: string;
   text?: { body: string };
   video?: { id: string; mime_type?: string };
+  audio?: { id: string; mime_type?: string; voice?: boolean };
   document?: { id: string; mime_type?: string };
   interactive?: { type: string; list_reply?: { id: string }; button_reply?: { id: string } };
 };
@@ -275,6 +412,35 @@ export async function POST(req: NextRequest) {
         }
         convos.set(from, { step: "await_choice", mediaId: msg.video.id, mimeType: msg.video.mime_type || "video/mp4", updatedAt: Date.now() });
         runBg(() => sendMenu(from));
+        continue;
+      }
+      // Voice note / audio file → transcript (free, no credits, no render).
+      if (msg.type === "audio" && msg.audio?.id) {
+        if (!VOICE_ENABLED()) {
+          runBg(() => sendText(from, HELP));
+          continue;
+        }
+        const deny = await voiceDenyReply(from);
+        if (deny) {
+          runBg(() => sendText(from, deny));
+          continue;
+        }
+        const { id: mediaId, mime_type: mime } = msg.audio;
+        runBg(() => processVoice(from, mediaId, mime || "audio/ogg"));
+        continue;
+      }
+      if (msg.type === "document" && msg.document?.id && /^audio\//i.test(msg.document.mime_type || "")) {
+        if (!VOICE_ENABLED()) {
+          runBg(() => sendText(from, HELP));
+          continue;
+        }
+        const deny = await voiceDenyReply(from);
+        if (deny) {
+          runBg(() => sendText(from, deny));
+          continue;
+        }
+        const { id: mediaId, mime_type: mime } = msg.document;
+        runBg(() => processVoice(from, mediaId, mime || "audio/ogg"));
         continue;
       }
       if (msg.type === "document" && msg.document?.id && /^video\//i.test(msg.document.mime_type || "")) {
