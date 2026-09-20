@@ -1,0 +1,248 @@
+<title>סרט אהבה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap">
+<style>
+  :root{
+    direction:rtl;
+    --ink:#0D0D0C; --paper:#F4F3F0; --paper-2:#EAE8E3;
+    --muted:#77746C; --line:#D6D3CC; --warm:#B8613C;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --f:"Heebo","Arial Hebrew",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f);font-weight:400;font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{width:100%;max-width:660px;margin-inline:auto;padding-inline:22px}
+  section{padding-block:clamp(56px,9vw,104px)}
+  .js .reveal{opacity:0;transform:translateY(22px)}
+  .js .reveal.in{opacity:1;transform:none;transition:opacity .85s var(--ease),transform .85s var(--ease);transition-delay:var(--d,0ms)}
+  .lab{font-size:12.5px;font-weight:700;color:var(--muted)}
+
+  /* ---------- hero with video slot ---------- */
+  .hero{position:relative;min-height:82svh;display:grid;align-items:end;overflow:hidden;background:var(--ink)}
+  .hero-media{position:absolute;inset:0;overflow:hidden;will-change:transform}
+  /* ⬇⬇ כאן נכנס הסרטון: להוסיף src ולהסיר hidden ⬇⬇ */
+  .hero-media video{width:100%;height:100%;object-fit:cover;display:block}
+  .fallback{position:absolute;inset:0;
+    background:
+      radial-gradient(60% 45% at 30% 20%, #4A4437 0%, rgba(74,68,55,0) 60%),
+      radial-gradient(55% 40% at 78% 74%, #5B3A2C 0%, rgba(91,58,44,0) 58%),
+      linear-gradient(200deg,#181713 0%,#26231C 46%,#14120F 100%);}
+  .fallback::after{content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+    opacity:.26;mix-blend-mode:overlay}
+  .hero-scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(13,13,12,.88) 0%,rgba(13,13,12,.30) 45%,rgba(13,13,12,.55) 100%)}
+  .hero-in{position:relative;z-index:2;color:var(--paper);padding-block:clamp(40px,9vw,72px)}
+  .hero .eyebrow{margin:0 0 clamp(14px,3.5vw,20px);color:#CFC9BC;font-size:13px;font-weight:700}
+  .hero h1{margin:0;font-weight:900;font-size:clamp(3rem,16vw,6rem);line-height:.92}
+  .hero h1 .sub{display:block;font-weight:300;font-size:.34em;line-height:1.5;margin-top:.5em;color:#D8D3C7}
+  .hero .meta{margin:clamp(16px,4vw,24px) 0 0;display:flex;flex-wrap:wrap;gap:8px 18px;font-size:15px;color:#CFC9BC}
+  .hero .meta b{font-weight:700;color:var(--paper);font-variant-numeric:tabular-nums}
+  .cue{position:absolute;inset-block-end:16px;left:50%;transform:translateX(-50%);z-index:3;color:#CFC9BC;font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:6px;transition:opacity .5s var(--ease)}
+  .cue i{display:block;width:1px;height:30px;background:#CFC9BC;animation:cue 2.2s var(--ease) infinite;transform-origin:top}
+  @keyframes cue{0%{transform:scaleY(.15);opacity:0}40%{opacity:1}100%{transform:scaleY(1);opacity:0}}
+
+  /* ---------- verse ---------- */
+  .verse p{margin:0;font-weight:300;font-size:clamp(1.4rem,5.6vw,1.95rem);line-height:1.62;text-wrap:balance}
+  .verse b{font-weight:900}
+  .verse .families{margin-top:clamp(22px,5vw,32px);font-size:15px;color:var(--muted);line-height:1.95;font-weight:400}
+
+  /* ---------- horizontal film strip ---------- */
+  .film{position:relative;height:300vh;padding:0}
+  .film-sticky{position:sticky;top:0;height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+  .film-head{padding-inline:22px;margin-bottom:clamp(14px,3vw,22px)}
+  .film-head h2{margin:0;font-weight:900;font-size:clamp(1.6rem,7vw,2.3rem);line-height:1.1}
+  .film-head p{margin:6px 0 0;color:var(--muted);font-size:15px}
+  .track{display:flex;gap:clamp(12px,3vw,22px);padding-inline:22px;will-change:transform}
+  .frame{flex:none;width:min(74vw,320px);border:1px solid var(--line);background:var(--paper-2);border-radius:4px;overflow:hidden}
+  .frame .shot{aspect-ratio:3/4;position:relative;overflow:hidden;background:var(--ink)}
+  .frame .shot video{width:100%;height:100%;object-fit:cover;display:block}
+  .frame .shot .ph{position:absolute;inset:0}
+  .frame .cap{display:flex;justify-content:space-between;gap:10px;padding:11px 13px;border-top:1px solid var(--line);background:var(--paper)}
+  .frame .cap b{font-weight:700;font-size:14.5px}
+  .frame .cap span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .progress{margin:clamp(16px,3.4vw,24px) 22px 0;height:2px;background:var(--line);position:relative}
+  .progress i{position:absolute;inset-block:0;inset-inline-start:0;width:0;background:var(--ink);display:block}
+
+  /* ---------- index table ---------- */
+  .index{border-top:1px solid var(--line)}
+  .row{display:grid;grid-template-columns:minmax(88px,26%) 1fr;gap:14px;padding-block:18px;border-bottom:1px solid var(--line);align-items:baseline}
+  .row dt{margin:0;font-size:13px;font-weight:700;color:var(--muted)}
+  .row dd{margin:0;font-weight:700;font-size:clamp(1.05rem,4.4vw,1.25rem);font-variant-numeric:tabular-nums}
+  .row dd small{display:block;font-weight:400;font-size:14.5px;color:var(--muted);margin-top:2px}
+
+  /* ---------- countdown ---------- */
+  .clock{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .unit{background:var(--paper);padding:clamp(15px,3.6vw,22px) 6px;text-align:center}
+  .unit b{display:block;font-weight:900;font-size:clamp(1.6rem,7.6vw,2.4rem);line-height:1;font-variant-numeric:tabular-nums}
+  .unit span{display:block;font-size:12.5px;color:var(--muted);margin-top:6px}
+
+  /* ---------- inverted rsvp ---------- */
+  .rsvp{background:var(--ink);color:var(--paper)}
+  .rsvp h2{margin:0 0 10px;font-weight:900;font-size:clamp(2.1rem,9vw,3rem);line-height:1}
+  .rsvp p{margin:0 0 clamp(24px,5.5vw,32px);color:#B9B4A9;max-width:44ch}
+  .btns{display:flex;flex-direction:column;gap:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 26px;border-radius:0;font-size:17px;font-weight:700;text-decoration:none;transition:transform .25s var(--ease),background .25s var(--ease),color .25s var(--ease)}
+  .btn-main{background:var(--paper);color:var(--ink)}
+  .btn-main:hover{background:var(--warm);color:var(--paper);transform:translateY(-3px)}
+  .btn-ghost{background:transparent;color:var(--paper);border:1px solid #4A4740}
+  .btn-ghost:hover{background:#1B1A17;transform:translateY(-3px)}
+  footer{text-align:center;padding-block:clamp(52px,10vw,88px) clamp(36px,7vw,58px);border-top:1px solid var(--line)}
+  .brand{margin:0;font-weight:900;font-size:clamp(2.2rem,12vw,3.6rem);line-height:1}
+  .brand-sub{margin:12px 0 0;font-size:14px;color:var(--muted)}
+  a:focus-visible{outline:2px solid var(--warm);outline-offset:3px}
+  @media (min-width:600px){.btns{flex-direction:row}.btn{padding:0 34px}}
+  @media (prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none}.cue i{animation:none;opacity:.5}*{transition-duration:.01ms !important}}
+</style>
+<script>document.documentElement.classList.add('js');</script>
+
+<div class="page" lang="he" dir="rtl">
+  <main>
+    <section class="hero">
+      <div class="hero-media" id="heroMedia" aria-hidden="true">
+        <!-- כדי לשים סרטון: להוסיף src ולהסיר hidden -->
+        <video hidden src="" muted loop playsinline autoplay preload="none"></video>
+        <div class="fallback" id="heroFallback"></div>
+      </div>
+      <div class="hero-scrim" aria-hidden="true"></div>
+      <div class="hero-in wrap">
+        <p class="eyebrow">אנחנו מזמינים אתכם</p>
+        <h1>ליהי ואדם<span class="sub">חוגגים חתונה</span></h1>
+        <p class="meta"><span>יום חמישי</span><b dir="ltr">18.02.2027</b><span>בית האירועים גלריה, תל אביב</span></p>
+      </div>
+      <div class="cue" id="cue"><span>גללו</span><i></i></div>
+    </section>
+
+    <section class="verse wrap">
+      <p class="reveal">התחלנו כשני זרים בתור לקפה.<br><b>עכשיו זה הפרק הכי טוב.</b></p>
+      <p class="families reveal" style="--d:150ms">יעל ומשה פרידמן<br>רונית ואבי נחום</p>
+    </section>
+
+    <section class="film" id="film">
+      <div class="film-sticky">
+        <div class="film-head">
+          <h2>הסיפור שלנו</h2>
+          <p>גללו למטה והתמונות זזות הצידה</p>
+        </div>
+        <div class="track" id="track">
+          <figure class="frame"><div class="shot"><video hidden src="" muted loop playsinline preload="none"></video><div class="ph" data-ph="1"></div></div><figcaption class="cap"><b>התור לקפה</b><span dir="ltr">2019</span></figcaption></figure>
+          <figure class="frame"><div class="shot"><video hidden src="" muted loop playsinline preload="none"></video><div class="ph" data-ph="2"></div></div><figcaption class="cap"><b>הדירה הראשונה</b><span dir="ltr">2021</span></figcaption></figure>
+          <figure class="frame"><div class="shot"><video hidden src="" muted loop playsinline preload="none"></video><div class="ph" data-ph="3"></div></div><figcaption class="cap"><b>הטיול הגדול</b><span dir="ltr">2023</span></figcaption></figure>
+          <figure class="frame"><div class="shot"><video hidden src="" muted loop playsinline preload="none"></video><div class="ph" data-ph="4"></div></div><figcaption class="cap"><b>ההצעה בחוף</b><span dir="ltr">2026</span></figcaption></figure>
+          <figure class="frame"><div class="shot"><video hidden src="" muted loop playsinline preload="none"></video><div class="ph" data-ph="5"></div></div><figcaption class="cap"><b>וזה הערב</b><span dir="ltr">2027</span></figcaption></figure>
+        </div>
+        <div class="progress" aria-hidden="true"><i id="filmBar"></i></div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2 class="lab reveal" style="margin:0 0 14px">הפרטים</h2>
+      <dl class="index reveal" style="--d:80ms">
+        <div class="row"><dt>תאריך</dt><dd dir="ltr">18.02.2027<small style="direction:rtl">יום חמישי</small></dd></div>
+        <div class="row"><dt>קבלת פנים</dt><dd dir="ltr">19:30</dd></div>
+        <div class="row"><dt>חופה</dt><dd dir="ltr">20:30</dd></div>
+        <div class="row"><dt>מקום</dt><dd>גלריה<small>הרצל 112, תל אביב · חניון ברחוב סמוך</small></dd></div>
+        <div class="row"><dt>קוד לבוש</dt><dd>ערב, בלי עניבות<small>נעליים נוחות, רוקדים בחוץ</small></dd></div>
+      </dl>
+    </section>
+
+    <section class="wrap">
+      <h2 class="lab reveal" style="margin:0 0 14px">נותרו</h2>
+      <div class="clock reveal" style="--d:80ms">
+        <div class="unit"><b id="cd-d">--</b><span>ימים</span></div>
+        <div class="unit"><b id="cd-h">--</b><span>שעות</span></div>
+        <div class="unit"><b id="cd-m">--</b><span>דקות</span></div>
+        <div class="unit"><b id="cd-s">--</b><span>שניות</span></div>
+      </div>
+    </section>
+
+    <section class="rsvp">
+      <div class="wrap">
+        <h2 class="reveal">מגיעים?</h2>
+        <p class="reveal" style="--d:80ms">נשמח לדעת כמה מקומות לשמור. הודעה אחת מספיקה.</p>
+        <div class="btns reveal" style="--d:160ms">
+          <a class="btn btn-main" href="https://wa.me/972500000000?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%97%D7%A0%D7%95%20%D7%9E%D7%92%D7%99%D7%A2%D7%99%D7%9D%21" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Zm5.6 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1a12 12 0 0 1-5.6-4.9c-.4-.6-.9-1.5-.9-2.4s.5-1.4.7-1.6c.2-.2.4-.3.6-.3h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.5l-.3.4c-.1.2-.3.3-.1.6.2.3.7 1.1 1.4 1.8.9.8 1.6 1 1.9 1.2.3.1.4 0 .6-.1l.6-.7c.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.3.1.2.1.6 0 1.3Z"/></svg>
+            אישור הגעה
+          </a>
+          <a class="btn btn-ghost" href="https://waze.com/ul?q=%D7%94%D7%A8%D7%A6%D7%9C%20112%20%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91" rel="noopener">ניווט למקום</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="wrap">
+    <p class="brand reveal">בסימן טוב</p>
+    <p class="brand-sub reveal" style="--d:100ms">הזמנות דיגיטליות שזזות איתכם</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* placeholder art for frames until real footage is dropped in */
+  var SETS=[
+    ['#2B2B28','#6B5A47'],['#25302E','#4E6B5C'],['#332A2A','#7A4F3C'],
+    ['#2A2E38','#4C5A74'],['#3A2F25','#8A6A45']
+  ];
+  [].forEach.call(document.querySelectorAll('.ph'),function(n,i){
+    var s=SETS[i%SETS.length];
+    n.style.background='radial-gradient(70% 55% at 35% 28%,'+s[1]+' 0%,rgba(0,0,0,0) 62%),linear-gradient(200deg,'+s[0]+' 0%,#111 100%)';
+  });
+
+  /* reveal any video that was actually given a src */
+  [].forEach.call(document.querySelectorAll('video'),function(v){
+    if(v.getAttribute('src')){
+      v.hidden=false;
+      var ph=v.parentNode.querySelector('.ph'); if(ph)ph.style.display='none';
+      var fb=document.getElementById('heroFallback');
+      if(fb&&v.parentNode.contains(fb))fb.style.display='none';
+      var pr=v.play(); if(pr&&pr.catch)pr.catch(function(){});
+    }
+  });
+
+  var heroMedia=document.getElementById('heroMedia');
+  var cue=document.getElementById('cue');
+  var film=document.getElementById('film');
+  var track=document.getElementById('track');
+  var bar=document.getElementById('filmBar');
+  var ticking=false;
+
+  function onScroll(){
+    var y=window.scrollY||0,vh=window.innerHeight;
+
+    if(!reduced&&heroMedia){
+      var hp=Math.min(Math.max(y/Math.max(vh,1),0),1);
+      heroMedia.style.transform='translateY('+(y*.22).toFixed(1)+'px) scale('+(1+hp*.14).toFixed(3)+')';
+    }
+    if(cue)cue.style.opacity=y>60?'0':'1';
+
+    if(film&&track){
+      var b=film.getBoundingClientRect();
+      var span=Math.max(film.offsetHeight-vh,1);
+      var p=Math.min(Math.max(-b.top/span,0),1);
+      var over=Math.max(track.scrollWidth-track.clientWidth,0);
+      track.style.transform='translateX('+(p*over).toFixed(1)+'px)';
+      if(bar)bar.style.width=(p*100).toFixed(1)+'%';
+    }
+    ticking=false;
+  }
+  window.addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(onScroll);}},{passive:true});
+  window.addEventListener('resize',function(){requestAnimationFrame(onScroll);});
+
+  var rev=document.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -10% 0px',threshold:.08});
+    [].forEach.call(rev,function(n){io.observe(n);});
+  } else {[].forEach.call(rev,function(n){n.classList.add('in');});}
+
+  var TARGET=new Date('2027-02-18T19:30:00+02:00').getTime();
+  var D=document.getElementById('cd-d'),Hh=document.getElementById('cd-h'),M=document.getElementById('cd-m'),S=document.getElementById('cd-s');
+  function pad(n){return n<10?'0'+n:''+n;}
+  function tick(){var df=TARGET-Date.now();if(df<0)df=0;var s=Math.floor(df/1000);
+    D.textContent=Math.floor(s/86400);Hh.textContent=pad(Math.floor(s/3600)%24);M.textContent=pad(Math.floor(s/60)%60);S.textContent=pad(s%60);}
+  tick();setInterval(tick,1000);
+
+  onScroll();
+})();
+</script>

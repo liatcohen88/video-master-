@@ -1,0 +1,263 @@
+<title>לילה של זהב</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap">
+<style>
+  :root{
+    direction:rtl;
+    --night:#0A0D14; --night-2:#121724; --glass:rgb(255 255 255 / .05);
+    --champagne:#F3E7CE; --gold:#D4AF6A; --gold-dim:#A88848;
+    --muted:#9A9385; --line:rgb(212 175 106 / .22);
+    --radius:16px; --ease:cubic-bezier(.22,1,.36,1);
+    --display:"Frank Ruhl Libre","Times New Roman",serif;
+    --body:"Assistant","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--night);color:var(--champagne);
+    font-family:var(--body);font-size:17px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+    background:
+      radial-gradient(90% 55% at 50% 8%, #1B2133 0%, rgba(27,33,51,0) 62%),
+      radial-gradient(70% 45% at 85% 88%, #16110B 0%, rgba(22,17,11,0) 60%),
+      linear-gradient(180deg,#0A0D14 0%,#0C1019 55%,#080A10 100%);
+  }
+  .stage canvas{position:absolute;inset:0;width:100%;height:100%}
+  /* ⬇⬇ חריץ הווידאו - לשים כאן נתיב לקובץ mp4 ולהסיר את ה-hidden ⬇⬇ */
+  .bgvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.26;filter:saturate(.6) contrast(1.05)}
+  .vign{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% 40%,rgba(10,13,20,0) 0%,rgba(10,13,20,.72) 78%,rgba(8,10,16,.95) 100%)}
+  .grain{position:absolute;inset:0;opacity:.2;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");}
+
+  .page{position:relative;z-index:1}
+  .wrap{width:100%;max-width:620px;margin-inline:auto;padding-inline:22px}
+  section{padding-block:clamp(60px,10vw,108px)}
+  .js .reveal{opacity:0;transform:translateY(22px)}
+  .js .reveal.in{opacity:1;transform:none;transition:opacity 1s var(--ease),transform 1s var(--ease);transition-delay:var(--d,0ms)}
+
+  /* hero */
+  .hero{position:relative;overflow:hidden;min-height:80svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding-block:clamp(60px,12vw,100px) clamp(30px,7vw,54px)}
+  .arch{position:absolute;top:50%;left:50%;transform:translate(-50%,-43%);width:min(90vw,520px);aspect-ratio:.769;pointer-events:none}
+  .arch svg{width:100%;height:100%;overflow:visible}
+  .hero-in{position:relative;z-index:2;animation:settle 1.2s var(--ease) both}
+  .hero-in.d1{animation-delay:.1s}.hero-in.d2{animation-delay:.24s}.hero-in.d3{animation-delay:.38s}
+  @keyframes settle{from{transform:translateY(18px)}to{transform:none}}
+  .eyebrow{margin:0 0 clamp(18px,4.5vw,28px);font-size:14px;font-weight:600;color:var(--gold);display:flex;align-items:center;gap:12px;justify-content:center}
+  .eyebrow::before,.eyebrow::after{content:"";width:clamp(22px,8vw,46px);height:1px;background:var(--line)}
+  .names{margin:0;font-family:var(--display);font-weight:500;font-size:clamp(3rem,15vw,5.6rem);line-height:1.02;display:grid;gap:clamp(2px,1vw,8px);
+    color:var(--champagne);
+    background:linear-gradient(115deg,#F6ECD6 18%,#E8C98C 40%,#FFF8EA 52%,#D9B36E 66%,#F6ECD6 86%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    background-size:220% 100%;animation:sheen 7s var(--ease) infinite}
+  @keyframes sheen{0%,72%{background-position:100% 0}100%{background-position:0 0}}
+  .amp{font-size:.4em;color:var(--gold);font-style:italic;-webkit-text-fill-color:var(--gold);line-height:1;display:block}
+  .kicker{margin:clamp(20px,5vw,30px) 0 0;font-family:var(--display);font-size:clamp(1.02rem,4.2vw,1.26rem);color:var(--muted);font-weight:400}
+  .datestrip{margin:clamp(12px,3.5vw,20px) 0 0;font-size:clamp(1.45rem,6.6vw,2rem);font-weight:300;font-variant-numeric:tabular-nums;color:var(--champagne)}
+  .venue{margin:10px 0 0;color:var(--muted);font-size:15px}
+  .hint{margin-top:clamp(30px,7vw,48px);display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--gold);font-size:13px;font-weight:600;transition:opacity .5s var(--ease)}
+  .hint .stem{width:1px;height:40px;background:linear-gradient(to bottom,var(--gold),rgba(212,175,106,0));animation:drip 2.6s var(--ease) infinite;transform-origin:top}
+  @keyframes drip{0%{transform:scaleY(.15);opacity:0}35%{opacity:1}100%{transform:scaleY(1);opacity:0}}
+
+  .verse{text-align:center}
+  .verse p{margin:0;font-family:var(--display);font-size:clamp(1.2rem,4.8vw,1.55rem);line-height:1.9;text-wrap:balance}
+  .families{margin-top:clamp(24px,6vw,34px);font-family:var(--body);font-size:15px;color:var(--muted);line-height:2}
+  .rule{width:1px;height:clamp(38px,8vw,58px);margin:clamp(24px,6vw,36px) auto;background:linear-gradient(to bottom,rgba(212,175,106,0),var(--gold),rgba(212,175,106,0))}
+  .sec-title{margin:0 0 clamp(20px,5vw,30px);font-family:var(--display);font-size:clamp(1.02rem,4vw,1.18rem);font-weight:500;color:var(--gold);text-align:center}
+
+  .cards{display:grid;gap:13px;grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:22px 16px;text-align:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .card.wide{grid-column:1/-1}
+  .card .lab{display:block;font-size:13px;font-weight:600;color:var(--gold);margin-bottom:6px}
+  .card .val{display:block;font-family:var(--display);font-size:clamp(1.2rem,5.2vw,1.46rem);font-weight:500;line-height:1.35;font-variant-numeric:tabular-nums}
+  .card .sub{display:block;font-size:14px;color:var(--muted);margin-top:4px}
+
+  .clock{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(6px,2.4vw,14px)}
+  .unit{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(14px,3.4vw,20px) 6px;text-align:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .unit b{display:block;font-family:var(--display);font-weight:500;font-size:clamp(1.6rem,7.4vw,2.35rem);line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+  .unit span{display:block;font-size:12.5px;color:var(--muted);margin-top:7px}
+
+  .schedule{position:relative}
+  .rail-track{position:absolute;inset-block:clamp(60px,10vw,108px);inset-inline-start:calc(50% - .5px);width:1px;background:rgb(212 175 106 / .18)}
+  .rail-fill{position:absolute;inset:0;background:linear-gradient(to bottom,var(--gold-dim),var(--gold));transform:scaleY(0);transform-origin:top;will-change:transform}
+  .steps{display:grid;gap:clamp(26px,6.5vw,42px);margin-top:clamp(8px,3vw,16px)}
+  .step{text-align:center}
+  .step .dot{width:11px;height:11px;border-radius:50%;background:var(--night);border:1.5px solid var(--gold-dim);margin:0 auto 13px;transition:background .5s var(--ease),transform .5s var(--ease),box-shadow .5s var(--ease)}
+  .step.lit .dot{background:var(--gold);transform:scale(1.3);box-shadow:0 0 18px rgb(212 175 106 / .6)}
+  .step .time{display:block;font-family:var(--display);font-size:clamp(1.35rem,5.6vw,1.7rem);font-weight:500;font-variant-numeric:tabular-nums}
+  .step .what{display:block;font-size:15px;color:var(--muted);margin-top:3px}
+
+  .rsvp{text-align:center}
+  .rsvp h2{margin:0 0 10px;font-family:var(--display);font-weight:500;font-size:clamp(1.85rem,7.6vw,2.5rem)}
+  .rsvp p{margin:0 auto clamp(24px,6vw,32px);color:var(--muted);max-width:44ch}
+  .btns{display:flex;flex-direction:column;gap:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 26px;border-radius:999px;font-size:17px;font-weight:600;text-decoration:none;transition:transform .3s var(--ease),box-shadow .3s var(--ease),background .3s var(--ease)}
+  .btn-main{background:linear-gradient(120deg,#E3C486,#C9A25C);color:#15110A;box-shadow:0 18px 44px -20px rgb(212 175 106 / .6)}
+  .btn-main:hover{transform:translateY(-3px)}
+  .btn-ghost{background:transparent;color:var(--champagne);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--glass);transform:translateY(-3px)}
+  footer{text-align:center;padding-block:clamp(56px,11vw,94px) clamp(38px,8vw,60px);border-top:1px solid var(--line);margin-top:clamp(18px,5vw,36px)}
+  .brand{margin:0;font-family:var(--display);font-weight:500;font-size:clamp(2.1rem,10vw,3.2rem);color:var(--gold);line-height:1}
+  .brand-sub{margin:13px 0 0;font-size:14px;color:var(--muted)}
+  a:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+  @media (min-width:560px){.btns{flex-direction:row;justify-content:center}.btn{padding:0 34px}}
+  @media (prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none}.hero-in{animation:none}.names{animation:none}.hint .stem{animation:none;opacity:.6}*{transition-duration:.01ms !important}}
+</style>
+<script>document.documentElement.classList.add('js');</script>
+
+<div class="stage" aria-hidden="true">
+  <!-- כדי להכניס סרטון רקע: תנו ל-src נתיב לקובץ mp4 שלכם והסירו את המילה hidden -->
+  <video class="bgvid" hidden src="" muted loop playsinline autoplay preload="none"></video>
+  <canvas id="bokeh"></canvas>
+  <div class="vign"></div>
+  <div class="grain"></div>
+</div>
+
+<div class="page" lang="he" dir="rtl">
+  <main>
+    <section class="hero wrap">
+      <div class="arch" aria-hidden="true"><svg id="arch" viewBox="0 0 200 260"></svg></div>
+      <p class="eyebrow hero-in">ערב אחד, לכל החיים</p>
+      <h1 class="names hero-in d1"><span>שירה</span><span class="amp">&amp;</span><span>יונתן</span></h1>
+      <p class="kicker hero-in d2">מתחתנים</p>
+      <p class="datestrip hero-in d2"><span dir="ltr">03.12.2026</span></p>
+      <p class="venue hero-in d3">יום חמישי · אולמי הזהב, ראשון לציון</p>
+      <div class="hint hero-in d3" id="hint"><span>גללו למטה</span><span class="stem"></span></div>
+    </section>
+
+    <section class="verse wrap">
+      <p class="reveal">כשהערב יורד<br>והאורות נדלקים<br>נשמח שתהיו שם אתנו</p>
+      <div class="rule reveal" style="--d:120ms"></div>
+      <p class="families reveal" style="--d:180ms">אורנה ויעקב מזרחי<br>תמר ואלי ברקוביץ'</p>
+    </section>
+
+    <section class="wrap">
+      <h2 class="sec-title reveal">הפרטים</h2>
+      <div class="cards">
+        <div class="card reveal"><span class="lab">התאריך</span><span class="val" dir="ltr">03.12.2026</span><span class="sub">יום חמישי</span></div>
+        <div class="card reveal" style="--d:90ms"><span class="lab">קבלת פנים</span><span class="val" dir="ltr">20:00</span><span class="sub">חופה ב-21:00</span></div>
+        <div class="card wide reveal" style="--d:180ms"><span class="lab">המקום</span><span class="val">אולמי הזהב</span><span class="sub">שדרות נים 4, ראשון לציון · חניון בתשלום צמוד</span></div>
+      </div>
+    </section>
+
+    <section class="wrap" style="text-align:center">
+      <h2 class="sec-title reveal">הספירה התחילה</h2>
+      <div class="clock reveal" style="--d:90ms">
+        <div class="unit"><b id="cd-d">--</b><span>ימים</span></div>
+        <div class="unit"><b id="cd-h">--</b><span>שעות</span></div>
+        <div class="unit"><b id="cd-m">--</b><span>דקות</span></div>
+        <div class="unit"><b id="cd-s">--</b><span>שניות</span></div>
+      </div>
+    </section>
+
+    <section class="schedule wrap" id="schedule">
+      <div class="rail-track" aria-hidden="true"><div class="rail-fill" id="rail"></div></div>
+      <h2 class="sec-title reveal">מהלך הערב</h2>
+      <div class="steps">
+        <div class="step reveal" data-step><span class="dot"></span><span class="time" dir="ltr">20:00</span><span class="what">קבלת פנים ושמפניה</span></div>
+        <div class="step reveal" data-step style="--d:90ms"><span class="dot"></span><span class="time" dir="ltr">21:00</span><span class="what">חופה באור נרות</span></div>
+        <div class="step reveal" data-step style="--d:180ms"><span class="dot"></span><span class="time" dir="ltr">21:45</span><span class="what">ארוחת ערב</span></div>
+        <div class="step reveal" data-step style="--d:270ms"><span class="dot"></span><span class="time" dir="ltr">22:30</span><span class="what">רוקדים עד הבוקר</span></div>
+      </div>
+    </section>
+
+    <section class="rsvp wrap">
+      <h2 class="reveal">מגיעים?</h2>
+      <p class="reveal" style="--d:90ms">נשמח לדעת כמה מקומות לשמור לכם. הודעה אחת ואתם בפנים.</p>
+      <div class="btns reveal" style="--d:180ms">
+        <a class="btn btn-main" href="https://wa.me/972500000000?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%97%D7%A0%D7%95%20%D7%9E%D7%92%D7%99%D7%A2%D7%99%D7%9D%21" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Zm5.6 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1a12 12 0 0 1-5.6-4.9c-.4-.6-.9-1.5-.9-2.4s.5-1.4.7-1.6c.2-.2.4-.3.6-.3h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.5l-.3.4c-.1.2-.3.3-.1.6.2.3.7 1.1 1.4 1.8.9.8 1.6 1 1.9 1.2.3.1.4 0 .6-.1l.6-.7c.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.3.1.2.1.6 0 1.3Z"/></svg>
+          אישור הגעה בוואטסאפ
+        </a>
+        <a class="btn btn-ghost" href="https://waze.com/ul?q=%D7%A8%D7%90%D7%A9%D7%95%D7%9F%20%D7%9C%D7%A6%D7%99%D7%95%D7%9F" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          ניווט למקום
+        </a>
+      </div>
+    </section>
+  </main>
+  <footer class="wrap">
+    <p class="brand reveal">בסימן טוב</p>
+    <p class="brand-sub reveal" style="--d:100ms">הזמנות דיגיטליות שזזות איתכם</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function el(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+
+  /* ---- gold arch that draws itself on scroll ---- */
+  var arch=document.getElementById('arch');
+  var archPath=el('path',{d:'M 20 260 L 20 80 A 80 80 0 0 1 180 80 L 180 260',fill:'none',stroke:'#C9A25C','stroke-width':1.2,'vector-effect':'non-scaling-stroke',opacity:.9});
+  arch.appendChild(archPath);
+  var inner=el('path',{d:'M 33 260 L 33 84 A 67 67 0 0 1 167 84 L 167 260',fill:'none',stroke:'#C9A25C','stroke-width':.6,'vector-effect':'non-scaling-stroke',opacity:.4});
+  arch.appendChild(inner);
+  for(var s=0;s<16;s++){
+    var ang=Math.PI*(s/15);
+    var cx=100-Math.cos(ang)*80, cy=80-Math.sin(ang)*80;
+    if(cy>82) continue;
+    arch.appendChild(el('circle',{cx:cx.toFixed(1),cy:cy.toFixed(1),r:1.6,fill:'#D4AF6A',opacity:.55}));
+  }
+  var aLen=0; try{aLen=archPath.getTotalLength();}catch(e){}
+  if(aLen){archPath.style.strokeDasharray=aLen;archPath.style.strokeDashoffset=reduced?0:aLen*0.82;}
+
+  /* ---- rising bokeh ---- */
+  var cv=document.getElementById('bokeh'),ctx=cv.getContext('2d');
+  var W=0,H=0,dots=[];
+  function size(){var d=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=Math.round(W*d);cv.height=Math.round(H*d);ctx.setTransform(d,0,0,d,0,0);}
+  function seed(){var n=W<560?18:32;dots=[];for(var i=0;i<n;i++)dots.push({x:Math.random()*W,y:Math.random()*H,r:1+Math.random()*4.5,vy:-(0.08+Math.random()*0.26),phase:Math.random()*6.28,drift:.2+Math.random()*.5,a:.12+Math.random()*.4});}
+  function draw(t){ctx.clearRect(0,0,W,H);for(var i=0;i<dots.length;i++){var p=dots[i];p.y+=p.vy;p.x+=Math.sin(t/2200+p.phase)*p.drift;if(p.y+p.r<0){p.y=H+p.r;p.x=Math.random()*W;}
+    var g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3.2);g.addColorStop(0,'rgba(243,225,180,'+p.a+')');g.addColorStop(1,'rgba(243,225,180,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*3.2,0,6.283);ctx.fill();}}
+  var raf=null;
+  function loop(t){draw(t);raf=requestAnimationFrame(loop);}
+  function start(){if(raf===null&&!reduced)raf=requestAnimationFrame(loop);}
+  function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null;}}
+  size();seed();reduced?draw(0):start();
+  document.addEventListener('visibilitychange',function(){document.hidden?stop():start();});
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){size();seed();if(reduced)draw(0);},180);});
+
+  /* ---- scroll ---- */
+  var archBox=document.querySelector('.arch'),hint=document.getElementById('hint');
+  var rail=document.getElementById('rail'),schedule=document.getElementById('schedule');
+  var steps=[].slice.call(document.querySelectorAll('[data-step]'));
+  var ticking=false;
+  function onScroll(){
+    var y=window.scrollY||0,max=Math.max(document.body.scrollHeight-window.innerHeight,1),p=Math.min(Math.max(y/max,0),1);
+    if(!reduced){
+      if(aLen)archPath.style.strokeDashoffset=(aLen*(1-Math.min(.18+p*1.6,1))).toFixed(1);
+      if(archBox)archBox.style.transform='translate(-50%,-43%) translateY('+(y*.12).toFixed(1)+'px) scale('+(1+p*.06).toFixed(3)+')';
+    }
+    if(hint)hint.style.opacity=y>60?'0':'1';
+    if(schedule&&rail){
+      var b=schedule.getBoundingClientRect(),vh=window.innerHeight;
+      var pr=Math.min(Math.max((vh*.78-b.top)/Math.max(b.height*.82,1),0),1);
+      rail.style.transform='scaleY('+pr.toFixed(3)+')';
+      steps.forEach(function(s,i){s.classList.toggle('lit',pr>=(i+.45)/steps.length);});
+    }
+    ticking=false;
+  }
+  window.addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(onScroll);}},{passive:true});
+  window.addEventListener('resize',function(){requestAnimationFrame(onScroll);});
+
+  var rev=document.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -12% 0px',threshold:.08});
+    [].forEach.call(rev,function(n){io.observe(n);});
+  } else {[].forEach.call(rev,function(n){n.classList.add('in');});}
+
+  var TARGET=new Date('2026-12-03T20:00:00+02:00').getTime();
+  var D=document.getElementById('cd-d'),Hh=document.getElementById('cd-h'),M=document.getElementById('cd-m'),S=document.getElementById('cd-s');
+  function pad(n){return n<10?'0'+n:''+n;}
+  function tick(){var df=TARGET-Date.now();if(df<0)df=0;var s=Math.floor(df/1000);
+    D.textContent=Math.floor(s/86400);Hh.textContent=pad(Math.floor(s/3600)%24);M.textContent=pad(Math.floor(s/60)%60);S.textContent=pad(s%60);}
+  tick();setInterval(tick,1000);
+
+  var v=document.querySelector('.bgvid');
+  if(v&&v.getAttribute('src'))v.hidden=false;
+  onScroll();
+})();
+</script>
