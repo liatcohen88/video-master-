@@ -1,0 +1,730 @@
+diff --git a/bridge/server.mjs b/bridge/server.mjs
+index 121c27c..77d91ec 100644
+--- a/bridge/server.mjs
++++ b/bridge/server.mjs
+@@ -519,6 +519,15 @@ immediately, critical, urgent, or danger. You do not use exclamation marks.
+ Use it in roughly half your lines, never twice in one line. In a two-sentence
+ turn it attaches to the end of the FIRST sentence. Never use their name.
+ 
++IN HEBREW. When the user speaks Hebrew, answer in natural, spoken Israeli Hebrew
++in the same composed, dry register: rewritten, never translated word for word.
++Everything above about "sir" is English only. Hebrew has no "sir": never say
++אדוני, גברתי or any other honorific. The user's gender is unknown and must not
++be guessed, so address them in gender-neutral Hebrew: plural forms ("תגידו",
++"רוצים"), infinitives ("אפשר לבדוק") or impersonal phrasing. Refer to yourself
++in masculine forms ("בדקתי", "אני מוכן"). Say numbers, dates and times the way
++Israelis say them out loud. If they switch to English, follow them.
++
+ REPORTING.
+ - Success is impersonal and unframed: "The render is complete." Never "I've
+   finished" or "here's what I found".
+@@ -1877,7 +1886,8 @@ wss.on('connection', (socket) => {
+       // the terminal and rejects newer models set in your settings. Workspace
+       // mode is meant to be that same Claude Code, so use the installed CLI.
+       pathToClaudeCodeExecutable: WORKSPACE
+-        ? (process.env.JARVIS_CLAUDE_PATH ?? join(homedir(), '.local/bin/claude'))
++        ? (process.env.JARVIS_CLAUDE_PATH ??
++          join(homedir(), process.platform === 'win32' ? '.local/bin/claude.exe' : '.local/bin/claude'))
+         : undefined,
+       // No filesystem settings at all. Left to its default the SDK loads
+       // ~/.claude/settings.json and settings.local.json exactly as the CLI
+diff --git a/bridge/whisper.mjs b/bridge/whisper.mjs
+index 8442766..f99735d 100644
+--- a/bridge/whisper.mjs
++++ b/bridge/whisper.mjs
+@@ -64,6 +64,15 @@ export function whisperUnavailable() {
+  */
+ export function startWhisper() {
+   if (proc || unavailable) return
++  // An explicit off switch. The default model (base.en) only knows English,
++  // and once it is warm /health reports that the bridge can transcribe, so the
++  // page routes every utterance to it — Hebrew included, which comes back as
++  // English nonsense. The Hebrew launcher sets this so the browser's own
++  // recogniser, which does speak Hebrew, stays in charge.
++  if (process.env.JARVIS_LOCAL_WHISPER === 'off') {
++    unavailable = true
++    return
++  }
+   const python = resolvePython()
+   if (!python && !existsSync(WORKER)) {
+     unavailable = true
+diff --git a/package.json b/package.json
+index 61a7a6c..de9fc50 100644
+--- a/package.json
++++ b/package.json
+@@ -16,7 +16,7 @@
+     "lint": "oxlint",
+     "preview": "vite preview",
+     "bridge": "node bridge/server.mjs",
+-    "bridge:writes": "JARVIS_ALLOW_WRITES=1 node bridge/server.mjs",
++    "bridge:writes": "node -e \"process.env.JARVIS_ALLOW_WRITES='1'; import('./bridge/server.mjs')\"",
+     "setup": "node scripts/setup.mjs"
+   },
+   "dependencies": {
+diff --git a/scripts/check-i18n.ts b/scripts/check-i18n.ts
+index 00f4f14..5306bbd 100644
+--- a/scripts/check-i18n.ts
++++ b/scripts/check-i18n.ts
+@@ -20,7 +20,7 @@ const source = readFileSync(new URL('../src/lib/i18n.ts', import.meta.url), 'utf
+ const keys = [...source.matchAll(/^  ([a-zA-Z]+):/gm)].map((m) => m[1] as StringKey)
+ assert.ok(keys.length > 40, `expected the whole table, found ${keys.length} keys`)
+ 
+-const LANGS: Lang[] = ['en', 'pt']
++const LANGS: Lang[] = ['en', 'pt', 'he']
+ 
+ /** Words that are the same in both languages, or proper nouns. */
+ const SHARED = new Set(['ONLINE', 'JARVIS', 'normal'])
+@@ -35,6 +35,8 @@ for (const key of new Set(keys)) {
+   if (!SHARED.has(en)) {
+     assert.notEqual(pt, en, `${key} was never translated — still "${en}"`)
+   }
++  // Hebrew shares no words with English, so every entry must differ.
++  assert.notEqual(t('he', key), en, `he.${key} was never translated — still "${en}"`)
+ }
+ 
+ // The pickers must answer in the language asked for, every time. Drawing
+@@ -56,16 +58,23 @@ for (let i = 0; i < 60; i++) {
+ // A Portuguese draw must never be an English line, and the other way round.
+ const ptLines = new Set<string>()
+ const enLines = new Set<string>()
++const heLines = new Set<string>()
+ for (let i = 0; i < 200; i++) {
+   ptLines.add(working('pt')).add(acknowledge('pt')).add(attention('pt'))
+   enLines.add(working('en')).add(acknowledge('en')).add(attention('en'))
++  heLines.add(working('he')).add(acknowledge('he')).add(attention('he'))
+ }
+ for (const line of ptLines) {
+   assert.ok(!enLines.has(line), `"${line}" is drawn in both languages`)
+ }
++for (const line of heLines) {
++  assert.ok(!enLines.has(line) && !ptLines.has(line), `"${line}" is drawn in two languages`)
++  assert.ok(/[\u05D0-\u05EA]/.test(line), `"${line}" is in the Hebrew pool but is not Hebrew`)
++}
+ 
+ assert.equal(iso('pt'), 'pt')
+ assert.equal(iso('en'), 'en')
++assert.equal(iso('he'), 'he')
+ 
+ /**
+  * The first-load default.
+@@ -76,7 +85,8 @@ assert.equal(iso('en'), 'en')
+  * nothing stored the browser decides.
+  */
+ const pick = (stored: string | null, tags: string[]): string => {
+-  if (stored === 'pt' || stored === 'en') return stored
++  if (stored === 'pt' || stored === 'en' || stored === 'he') return stored
++  if (tags.some((tag) => /^(he|iw)\b/i.test(tag ?? ''))) return 'he'
+   return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
+ }
+ 
+@@ -88,5 +98,10 @@ assert.equal(pick(null, []), 'en', 'no answer from the browser falls back to Eng
+ assert.equal(pick('en', ['pt-BR']), 'en', 'a stored choice beats the browser')
+ assert.equal(pick('pt', ['en-US']), 'pt')
+ assert.equal(pick('garbage', ['pt-BR']), 'pt', 'a corrupt stored value is ignored')
++assert.equal(pick(null, ['he-IL', 'he', 'en-US']), 'he', 'a Hebrew browser starts in Hebrew')
++assert.equal(pick(null, ['en-US', 'he']), 'he', 'Hebrew listed second still counts')
++assert.equal(pick(null, ['iw']), 'he', 'the legacy code for Hebrew')
++assert.equal(pick('en', ['he-IL']), 'en', 'a stored choice beats a Hebrew browser')
++assert.equal(pick('he', ['en-US']), 'he')
+ 
+-console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in both languages`)
++console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in all three languages`)
+diff --git a/src/App.tsx b/src/App.tsx
+index 36d9c42..f50b9a6 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -5,7 +5,7 @@ import { Boot } from './ui/Boot'
+ import { Ignition } from './ui/Ignition'
+ import { Diagnostics } from './ui/Diagnostics'
+ import { useStore } from './store'
+-import { startVoice, type Voice, type VoiceMode } from './lib/voice'
++import { startVoice, HE_NAME, type Voice, type VoiceMode } from './lib/voice'
+ import { createSpeaker, cycleVoice, currentVoiceName, watchQuota } from './lib/tts'
+ import * as sfx from './lib/sfx'
+ import * as music from './lib/music'
+@@ -89,15 +89,18 @@ const newId = () =>
+ 
+ /** The same mishearings voice.ts accepts for the wake word — otherwise a turn
+  *  that woke him as "travis" gets that word sent on to the model as a question. */
+-const NAME = '(?:jarvis|jarvys|jervis|travis|jarviss|java\'s|jarv)'
+-/** A bare vocative — "Jarvis", "hey jarvis" — with nothing asked. */
+-const BARE_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}[\\s,.!?]*$`, 'i')
++const NAME = `(?:jarvis|jarvys|jervis|travis|jarviss|java's|jarv|${HE_NAME})`
++/** Greetings that may come before the name, in English and in Hebrew. */
++const PREFIX = '(?:hey|hi|ok|okay|yo|היי|הי|אהלן|יו|אוקיי|אוקי)'
++/** A bare vocative — "Jarvis", "hey jarvis", "היי ג'רוויס" — with nothing asked. */
++const BARE_NAME = new RegExp(`^${PREFIX}?[\\s,]*${NAME}[\\s,.!?]*$`, 'i')
+ /** A leading vocative on a real command: "Jarvis, what's the weather". */
+-const LEADING_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}\\b[\\s,.:!?-]*`, 'i')
++// Not \b after the name: \b only knows Latin letters, so it never matches after a Hebrew one.
++const LEADING_NAME = new RegExp(`^${PREFIX}?[\\s,]*${NAME}(?![\\w\\u05D0-\\u05EA])[\\s,.:!?-]*`, 'i')
+ /** The one thing that still cuts him off mid-answer: a bare stop word, on its
+  *  own. Everything else said while he is busy goes on the queue. */
+ const STOP_WORD =
+-  /^(?:stop|cancel|wait|hold on|enough|quiet|shut up|never ?mind|forget it)(?:\s+(?:that|it|there|now|please))?[\s,.!?]*$/i
++  /^(?:(?:stop|cancel|wait|hold on|enough|quiet|shut up|never ?mind|forget it)(?:\s+(?:that|it|there|now|please))?|(?:עצור|תעצור|עצרי|תעצרי|תפסיק|תפסיקי|די|מספיק|חכה|תחכה|חכי|תחכי|רגע|שקט|ביטול|בטל|לא משנה|עזוב|עזבי|סטופ)(?:\s+(?:את זה|רגע|בבקשה|עכשיו))?)[\s,.!?]*$/i
+ const BUSY = new Set(['thinking', 'tooling', 'speaking'])
+ 
+ export default function App() {
+diff --git a/src/lib/fillers.ts b/src/lib/fillers.ts
+index 9b267b8..e42c361 100644
+--- a/src/lib/fillers.ts
++++ b/src/lib/fillers.ts
+@@ -22,11 +22,16 @@ import type { Lang } from './i18n'
+  * sits where Portuguese puts it; the participial working lines become the
+  * gerund, which is the natural Brazilian register for the same idea. A literal
+  * pass would produce phrases nobody says out loud, and these are all said out
+- * loud. Each pool keeps the two languages index-aligned so a single pick reads
+- * the same line in either.
++ * loud. Each pool keeps the languages index-aligned so a single pick reads
++ * the same line in any of them.
++ *
++ * The Hebrew follows the same rules and one more: Hebrew has no "sir", and
++ * nothing here may address the user as masculine or feminine. The working
++ * lines become present-tense verbs in JARVIS's own (masculine) voice, which is
++ * how Hebrew says "Compiling." without a subject.
+  */
+ 
+-/** Index-aligned pools: entry n means the same thing in both languages. */
++/** Index-aligned pools: entry n means the same thing in every language. */
+ type Pool = Record<Lang, string[]>
+ 
+ /** Said as soon as the first tool fires, before any answer exists. */
+@@ -51,6 +56,16 @@ const WORKING: Pool = {
+     'Buscando.',
+     'Em andamento.',
+   ],
++  he: [
++    'מטפל בזה.',
++    'מרכז נתונים.',
++    'שולף.',
++    'ניגש לארכיון.',
++    'מצליב נתונים.',
++    'מריץ את השאילתה.',
++    'מחפש.',
++    'בתהליך.',
++  ],
+ }
+ 
+ /** Acknowledging an order where no tool is involved. */
+@@ -71,6 +86,14 @@ const ACKNOWLEDGE: Pool = {
+     'Considere feito.',
+     'Imediatamente, senhor.',
+   ],
++  he: [
++    'כרצונכם.',
++    'טוב מאוד.',
++    'בהחלט.',
++    'מובן.',
++    'תחשבו שזה נעשה.',
++    'מיד.',
++  ],
+ }
+ 
+ /** Answering to his name, before the user has said what they want. */
+@@ -89,6 +112,13 @@ const ATTENTION: Pool = {
+     'Aguardando.',
+     'Acordado, senhor.',
+   ],
++  he: [
++    'כן?',
++    'כאן.',
++    'לשירותכם.',
++    'ממתין.',
++    'ער ומוכן.',
++  ],
+ }
+ 
+ /**
+@@ -138,6 +168,7 @@ type Rule = {
+ const FOOTAGE: Pool = {
+   en: ['Assembling the footage.', 'Rendering the sequence.'],
+   pt: ['Montando as imagens.', 'Renderizando a sequência.'],
++  he: ['מרכיב את הצילומים.', 'מרנדר את הרצף.'],
+ }
+ 
+ const BY_TOOL: Rule[] = [
+@@ -148,14 +179,22 @@ const BY_TOOL: Rule[] = [
+   {
+     server: /higgsfield|openrouter-image|dalle|flux|midjourney/,
+     tool: /image|photo|thumbnail|render|upscale|seedream/,
+-    lines: { en: ['Rendering.', 'Composing it now.'], pt: ['Renderizando.', 'Compondo agora.'] },
++    lines: {
++      en: ['Rendering.', 'Composing it now.'],
++      pt: ['Renderizando.', 'Compondo agora.'],
++      he: ['מרנדר.', 'מרכיב את זה עכשיו.'],
++    },
+   },
+   // The editors, once the two rules that read the verb have had their turn.
+   { server: /palmier|heygen|runway|descript/, lines: FOOTAGE },
+   {
+     server: /playwright|puppeteer|browserbase|chrome/,
+     tool: /\bbrowser\b|navigate/,
+-    lines: { en: ['Opening the browser.', 'Navigating.'], pt: ['Abrindo o navegador.', 'Navegando.'] },
++    lines: {
++      en: ['Opening the browser.', 'Navigating.'],
++      pt: ['Abrindo o navegador.', 'Navegando.'],
++      he: ['פותח את הדפדפן.', 'מנווט.'],
++    },
+   },
+   {
+     server: /android|\badb\b|simulator/,
+@@ -163,6 +202,7 @@ const BY_TOOL: Rule[] = [
+     lines: {
+       en: ['Reaching the device.', 'Connecting to your phone.'],
+       pt: ['Alcançando o aparelho.', 'Conectando ao seu telefone.'],
++      he: ['ניגש למכשיר.', 'מתחבר לטלפון.'],
+     },
+   },
+   {
+@@ -171,6 +211,7 @@ const BY_TOOL: Rule[] = [
+     lines: {
+       en: ['Checking your mail.', 'Reading the inbox.'],
+       pt: ['Verificando sua correspondência.', 'Lendo a caixa de entrada.'],
++      he: ['בודק את המייל.', 'קורא את תיבת הדואר.'],
+     },
+   },
+   // Calendar keys off "calendar" alone. "event" used to live here, which is how
+@@ -180,22 +221,35 @@ const BY_TOOL: Rule[] = [
+     lines: {
+       en: ['Checking your calendar.', 'Consulting the diary.'],
+       pt: ['Verificando sua agenda.', 'Consultando o calendário.'],
++      he: ['בודק את היומן.', 'מעיין ביומן.'],
+     },
+   },
+   {
+     server: /elevenlabs|openai-tts/,
+     tool: /speech|\bvoice\b|\btts\b|text_to_sound/,
+-    lines: { en: ['Synthesising.', 'Working on it, sir.'], pt: ['Sintetizando.', 'Cuidando disso, senhor.'] },
++    lines: {
++      en: ['Synthesising.', 'Working on it, sir.'],
++      pt: ['Sintetizando.', 'Cuidando disso, senhor.'],
++      he: ['מסנתז.', 'מטפל בזה.'],
++    },
+   },
+   {
+     server: /spotify|sonos/,
+     tool: /\bplay\b|\bmusic\b|playlist|\btrack\b/,
+-    lines: { en: ['Queuing it up.', 'Putting it on.'], pt: ['Colocando na fila.', 'Botando pra tocar.'] },
++    lines: {
++      en: ['Queuing it up.', 'Putting it on.'],
++      pt: ['Colocando na fila.', 'Botando pra tocar.'],
++      he: ['מכניס לתור.', 'מפעיל את זה.'],
++    },
+   },
+   {
+     server: /^home|homeassistant|\bhue\b|\bhass\b/,
+     tool: /\blights?\b|thermostat|\bdimmer\b/,
+-    lines: { en: ['Adjusting it now.', 'Seeing to it, sir.'], pt: ['Ajustando agora.', 'Providenciando, senhor.'] },
++    lines: {
++      en: ['Adjusting it now.', 'Seeing to it, sir.'],
++      pt: ['Ajustando agora.', 'Providenciando, senhor.'],
++      he: ['מכוון עכשיו.', 'דואג לזה.'],
++    },
+   },
+   {
+     server: /github|linear|jira|sentry/,
+@@ -203,6 +257,7 @@ const BY_TOOL: Rule[] = [
+     lines: {
+       en: ['Checking the repository.', 'Consulting the tracker.'],
+       pt: ['Verificando o repositório.', 'Consultando o rastreador.'],
++      he: ['בודק את המאגר.', 'מעיין במעקב המשימות.'],
+     },
+   },
+   // Also where the anonymously named analytics servers land — theirs are bare
+@@ -212,12 +267,20 @@ const BY_TOOL: Rule[] = [
+   {
+     server: /mixpanel|clarity|posthog|amplitude/,
+     tool: /analytic|\bmetrics?\b|\breports?\b|\bevents?\b|cohort|funnel|dashboard|\bquery\b/,
+-    lines: { en: ['Running the query.', 'Pulling the figures.'], pt: ['Rodando a consulta.', 'Puxando os números.'] },
++    lines: {
++      en: ['Running the query.', 'Pulling the figures.'],
++      pt: ['Rodando a consulta.', 'Puxando os números.'],
++      he: ['מריץ את השאילתה.', 'שולף את המספרים.'],
++    },
+   },
+   {
+     server: /\bexa\b|serper|serpapi|perplexity|tavily|brave/,
+     tool: /search|\bweb\b|\bfetch\b|crawl|research/,
+-    lines: { en: ['Searching.', 'Consulting the record.'], pt: ['Buscando.', 'Consultando o registro.'] },
++    lines: {
++      en: ['Searching.', 'Consulting the record.'],
++      pt: ['Buscando.', 'Consultando o registro.'],
++      he: ['מחפש.', 'בודק במקורות.'],
++    },
+   },
+ ]
+ 
+diff --git a/src/lib/i18n.ts b/src/lib/i18n.ts
+index c7868ee..61a28c7 100644
+--- a/src/lib/i18n.ts
++++ b/src/lib/i18n.ts
+@@ -1,7 +1,7 @@
+ /**
+- * Two languages, one table.
++ * Three languages, one table.
+  *
+- * No i18n library. There are two locales and about sixty strings, all of them
++ * No i18n library. There are three locales and about sixty strings, all of them
+  * ours, and nothing here needs plurals, gendered agreement or date formats —
+  * the one place that formats a number reads it through the speech synthesiser,
+  * not through Intl. A library would add a dependency, a loader and a key
+@@ -18,7 +18,7 @@
+  *     steered by the transcription language.
+  */
+ 
+-export type Lang = 'en' | 'pt'
++export type Lang = 'en' | 'pt' | 'he'
+ 
+ const en = {
+   // Phase readout, centre of the HUD.
+@@ -104,6 +104,9 @@ const en = {
+     'The speech budget is spent, so his voice is off. Answers still appear on screen.',
+   imageUnavailable: 'image unavailable',
+   videoUnavailable: 'video unavailable',
++  noticeNoHebrewVoice:
++    'No Hebrew voice is installed, so he cannot speak Hebrew. Add one in Windows Settings → ' +
++    'Time & language → Speech → Add voices → Hebrew, then reload the page.',
+ } as const
+ 
+ export type StringKey = keyof typeof en
+@@ -187,9 +190,103 @@ const pt: Record<StringKey, string> = {
+     'Os créditos de voz acabaram, então a voz dele está desligada. As respostas continuam na tela.',
+   imageUnavailable: 'imagem indisponível',
+   videoUnavailable: 'vídeo indisponível',
++  noticeNoHebrewVoice:
++    'Nenhuma voz em hebraico instalada, então ele não consegue falar hebraico. Adicione uma em ' +
++    'Configurações do Windows → Hora e idioma → Fala → Adicionar vozes → Hebraico, e recarregue a página.',
+ }
+ 
+-const TABLE: Record<Lang, Record<StringKey, string>> = { en, pt }
++/**
++ * Hebrew. Rewritten rather than translated, like the Portuguese, with two
++ * rules of its own. Hebrew has no "sir", and the user's gender is unknown, so
++ * nothing here addresses them as masculine or feminine: instructions use the
++ * plural or the infinitive ("אמרו", "לחזור"), which reads as neutral. JARVIS
++ * himself is masculine ("מקשיב", "ממתין"), since that is the character.
++ */
++const he: Record<StringKey, string> = {
++  statusOffline: 'כבוי',
++  statusBoot: 'מאתחל',
++  statusDormant: 'בהמתנה — אמרו “היי ג׳רוויס”',
++  statusWaking: 'מקוון',
++  statusListening: 'מקשיב',
++  statusThinking: 'מעבד',
++  statusTooling: 'ניגש למערכות',
++  statusSpeaking: 'עונה',
++
++  signal: 'אות',
++  muted: 'מושתק',
++  noInput: 'אין קלט',
++  micOn: 'מיקרופון פועל',
++  micOff: 'מיקרופון כבוי',
++  noiseStrict: 'רעש: קפדני',
++  noiseStandard: 'רעש: רגיל',
++  speakerYou: 'אתם',
++  speakerJarvis: 'ג׳רוויס',
++  screenShare: 'שיתוף מסך',
++  camera: 'מצלמה',
++  handControl: 'שליטה בידיים',
++  initialise: 'הפעלה',
++
++  settingsModel: 'מודל',
++  settingsEffort: 'מאמץ',
++  settingsLanguage: 'שפה',
++  settingsNoise: 'סינון רעשים',
++  settingsConversation: 'שיחה',
++  settingsCurrent: 'נוכחית',
++  settingsDefault: 'ברירת מחדל',
++  settingsDefaultFromSettings: 'ברירת מחדל (מההגדרות)',
++  noiseStandardOption: 'רגיל',
++  noiseStrictOption: 'קפדני (לא שומע כלום בזמן שהוא מדבר)',
++  newConversation: 'שיחה חדשה',
++  newConversationHint: 'לשכוח את השיחה הזאת ולהתחיל מחדש',
++  resumeHint: 'לחזור לשיחה קודמת',
++  resumedNote: 'ממשיך מהפעם הקודמת',
++  freshNote: 'התחלה נקייה',
++
++  gesturePoint: 'להזיז את הסמן',
++  gesturePinch: 'לתפוס חלון · להזיז · ללחוץ',
++  gestureOpen: 'לשחרר',
++  gesturePeace: 'שתי אצבעות למעלה ולמטה כדי לגלול',
++  gestureFrame: 'שתי פינות בצורת L כדי לשנות גודל',
++
++  errGeneric: 'משהו השתבש.',
++  errNoAudio: 'לא מגיע קול מהמיקרופון. כדאי לבדוק שהוא לא תפוס בתוכנה אחרת, או לרענן את הדף.',
++  errPowerUp: 'ההפעלה נכשלה. לחיצה תנסה שוב.',
++  errMicDenied: 'הגישה למיקרופון נחסמה, ולכן אי אפשר לדבר בקול.',
++  errMicRefused: 'הגישה למיקרופון נדחתה, ולכן אי אפשר לדבר בקול.',
++  errNoMic: 'לא נמצא מיקרופון.',
++  errNoRecorder: 'הדפדפן הזה לא יודע להקליט, ולכן אי אפשר לדבר בקול.',
++  errNoRecognition:
++    'לדפדפן הזה אין זיהוי דיבור. צריך Chrome, או להפעיל את ה-bridge לתמלול.',
++  errCameraDenied: 'הגישה למצלמה נחסמה, ולכן שליטה בידיים לא זמינה.',
++  errCameraNotPermitted: 'אין הרשאה למצלמה, אז אני לא רואה כלום.',
++  errNoFootage:
++    'אין צילום עדכני. המצלמה צריכה להיות פתוחה על המסך ' +
++    'כדי שאזכור מה קרה הרגע. אפשר לבקש ממני לפתוח את המצלמה, ' +
++    'ומאותו רגע אני עוקב.',
++  errShortFootage: 'אין מספיק צילום עדכני כדי לבדוק.',
++  errScreenCancelled: 'שיתוף המסך בוטל.',
++  errCameraNotAllowed: 'אין הרשאה להשתמש במצלמה.',
++  noticeBridgeLost: 'החיבור ל-bridge נותק, מתחבר מחדש.',
++  noticeBridgeBack: 'ה-bridge חזר. השיחה הקודמת לא נשמרה.',
++  audioTest: 'בדיקת שמע. אם שומעים את זה, הקול עובד.',
++  settingsSpeed: 'קצב דיבור',
++  settingsGap: 'הפסקה בין משפטים',
++  speedNormal: 'רגיל',
++  voiceOn: 'קול פועל',
++  voiceOff: 'קול כבוי',
++  voiceMuteHint: 'להשתיק את הקול שלו. התשובות ממשיכות להופיע על המסך (V)',
++  creditsLabel: 'תקציב קול',
++  creditsSpent: 'תקציב הקול נגמר',
++  noticeQuotaSpent:
++    'תקציב הקול נגמר, ולכן הקול שלו כבוי. התשובות ממשיכות להופיע על המסך.',
++  imageUnavailable: 'התמונה לא זמינה',
++  videoUnavailable: 'הסרטון לא זמין',
++  noticeNoHebrewVoice:
++    'לא מותקן במחשב קול בעברית, ולכן הוא לא יכול לדבר עברית. אפשר להוסיף אותו בהגדרות Windows ← ' +
++    'זמן ושפה ← דיבור ← הוספת קולות ← עברית, ואז לרענן את הדף.',
++}
++
++const TABLE: Record<Lang, Record<StringKey, string>> = { en, pt, he }
+ 
+ /**
+  * Read one string.
+@@ -202,5 +299,7 @@ export function t(lang: Lang, key: StringKey): string {
+   return TABLE[lang][key]
+ }
+ 
+-/** ISO 639-1, for the transcriber and the speech synthesiser. */
+-export const iso = (lang: Lang): string => (lang === 'pt' ? 'pt' : 'en')
++/** ISO 639-1, for the transcriber and the speech synthesiser. The codes
++ *  already are ISO 639-1, so this is the identity; it stays a function so
++ *  callers do not depend on that. */
++export const iso = (lang: Lang): string => lang
+diff --git a/src/lib/tts.ts b/src/lib/tts.ts
+index 38f9307..244d006 100644
+--- a/src/lib/tts.ts
++++ b/src/lib/tts.ts
+@@ -8,7 +8,7 @@ import {
+ } from '../config'
+ import * as kokoro from './kokoro'
+ import { caps } from './capabilities'
+-import { iso } from './i18n'
++import { iso, t } from './i18n'
+ import { useStore } from '../store'
+ 
+ /**
+@@ -253,8 +253,40 @@ function score(v: SpeechSynthesisVoice): number {
+  *  otherwise the picker cycles through a dozen US novelty voices. */
+ const USABLE = 40
+ 
++/** Whether the interface is in Hebrew, which has its own voices. */
++const hebrew = () => useStore.getState().lang === 'he'
++
++/** Hebrew voices report he-IL, and some older engines the legacy iw-IL. */
++const isHebrewVoice = (v: SpeechSynthesisVoice) => /^(he|iw)\b/i.test(v.lang)
++
++/** The Hebrew choice is remembered apart from the English one, so switching
++ *  language never drags an English voice into Hebrew or the other way round. */
++const prefKey = () => (hebrew() ? `${VOICE_PREF_KEY}.he` : VOICE_PREF_KEY)
++
++/**
++ * Hebrew has no butler to find. A natural (neural) voice wins when the browser
++ * offers one, Edge's "Online (Natural)" voices; then a male one, since that is
++ * the character. In Chrome on Windows the usual answer is the system voice
++ * "Microsoft Asaf", which comes with Windows' Hebrew speech pack.
++ */
++function scoreHebrew(v: SpeechSynthesisVoice): number {
++  const n = v.name.toLowerCase()
++  let s = 0
++  if (/natural|online|neural|premium|enhanced/.test(n)) s += 50
++  if (/\b(avri|asaf)\b/.test(n)) s += 20
++  return s
++}
++
+ /** Best-first list of usable voices — also what the voice picker cycles. */
+ export function candidateVoices(): SpeechSynthesisVoice[] {
++  if (hebrew()) {
++    return speechSynthesis
++      .getVoices()
++      .filter(isHebrewVoice)
++      .map((v) => ({ v, s: scoreHebrew(v) }))
++      .sort((a, b) => b.s - a.s)
++      .map((x) => x.v)
++  }
+   return speechSynthesis
+     .getVoices()
+     .filter((v) => /^en/i.test(v.lang))
+@@ -265,20 +297,40 @@ export function candidateVoices(): SpeechSynthesisVoice[] {
+ }
+ 
+ let cachedVoice: SpeechSynthesisVoice | null | undefined
++/** Whether cachedVoice was picked for Hebrew; a language switch re-picks. */
++let cachedHebrew: boolean | undefined
++let warnedNoHebrew = false
++
++/** Say once, in words, that Hebrew speech needs a voice Windows does not have
++ *  yet. Raised when he first tries to speak rather than at page load, where it
++ *  would flash by on the start screen before anyone is looking. */
++function warnNoHebrewVoice() {
++  if (warnedNoHebrew) return
++  warnedNoHebrew = true
++  useStore.getState().setError(t('he', 'noticeNoHebrewVoice'))
++}
+ 
+ function pickVoice(): SpeechSynthesisVoice | null {
+-  if (cachedVoice !== undefined) return cachedVoice
++  if (cachedVoice !== undefined && cachedHebrew === hebrew()) return cachedVoice
+   const all = speechSynthesis.getVoices()
+   if (!all.length) return null // not loaded yet — try again next utterance
++  cachedHebrew = hebrew()
+ 
+   // Honour an explicit choice made with the voice picker. A saved name that no
+   // longer resolves is dropped rather than left to resurrect itself silently
+   // if that voice is ever reinstalled.
+-  const saved = localStorage.getItem(VOICE_PREF_KEY)
++  const key = prefKey()
++  const saved = localStorage.getItem(key)
+   if (saved) {
+     const hit = all.find((v) => v.name === saved)
+     if (hit) return (cachedVoice = hit)
+-    localStorage.removeItem(VOICE_PREF_KEY)
++    localStorage.removeItem(key)
++  }
++
++  if (cachedHebrew) {
++    // No English fallback here: an English voice reading Hebrew is gibberish.
++    cachedVoice = candidateVoices()[0] ?? null
++    return cachedVoice
+   }
+ 
+   cachedVoice = candidateVoices()[0] ?? all.find((v) => /^en/i.test(v.lang)) ?? null
+@@ -304,8 +356,9 @@ export function cycleVoice(): string {
+   const now = pickVoice()
+   const i = list.findIndex((v) => v.name === now?.name)
+   const next = list[(i + 1) % list.length]
+-  localStorage.setItem(VOICE_PREF_KEY, next.name)
++  localStorage.setItem(prefKey(), next.name)
+   cachedVoice = next
++  cachedHebrew = hebrew()
+   return next.name
+ }
+ 
+@@ -542,7 +595,8 @@ export function createSpeaker(): Speaker {
+       const u = new SpeechSynthesisUtterance(text)
+       const voice = pickVoice()
+       if (voice) u.voice = voice
+-      u.lang = voice?.lang ?? 'en-GB'
++      else if (hebrew() && speechSynthesis.getVoices().length) warnNoHebrewVoice()
++      u.lang = voice?.lang ?? (hebrew() ? 'he-IL' : 'en-GB')
+       // 0.92 lands around 130 wpm, below the median for film dialogue, and is
+       // the character's natural pace — steady, unhurried. The multiplier is
+       // the listener's, applied on top: what is invariant is the delivery, not
+diff --git a/src/lib/voice.ts b/src/lib/voice.ts
+index 73b2b22..4a83ee8 100644
+--- a/src/lib/voice.ts
++++ b/src/lib/voice.ts
+@@ -95,9 +95,21 @@ const WAKE_DEBOUNCE = 1500
+  * languages rather than one per language, because the wake word has to work
+  * while the interface is still set to the wrong one: that is precisely when
+  * you need to reach him to change it.
++ *
++ * Hebrew is the second half. A Hebrew transcriber writes the name in Hebrew
++ * letters, spelled several ways (ג'רוויס, ג׳ארוויס, גרוויס, ג'רביס), with the
++ * apostrophe as ', ׳ or ’. JavaScript's \b only knows Latin letters, so the
++ * Hebrew branch marks its edges with explicit Hebrew-letter lookarounds.
+  */
+-const WAKE =
+-  /\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)/i
++const HE_LETTER = '[\u05D0-\u05EA]'
++/** The name as a Hebrew transcriber spells it. Shared with App.tsx. */
++export const HE_NAME = "ג['׳’]?א?ר(?:וו|ו|ב)י[סז]"
++const HE_PREFIX = '(?:היי|הי|אהלן|יו|אוקיי|אוקי)'
++const WAKE = new RegExp(
++  String.raw`\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)` +
++    `|(?<!${HE_LETTER})(?:${HE_PREFIX}[\\s,]*)?${HE_NAME}(?!${HE_LETTER})`,
++  'i',
++)
+ 
+ /** Everything after the wake phrase, which is usually the actual command. */
+ function afterWake(text: string): string {
+@@ -293,8 +305,13 @@ const norm = (s: string) =>
+  * he happens to be saying. Suppressing "stop" because he just said "stop"
+  * would be the single most infuriating failure this file could have.
+  */
+-const OVERRIDE =
+-  /\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b/i
++const OVERRIDE = new RegExp(
++  String.raw`\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b` +
++    // Hebrew: only words he is unlikely to say himself, so his own voice
++    // leaking into the mic does not cut him off ("לא" and "רגע" are left out).
++    `|(?<!${HE_LETTER})(?:עצור|תעצור|עצרי|תעצרי|תפסיק|תפסיקי|חכה|תחכה|חכי|תחכי|שקט|ביטול|סטופ|לא משנה|${HE_NAME})(?!${HE_LETTER})`,
++  'i',
++)
+ 
+ /**
+  * Words too common to be evidence of anything.
+@@ -818,7 +835,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+     rec = new Ctor()
+     rec.continuous = true
+     rec.interimResults = true
+-    rec.lang = 'en-GB'
++    // Hebrew needs a Hebrew recogniser; an English one turns Hebrew speech into
++    // English-sounding nonsense. The other languages keep the original setting.
++    rec.lang = h.lang() === 'he' ? 'he-IL' : 'en-GB'
+     rec.onstart = () => {
+       running = true
+       diag.running = true
+diff --git a/src/store.ts b/src/store.ts
+index 76d9799..9c49ece 100644
+--- a/src/store.ts
++++ b/src/store.ts
+@@ -112,18 +112,20 @@ const LANG_KEY = 'jarvis.lang'
+ const savedLang = (): Lang => {
+   try {
+     const stored = localStorage.getItem(LANG_KEY)
+-    if (stored === 'pt' || stored === 'en') return stored
++    if (stored === 'pt' || stored === 'en' || stored === 'he') return stored
+   } catch {
+     /* private mode: fall through to the browser's own answer */
+   }
+   return fromBrowser()
+ }
+ 
+-/** 'pt' for pt, pt-BR, pt-PT; English for everything else, since English is
+- *  the only other language the table has. */
++/** 'he' when the browser lists Hebrew anywhere (he, he-IL, or the legacy iw):
++ *  Israeli setups often put English first and Hebrew second. Then 'pt' for pt,
++ *  pt-BR, pt-PT, and English for everything else. */
+ const fromBrowser = (): Lang => {
+   try {
+     const tags = [navigator.language, ...(navigator.languages ?? [])]
++    if (tags.some((tag) => /^(he|iw)\b/i.test(tag ?? ''))) return 'he'
+     return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
+   } catch {
+     return 'en'
+diff --git a/src/ui/Hud.tsx b/src/ui/Hud.tsx
+index caf2924..0132fee 100644
+--- a/src/ui/Hud.tsx
++++ b/src/ui/Hud.tsx
+@@ -479,7 +479,7 @@ export function Hud({
+           point of putting it out here instead of in the settings panel.
+         */}
+         <div className="seg" role="group" aria-label={tr('settingsLanguage')}>
+-          {(['pt', 'en'] as const).map((code) => (
++          {(['he', 'en', 'pt'] as const).map((code) => (
+             <button
+               key={code}
+               type="button"
+@@ -600,7 +600,8 @@ export function Hud({
+                 {/* Only his half decodes. What the user said was never
+                     transmitted from anywhere — dressing it up as machine
+                     output would be a lie about where the words came from. */}
+-                <span className="log-text">
++                {/* dir="auto": a Hebrew line reads right to left, an English one left to right. */}
++                <span className="log-text" dir="auto">
+                   {t.role === 'jarvis' ? <DecodeText text={t.text} /> : t.text}
+                 </span>
+               </motion.div>

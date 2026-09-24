@@ -1,2 +1,5 @@
 # cmd.exe needs CRLF line endings in batch files; keep them byte-for-byte.
 *.bat -text
+*.ps1 -text
+# The Hebrew patch must reach git apply exactly as generated.
+*.patch -text
