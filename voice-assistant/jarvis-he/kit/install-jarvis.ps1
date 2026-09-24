@@ -53,10 +53,14 @@ function Start-PowerShell([string]$Command, [switch]$Elevated, [switch]$KeepOpen
     if ($KeepOpen) { $psArgs += '-NoExit' }
     $psArgs += @('-EncodedCommand', $encoded)
     if ($Elevated) {
-        Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs -Verb RunAs -Wait
+        $window = Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs -Verb RunAs -PassThru
     } else {
-        Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs -Wait
+        $window = Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs -PassThru
     }
+    # Waits for this window only. -Wait also waits for anything started from
+    # the window that is still running in the background, so the installer
+    # could sit waiting long after the window was closed.
+    $window.WaitForExit()
 }
 
 function Find-Chrome {
@@ -89,8 +93,9 @@ function Connect-Claude([string]$Why) {
         Update-SessionPath
     }
     if (-not (Test-Command 'claude')) { return }
-    Popup ($Why + "`n`n" + "אחרי לחיצה על אישור ייפתח חלון של Claude Code: לבחור התחברות עם חשבון Claude, ולאשר בדפדפן. אם אין שם אפשרות כזאת, להקליד /login וללחוץ Enter." + "`n`n" + "כשזה נגמר, או אם כבר מחוברים, לסגור את החלון, וההתקנה תמשיך לבד.") | Out-Null
+    Popup ($Why + "`n`n" + "אחרי לחיצה על אישור ייפתח חלון של Claude Code. בוחרים בו עם החיצים ומאשרים עם Enter:" + "`n" + "1. בחירת צבעים: Enter." + "`n" + "2. Select login method: האפשרות הראשונה, Claude account with subscription." + "`n" + "3. בדפדפן שנפתח: להתחבר לחשבון Claude וללחוץ Authorize." + "`n" + "4. בשאר המסכים: Enter, ובשאלה על התיקייה: Yes, I trust this folder." + "`n" + "אם החלון נפתח ישר לשורת כתיבה, להקליד /login וללחוץ Enter." + "`n`n" + "כשמופיעה שורת הכתיבה של Claude Code, לסגור את החלון ב-X, וההתקנה תמשיך לבד.") | Out-Null
     Start-PowerShell 'claude' -KeepOpen
+    Popup ("ההתקנה ממשיכה. זה לוקח עוד כמה דקות, ובסוף ג'יימס נפתח לבד.") | Out-Null
 }
 
 # One tiny question to Claude, asked the way JAMES asks it (brain-check.mjs:
