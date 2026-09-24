@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="he" dir="rtl" data-token="__VA_TOKEN__">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>העוזר הקולי</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body data-state="idle">
+  <div class="app">
+    <header class="topbar">
+      <div class="who">
+        <span class="live-dot" aria-hidden="true"></span>
+        <h1 id="assistantName">העוזר הקולי</h1>
+      </div>
+      <button type="button" class="icon-btn" id="settingsBtn" aria-label="הגדרות" title="הגדרות">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.47.41l-.36 2.54a7.4 7.4 0 0 0-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg>
+      </button>
+    </header>
+
+    <main class="stage">
+      <button type="button" class="orb" id="orb" aria-label="התחלת שיחה">
+        <span class="orb-glow" aria-hidden="true"></span>
+        <span class="orb-body" aria-hidden="true"></span>
+        <span class="orb-shine" aria-hidden="true"></span>
+        <svg class="orb-icon icon-mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72z"/></svg>
+        <svg class="orb-icon icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5a3 3 0 0 0-6 0v.18zM4.27 3 3 4.27l6.01 6.01V11a3 3 0 0 0 3.64 2.92l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73z"/></svg>
+      </button>
+      <p class="status" id="status" role="status" aria-live="polite">טוענים…</p>
+      <p class="hint" id="hint"></p>
+      <div class="controls" id="controls" hidden>
+        <button type="button" class="pill" id="muteBtn" aria-pressed="false">השתקת מיקרופון</button>
+        <button type="button" class="pill pill-ghost" id="endBtn">סיום שיחה</button>
+      </div>
+      <ul class="timers" id="timers" aria-label="טיימרים"></ul>
+    </main>
+
+    <section class="log" id="log" aria-label="תמליל השיחה">
+      <div class="examples" id="examples">
+        <p>אפשר לבקש למשל:</p>
+        <ul>
+          <li>"לפתוח את וורד"</li>
+          <li>"מה מזג האוויר מחר בתל אביב?"</li>
+          <li>"לשים ביוטיוב שיר של עומר אדם"</li>
+          <li>"טיימר לעשר דקות לפסטה"</li>
+          <li>"לרשום פתק: להתקשר לרואה החשבון"</li>
+          <li>"להגביר קצת את הווליום"</li>
+        </ul>
+      </div>
+    </section>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="textInput" type="text" dir="auto" placeholder="אפשר גם להקליד כאן…" aria-label="הודעה בכתב">
+      <button type="submit" class="send" aria-label="שליחה">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12 4 4l2.5 8L4 20z" transform="rotate(180 12 12)"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <div class="overlay" id="settingsOverlay" hidden>
+    <form class="sheet" id="settingsForm" novalidate>
+      <h2>הגדרות</h2>
+      <div class="intro" id="settingsIntro" hidden>
+        <p><strong>ברוכים הבאים!</strong> עוד רגע מדברים עם העוזר. צריך רק מפתח OpenAI, שנותן לעוזר את הקול והמוח.</p>
+        <ol>
+          <li>להיכנס ל-<a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> (אפשר חשבון OpenAI קיים).</li>
+          <li>ללחוץ על <span dir="ltr">Create new secret key</span>, להעתיק ולהדביק כאן.</li>
+        </ol>
+      </div>
+
+      <label class="field">
+        <span>מפתח OpenAI</span>
+        <input id="fKey" type="password" dir="ltr" placeholder="sk-..." autocomplete="off" spellcheck="false">
+        <small id="keyNote">המפתח נשמר רק במחשב הזה.</small>
+      </label>
+
+      <label class="field">
+        <span>שם העוזר</span>
+        <input id="fName" type="text" maxlength="40">
+      </label>
+
+      <label class="field">
+        <span>קול</span>
+        <select id="fVoice"></select>
+      </label>
+
+      <label class="field">
+        <span>צורת הפנייה בשיחה</span>
+        <select id="fAddress">
+          <option value="neutral">ניטרלית (בלי מגדר)</option>
+          <option value="female">לשון נקבה</option>
+          <option value="male">לשון זכר</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>מה חשוב לעוזר לדעת? <em>(לא חובה)</em></span>
+        <textarea id="fAbout" rows="3" maxlength="1500" placeholder="למשל: שם, במה עוסקים, איך אוהבים שידברו…"></textarea>
+      </label>
+
+      <label class="field">
+        <span>מודל</span>
+        <select id="fModel">
+          <option value="gpt-realtime">הכי טבעי: gpt-realtime</option>
+          <option value="gpt-realtime-mini">זול יותר: gpt-realtime-mini</option>
+        </select>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span>קצב דיבור</span>
+          <select id="fSpeed">
+            <option value="0.9">רגוע</option>
+            <option value="1">רגיל</option>
+            <option value="1.15">מהיר</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>סגירה אחרי שקט (דקות)</span>
+          <input id="fIdle" type="number" min="1" max="60" step="1" dir="ltr">
+        </label>
+      </div>
+      <small class="field-note">שיחה פתוחה בלי דיבור נסגרת לבד, כדי לחסוך בעלויות.</small>
+
+      <p class="form-msg" id="formMsg" role="alert"></p>
+      <div class="sheet-actions">
+        <button type="submit" class="btn-primary" id="saveBtn">שמירה</button>
+        <button type="button" class="btn-ghost" id="cancelBtn">ביטול</button>
+      </div>
+      <button type="button" class="link-danger" id="shutdownBtn">כיבוי העוזר</button>
+    </form>
+  </div>
+
+  <div class="overlay gate" id="audioGate" hidden>
+    <button type="button" class="btn-primary" id="audioGateBtn">לחיצה להפעלת השמע</button>
+  </div>
+
+  <div class="overlay gate" id="offline" hidden>
+    <div class="offline-card">
+      <p class="offline-title">העוזר כבוי</p>
+      <p id="offlineText">להפעלה מחדש: לחיצה כפולה על start.bat</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+  <audio id="remoteAudio" autoplay></audio>
+  <script src="/app.js"></script>
+</body>
+</html>
