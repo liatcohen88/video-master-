@@ -102,6 +102,9 @@ const LEADING_NAME = new RegExp(`^${PREFIX}?[\\s,]*${NAME}(?![\\w\\u05D0-\\u05EA
 const STOP_WORD =
   /^(?:(?:stop|cancel|wait|hold on|enough|quiet|shut up|never ?mind|forget it)(?:\s+(?:that|it|there|now|please))?|(?:עצור|תעצור|עצרי|תעצרי|תפסיק|תפסיקי|די|מספיק|חכה|תחכה|חכי|תחכי|רגע|שקט|ביטול|בטל|לא משנה|עזוב|עזבי|סטופ)(?:\s+(?:את זה|רגע|בבקשה|עכשיו))?)[\s,.!?]*$/i
 const BUSY = new Set(['thinking', 'tooling', 'speaking'])
+/** Two claps count as one wake when the second lands in this window (ms). */
+const DOUBLE_CLAP_MIN_MS = 150
+const DOUBLE_CLAP_MAX_MS = 900
 
 export default function App() {
   const store = useStore
@@ -784,6 +787,44 @@ export default function App() {
     void listenForClap(() => {
       if (!gone) void powerOn()
     }).then((l) => {
+      if (gone) l.stop()
+      else live = l
+    })
+    return () => {
+      gone = true
+      live?.stop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  // -- clap twice to wake ---------------------------------------------------
+
+  /**
+   * In standby, two quick claps wake him, the same as saying his name.
+   *
+   * Two, not one: a single sharp sound (a door, a mug set down, a hard key)
+   * happens in any room, but two in a quick, even rhythm almost never happens
+   * by accident. Only while dormant — once he is awake the microphone is busy
+   * with speech, and a clap mid-sentence means nothing.
+   */
+  useEffect(() => {
+    if (phase !== 'dormant') return
+    let live: { stop: () => void } | null = null
+    let gone = false
+    let first = 0
+    void listenForClap(
+      () => {
+        const now = performance.now()
+        const gap = now - first
+        if (first && gap >= DOUBLE_CLAP_MIN_MS && gap <= DOUBLE_CLAP_MAX_MS) {
+          first = 0
+          if (!gone && store.getState().phase === 'dormant') onWake('')
+        } else {
+          first = now
+        }
+      },
+      { cooldownMs: DOUBLE_CLAP_MIN_MS },
+    ).then((l) => {
       if (gone) l.stop()
       else live = l
     })

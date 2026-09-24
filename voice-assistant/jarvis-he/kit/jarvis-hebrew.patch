@@ -174,7 +174,7 @@ index 00f4f14..2c223bf 100644
 -console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in both languages`)
 +console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in all three languages`)
 diff --git a/src/App.tsx b/src/App.tsx
-index 36d9c42..705988a 100644
+index 36d9c42..4b207cc 100644
 --- a/src/App.tsx
 +++ b/src/App.tsx
 @@ -5,7 +5,7 @@ import { Boot } from './ui/Boot'
@@ -186,7 +186,7 @@ index 36d9c42..705988a 100644
  import { createSpeaker, cycleVoice, currentVoiceName, watchQuota } from './lib/tts'
  import * as sfx from './lib/sfx'
  import * as music from './lib/music'
-@@ -89,15 +89,18 @@ const newId = () =>
+@@ -89,16 +89,22 @@ const newId = () =>
  
  /** The same mishearings voice.ts accepts for the wake word — otherwise a turn
   *  that woke him as "travis" gets that word sent on to the model as a question. */
@@ -208,8 +208,84 @@ index 36d9c42..705988a 100644
 -  /^(?:stop|cancel|wait|hold on|enough|quiet|shut up|never ?mind|forget it)(?:\s+(?:that|it|there|now|please))?[\s,.!?]*$/i
 +  /^(?:(?:stop|cancel|wait|hold on|enough|quiet|shut up|never ?mind|forget it)(?:\s+(?:that|it|there|now|please))?|(?:עצור|תעצור|עצרי|תעצרי|תפסיק|תפסיקי|די|מספיק|חכה|תחכה|חכי|תחכי|רגע|שקט|ביטול|בטל|לא משנה|עזוב|עזבי|סטופ)(?:\s+(?:את זה|רגע|בבקשה|עכשיו))?)[\s,.!?]*$/i
  const BUSY = new Set(['thinking', 'tooling', 'speaking'])
++/** Two claps count as one wake when the second lands in this window (ms). */
++const DOUBLE_CLAP_MIN_MS = 150
++const DOUBLE_CLAP_MAX_MS = 900
  
  export default function App() {
+   const store = useStore
+@@ -791,6 +797,44 @@ export default function App() {
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [phase])
+ 
++  // -- clap twice to wake ---------------------------------------------------
++
++  /**
++   * In standby, two quick claps wake him, the same as saying his name.
++   *
++   * Two, not one: a single sharp sound (a door, a mug set down, a hard key)
++   * happens in any room, but two in a quick, even rhythm almost never happens
++   * by accident. Only while dormant — once he is awake the microphone is busy
++   * with speech, and a clap mid-sentence means nothing.
++   */
++  useEffect(() => {
++    if (phase !== 'dormant') return
++    let live: { stop: () => void } | null = null
++    let gone = false
++    let first = 0
++    void listenForClap(
++      () => {
++        const now = performance.now()
++        const gap = now - first
++        if (first && gap >= DOUBLE_CLAP_MIN_MS && gap <= DOUBLE_CLAP_MAX_MS) {
++          first = 0
++          if (!gone && store.getState().phase === 'dormant') onWake('')
++        } else {
++          first = now
++        }
++      },
++      { cooldownMs: DOUBLE_CLAP_MIN_MS },
++    ).then((l) => {
++      if (gone) l.stop()
++      else live = l
++    })
++    return () => {
++      gone = true
++      live?.stop()
++    }
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [phase])
++
+   // -- mute -------------------------------------------------------------------
+ 
+   /**
+diff --git a/src/lib/clap.ts b/src/lib/clap.ts
+index f468120..c72d965 100644
+--- a/src/lib/clap.ts
++++ b/src/lib/clap.ts
+@@ -60,7 +60,12 @@ if (typeof window !== 'undefined') {
+  * button, not a requirement, and an interface that reports an error about a
+  * feature the user never asked for is worse than one that quietly does without.
+  */
+-export async function listenForClap(onClap: () => void): Promise<ClapListener> {
++export async function listenForClap(
++  onClap: () => void,
++  /** A shorter cooldown lets a quick second clap count (clap-clap to wake). */
++  opts: { cooldownMs?: number } = {},
++): Promise<ClapListener> {
++  const cooldownMs = opts.cooldownMs ?? COOLDOWN_MS
+   let stream: MediaStream
+   try {
+     stream = await getMic()
+@@ -130,7 +135,7 @@ export async function listenForClap(onClap: () => void): Promise<ClapListener> {
+       return
+     }
+ 
+-    if (now - lastClap < COOLDOWN_MS) return
++    if (now - lastClap < cooldownMs) return
+     if (level < MIN_PEAK || level < floor * PEAK_OVER_FLOOR) return
+ 
+     // Was the room actually quiet a moment ago? A rise out of noise is a swell,
 diff --git a/src/lib/fillers.ts b/src/lib/fillers.ts
 index 9b267b8..e42c361 100644
 --- a/src/lib/fillers.ts
@@ -400,7 +476,7 @@ index 9b267b8..e42c361 100644
  ]
  
 diff --git a/src/lib/i18n.ts b/src/lib/i18n.ts
-index c7868ee..f80f575 100644
+index c7868ee..af32d69 100644
 --- a/src/lib/i18n.ts
 +++ b/src/lib/i18n.ts
 @@ -1,7 +1,7 @@
@@ -425,11 +501,11 @@ index c7868ee..f80f575 100644
    statusOffline: 'OFFLINE',
    statusBoot: 'INITIALISING',
 -  statusDormant: 'STANDBY — SAY “HEY JARVIS”',
-+  statusDormant: 'STANDBY — SAY “HEY JAMES”',
++  statusDormant: 'STANDBY — SAY “HEY JAMES” OR CLAP TWICE',
    statusWaking: 'ONLINE',
    statusListening: 'LISTENING',
    statusThinking: 'PROCESSING',
-@@ -40,7 +40,7 @@ const en = {
+@@ -40,11 +40,13 @@ const en = {
    noiseStrict: 'NOISE STRICT',
    noiseStandard: 'NOISE STD',
    speakerYou: 'YOU',
@@ -438,7 +514,13 @@ index c7868ee..f80f575 100644
    screenShare: 'Screen share',
    camera: 'Camera',
    handControl: 'HAND CONTROL',
-@@ -104,6 +104,9 @@ const en = {
+   initialise: 'INITIALISE',
++  ignitionHint: 'click, or clap, to power up',
++  skipBoot: 'Skip boot up',
+ 
+   // Settings panel.
+   settingsModel: 'Model',
+@@ -104,6 +106,9 @@ const en = {
      'The speech budget is spent, so his voice is off. Answers still appear on screen.',
    imageUnavailable: 'image unavailable',
    videoUnavailable: 'video unavailable',
@@ -448,16 +530,16 @@ index c7868ee..f80f575 100644
  } as const
  
  export type StringKey = keyof typeof en
-@@ -111,7 +114,7 @@ export type StringKey = keyof typeof en
+@@ -111,7 +116,7 @@ export type StringKey = keyof typeof en
  const pt: Record<StringKey, string> = {
    statusOffline: 'DESLIGADO',
    statusBoot: 'INICIALIZANDO',
 -  statusDormant: 'EM ESPERA — DIGA “EI JARVIS”',
-+  statusDormant: 'EM ESPERA — DIGA “EI JAMES”',
++  statusDormant: 'EM ESPERA — DIGA “EI JAMES” OU BATA PALMAS DUAS VEZES',
    statusWaking: 'ONLINE',
    statusListening: 'OUVINDO',
    statusThinking: 'PROCESSANDO',
-@@ -126,7 +129,7 @@ const pt: Record<StringKey, string> = {
+@@ -126,11 +131,13 @@ const pt: Record<StringKey, string> = {
    noiseStrict: 'RUÍDO ESTRITO',
    noiseStandard: 'RUÍDO PADRÃO',
    speakerYou: 'VOCÊ',
@@ -466,7 +548,13 @@ index c7868ee..f80f575 100644
    screenShare: 'Compartilhar tela',
    camera: 'Câmera',
    handControl: 'CONTROLE POR GESTOS',
-@@ -187,9 +190,104 @@ const pt: Record<StringKey, string> = {
+   initialise: 'INICIALIZAR',
++  ignitionHint: 'clique, ou bata palmas, para ligar',
++  skipBoot: 'Pular a abertura',
+ 
+   settingsModel: 'Modelo',
+   settingsEffort: 'Esforço',
+@@ -187,9 +194,106 @@ const pt: Record<StringKey, string> = {
      'Os créditos de voz acabaram, então a voz dele está desligada. As respostas continuam na tela.',
    imageUnavailable: 'imagem indisponível',
    videoUnavailable: 'vídeo indisponível',
@@ -487,7 +575,7 @@ index c7868ee..f80f575 100644
 +const he: Record<StringKey, string> = {
 +  statusOffline: 'כבוי',
 +  statusBoot: 'מאתחל',
-+  statusDormant: 'בהמתנה — אמרו “היי ג׳יימס”',
++  statusDormant: 'בהמתנה — “היי ג׳יימס” או שתי מחיאות כפיים',
 +  statusWaking: 'מקוון',
 +  statusListening: 'מקשיב',
 +  statusThinking: 'מעבד',
@@ -507,6 +595,8 @@ index c7868ee..f80f575 100644
 +  camera: 'מצלמה',
 +  handControl: 'שליטה בידיים',
 +  initialise: 'הפעלה',
++  ignitionHint: 'לחיצה או מחיאת כף מפעילות אותו',
++  skipBoot: 'דילוג על הפתיחה',
 +
 +  settingsModel: 'מודל',
 +  settingsEffort: 'מאמץ',
@@ -572,7 +662,7 @@ index c7868ee..f80f575 100644
  
  /**
   * Read one string.
-@@ -202,5 +300,7 @@ export function t(lang: Lang, key: StringKey): string {
+@@ -202,5 +306,7 @@ export function t(lang: Lang, key: StringKey): string {
    return TABLE[lang][key]
  }
  
@@ -702,7 +792,7 @@ index 38f9307..244d006 100644
        // the character's natural pace — steady, unhurried. The multiplier is
        // the listener's, applied on top: what is invariant is the delivery, not
 diff --git a/src/lib/voice.ts b/src/lib/voice.ts
-index 73b2b22..588f550 100644
+index 73b2b22..8cc405e 100644
 --- a/src/lib/voice.ts
 +++ b/src/lib/voice.ts
 @@ -95,9 +95,23 @@ const WAKE_DEBOUNCE = 1500
@@ -731,7 +821,44 @@ index 73b2b22..588f550 100644
  
  /** Everything after the wake phrase, which is usually the actual command. */
  function afterWake(text: string): string {
-@@ -293,8 +307,13 @@ const norm = (s: string) =>
+@@ -144,6 +158,11 @@ function afterWake(text: string): string {
+ const CONTINUES =
+   /\b(and|or|but|so|because|since|if|when|while|that|which|who|whose|to|of|in|on|at|by|for|with|from|about|into|onto|over|under|between|through|the|a|an|my|your|his|her|its|our|their|is|are|was|were|be|been|do|does|did|have|has|had|can|could|would|should|will|shall|might|must|like|than|then|as|very|really|just|some|any|all|both|either|neither)$/i
+ 
++/** The same idea for Hebrew, where \b does not work: a request does not end
++ *  on "של", "את", "עם", "או", "אבל"... */
++const HE_CONTINUES =
++  /(?:^|\s)(?:של|את|עם|על|או|אבל|כי|אם|לגבי|בשביל|אל|כמו|וגם|ואז|גם)$/
++
+ /** Trailing punctuation a transcriber emits mid-thought. */
+ const TRAILS = /[,;:–—-]$/
+ 
+@@ -191,7 +210,7 @@ function holdFor(text: string): number {
+   // An explicit terminator is the speaker telling us they are done.
+   if (/[.!?]$/.test(text)) return 0
+   if (TRAILS.test(text.trim())) return CONTINUE_MS
+-  if (CONTINUES.test(words[words.length - 1])) return CONTINUE_MS
++  if (CONTINUES.test(words[words.length - 1]) || HE_CONTINUES.test(text.trim())) return CONTINUE_MS
+   // One or two words is usually the start of something, not the whole of it —
+   // except for the short commands that genuinely are complete.
+   if (words.length <= 2 && !OVERRIDE.test(text)) return CONTINUE_MS
+@@ -281,10 +300,14 @@ function makeAssembler(h: {
+ // Hearing himself
+ // ---------------------------------------------------------------------------
+ 
++// Letters of any script, not just a-z: the Latin-only version reduced every
++// Hebrew sentence to nothing (or to the apostrophe in ג'יימס), so the echo check
++// took whatever was said over his voice for an echo and dropped it, and the
++// duplicate checks took different sentences for the same one.
+ const norm = (s: string) =>
+   s
+     .toLowerCase()
+-    .replace(/[^a-z0-9' ]+/g, ' ')
++    .replace(/[^\p{L}\p{N}' ]+/gu, ' ')
+     .replace(/\s+/g, ' ')
+     .trim()
+ 
+@@ -293,8 +316,13 @@ const norm = (s: string) =>
   * he happens to be saying. Suppressing "stop" because he just said "stop"
   * would be the single most infuriating failure this file could have.
   */
@@ -747,7 +874,47 @@ index 73b2b22..588f550 100644
  
  /**
   * Words too common to be evidence of anything.
-@@ -818,7 +837,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+@@ -665,6 +693,11 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+    *  final copy of the same words has to be recognised and dropped. */
+   let lastEmitted = ''
+   let lastEmittedAt = 0
++  /** The words the silence window was last started for. Chrome keeps
++   *  re-sending an unchanged interim transcript while the room is quiet, and
++   *  restarting the window on every copy is why a finished sentence was never
++   *  sent (KNOWN-ISSUES #1). Only new words restart it now. */
++  let lastHeard = ''
+ 
+   /** Same assembly rules as the premium path — a pause is not a full stop. */
+   const assemble = makeAssembler({
+@@ -690,6 +723,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+     clearSilence()
+     settled = ''
+     interim = ''
++    lastHeard = ''
+     started = false
+     barged = false
+   }
+@@ -726,7 +760,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+     assemble.feed(text, false)
+   }
+ 
+-  const bumpSilence = () => {
++  const bumpSilence = (heard: string) => {
++    if (silenceTimer && heard === lastHeard) return // same words again: keep counting
++    lastHeard = heard
+     clearSilence()
+     // Endpoint on a short quiet gap; the bridge path tunes this more
+     // finely, but a fixed window is plenty for the fallback.
+@@ -810,7 +846,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+     // may be an earlier half of it held by the assembler.
+     const carried = assemble.held()
+     h.onPartial(carried ? `${carried} ${full}` : full)
+-    bumpSilence()
++    bumpSilence(full)
+   }
+ 
+   const spin = () => {
+@@ -818,7 +854,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
      rec = new Ctor()
      rec.continuous = true
      rec.interimResults = true
@@ -839,3 +1006,41 @@ index caf2924..0251e85 100644
                    {t.role === 'jarvis' ? <DecodeText text={t.text} /> : t.text}
                  </span>
                </motion.div>
+diff --git a/src/ui/Ignition.tsx b/src/ui/Ignition.tsx
+index 3566a24..488a66b 100644
+--- a/src/ui/Ignition.tsx
++++ b/src/ui/Ignition.tsx
+@@ -1,4 +1,5 @@
+ import { useStore } from '../store'
++import { t } from '../lib/i18n'
+ 
+ /**
+  * The start gate.
+@@ -41,6 +42,7 @@ export function Ignition({
+   onSkip: () => void
+ }) {
+   const phase = useStore((s) => s.phase)
++  const lang = useStore((s) => s.lang)
+   if (phase !== 'offline') return null
+ 
+   return (
+@@ -54,8 +56,8 @@ export function Ignition({
+       */}
+       <span className="ignition-ring" />
+       <span className="ignition-label">
+-        <span className="ignition-word">INITIALISE</span>
+-        <span className="ignition-sub">click, or clap, to power up</span>
++        <span className="ignition-word">{t(lang, 'initialise')}</span>
++        <span className="ignition-sub">{t(lang, 'ignitionHint')}</span>
+       </span>
+     </button>
+     {/* A sibling, not a child: a button inside a button is invalid markup, and
+@@ -63,7 +65,7 @@ export function Ignition({
+         ignition button so it takes its own clicks. It unmounts with the
+         ignition screen, under the same plain conditional. */}
+     <button className="ignition-skip" onClick={onSkip}>
+-      Skip boot up
++      {t(lang, 'skipBoot')}
+     </button>
+     </>
+   )

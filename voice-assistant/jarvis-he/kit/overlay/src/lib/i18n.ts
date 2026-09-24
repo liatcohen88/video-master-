@@ -24,7 +24,7 @@ const en = {
   // Phase readout, centre of the HUD.
   statusOffline: 'OFFLINE',
   statusBoot: 'INITIALISING',
-  statusDormant: 'STANDBY — SAY “HEY JAMES”',
+  statusDormant: 'STANDBY — SAY “HEY JAMES” OR CLAP TWICE',
   statusWaking: 'ONLINE',
   statusListening: 'LISTENING',
   statusThinking: 'PROCESSING',
@@ -45,6 +45,8 @@ const en = {
   camera: 'Camera',
   handControl: 'HAND CONTROL',
   initialise: 'INITIALISE',
+  ignitionHint: 'click, or clap, to power up',
+  skipBoot: 'Skip boot up',
 
   // Settings panel.
   settingsModel: 'Model',
@@ -114,7 +116,7 @@ export type StringKey = keyof typeof en
 const pt: Record<StringKey, string> = {
   statusOffline: 'DESLIGADO',
   statusBoot: 'INICIALIZANDO',
-  statusDormant: 'EM ESPERA — DIGA “EI JAMES”',
+  statusDormant: 'EM ESPERA — DIGA “EI JAMES” OU BATA PALMAS DUAS VEZES',
   statusWaking: 'ONLINE',
   statusListening: 'OUVINDO',
   statusThinking: 'PROCESSANDO',
@@ -134,6 +136,8 @@ const pt: Record<StringKey, string> = {
   camera: 'Câmera',
   handControl: 'CONTROLE POR GESTOS',
   initialise: 'INICIALIZAR',
+  ignitionHint: 'clique, ou bata palmas, para ligar',
+  skipBoot: 'Pular a abertura',
 
   settingsModel: 'Modelo',
   settingsEffort: 'Esforço',
@@ -206,7 +210,7 @@ const pt: Record<StringKey, string> = {
 const he: Record<StringKey, string> = {
   statusOffline: 'כבוי',
   statusBoot: 'מאתחל',
-  statusDormant: 'בהמתנה — אמרו “היי ג׳יימס”',
+  statusDormant: 'בהמתנה — “היי ג׳יימס” או שתי מחיאות כפיים',
   statusWaking: 'מקוון',
   statusListening: 'מקשיב',
   statusThinking: 'מעבד',
@@ -226,6 +230,8 @@ const he: Record<StringKey, string> = {
   camera: 'מצלמה',
   handControl: 'שליטה בידיים',
   initialise: 'הפעלה',
+  ignitionHint: 'לחיצה או מחיאת כף מפעילות אותו',
+  skipBoot: 'דילוג על הפתיחה',
 
   settingsModel: 'מודל',
   settingsEffort: 'מאמץ',

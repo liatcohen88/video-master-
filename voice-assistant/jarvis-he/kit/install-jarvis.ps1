@@ -68,6 +68,26 @@ function Find-Chrome {
     return $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 }
 
+# An update must not copy files under a running JAMES. Only the instance that
+# owns the bridge port (8787) is closed, with its whole process tree: other
+# Node programs on this computer are left alone.
+function Stop-RunningJames {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $listener = Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $listener) { return }
+        $bridge = Get-CimInstance Win32_Process -Filter "ProcessId = $($listener.OwningProcess)" -ErrorAction SilentlyContinue
+        if (-not $bridge -or $bridge.Name -ne 'node.exe') { return }
+        Write-Host '    Closing the running JAMES first...'
+        & taskkill.exe /PID $bridge.ParentProcessId /T /F 2>$null | Out-Null
+        & taskkill.exe /PID $bridge.ProcessId /T /F 2>$null | Out-Null
+        Start-Sleep -Seconds 2
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 function Test-HebrewVoice {
     $roots = @('HKLM:\SOFTWARE\Microsoft\Speech_OneCore\Voices\Tokens', 'HKLM:\SOFTWARE\Microsoft\Speech\Voices\Tokens')
     foreach ($root in $roots) {
@@ -162,6 +182,7 @@ try {
 
     # 5. The Hebrew edition: the changed files, the launcher and the icon
     Step 'Adding the Hebrew edition'
+    Stop-RunningJames
     $overlay = (Resolve-Path (Join-Path $Kit 'overlay')).ProviderPath
     foreach ($file in Get-ChildItem $overlay -Recurse -File) {
         $relative = $file.FullName.Substring($overlay.Length).TrimStart('\')
@@ -226,7 +247,7 @@ try {
     # 9. Start
     Step 'Starting JAMES'
     Start-Process -FilePath (Join-Path $Target 'start-jarvis.bat') -WorkingDirectory $Target -WindowStyle Minimized
-    Popup ("ג'יימס מותקן!" + "`n`n" + "בעוד רגע ייפתח חלון של Chrome:" + "`n" + "1. ללחוץ על 'הפעלה'." + "`n" + "2. לאשר גישה למיקרופון." + "`n" + "3. להגיד: היי ג'יימס" + "`n`n" + "בפעם הבאה: לחיצה כפולה על ג'יימס בשולחן העבודה." + "`n" + "החלון השחור הממוזער הוא המנוע שלו, וסגירה שלו מכבה אותו.") | Out-Null
+    Popup ("ג'יימס מותקן!" + "`n`n" + "בעוד רגע ייפתח חלון של Chrome:" + "`n" + "1. ללחוץ על 'הפעלה'." + "`n" + "2. לאשר גישה למיקרופון." + "`n" + "3. להגיד: היי ג'יימס, או למחוא כפיים פעמיים" + "`n`n" + "בפעם הבאה: לחיצה כפולה על ג'יימס בשולחן העבודה." + "`n" + "החלון השחור הממוזער הוא המנוע שלו, וסגירה שלו מכבה אותו.") | Out-Null
 }
 catch {
     Write-Host ''

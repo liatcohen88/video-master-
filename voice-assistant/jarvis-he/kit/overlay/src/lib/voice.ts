@@ -158,6 +158,11 @@ function afterWake(text: string): string {
 const CONTINUES =
   /\b(and|or|but|so|because|since|if|when|while|that|which|who|whose|to|of|in|on|at|by|for|with|from|about|into|onto|over|under|between|through|the|a|an|my|your|his|her|its|our|their|is|are|was|were|be|been|do|does|did|have|has|had|can|could|would|should|will|shall|might|must|like|than|then|as|very|really|just|some|any|all|both|either|neither)$/i
 
+/** The same idea for Hebrew, where \b does not work: a request does not end
+ *  on "של", "את", "עם", "או", "אבל"... */
+const HE_CONTINUES =
+  /(?:^|\s)(?:של|את|עם|על|או|אבל|כי|אם|לגבי|בשביל|אל|כמו|וגם|ואז|גם)$/
+
 /** Trailing punctuation a transcriber emits mid-thought. */
 const TRAILS = /[,;:–—-]$/
 
@@ -205,7 +210,7 @@ function holdFor(text: string): number {
   // An explicit terminator is the speaker telling us they are done.
   if (/[.!?]$/.test(text)) return 0
   if (TRAILS.test(text.trim())) return CONTINUE_MS
-  if (CONTINUES.test(words[words.length - 1])) return CONTINUE_MS
+  if (CONTINUES.test(words[words.length - 1]) || HE_CONTINUES.test(text.trim())) return CONTINUE_MS
   // One or two words is usually the start of something, not the whole of it —
   // except for the short commands that genuinely are complete.
   if (words.length <= 2 && !OVERRIDE.test(text)) return CONTINUE_MS
@@ -295,10 +300,14 @@ function makeAssembler(h: {
 // Hearing himself
 // ---------------------------------------------------------------------------
 
+// Letters of any script, not just a-z: the Latin-only version reduced every
+// Hebrew sentence to nothing (or to the apostrophe in ג'יימס), so the echo check
+// took whatever was said over his voice for an echo and dropped it, and the
+// duplicate checks took different sentences for the same one.
 const norm = (s: string) =>
   s
     .toLowerCase()
-    .replace(/[^a-z0-9' ]+/g, ' ')
+    .replace(/[^\p{L}\p{N}' ]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
@@ -684,6 +693,11 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
    *  final copy of the same words has to be recognised and dropped. */
   let lastEmitted = ''
   let lastEmittedAt = 0
+  /** The words the silence window was last started for. Chrome keeps
+   *  re-sending an unchanged interim transcript while the room is quiet, and
+   *  restarting the window on every copy is why a finished sentence was never
+   *  sent (KNOWN-ISSUES #1). Only new words restart it now. */
+  let lastHeard = ''
 
   /** Same assembly rules as the premium path — a pause is not a full stop. */
   const assemble = makeAssembler({
@@ -709,6 +723,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     clearSilence()
     settled = ''
     interim = ''
+    lastHeard = ''
     started = false
     barged = false
   }
@@ -745,7 +760,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     assemble.feed(text, false)
   }
 
-  const bumpSilence = () => {
+  const bumpSilence = (heard: string) => {
+    if (silenceTimer && heard === lastHeard) return // same words again: keep counting
+    lastHeard = heard
     clearSilence()
     // Endpoint on a short quiet gap; the bridge path tunes this more
     // finely, but a fixed window is plenty for the fallback.
@@ -829,7 +846,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     // may be an earlier half of it held by the assembler.
     const carried = assemble.held()
     h.onPartial(carried ? `${carried} ${full}` : full)
-    bumpSilence()
+    bumpSilence(full)
   }
 
   const spin = () => {
