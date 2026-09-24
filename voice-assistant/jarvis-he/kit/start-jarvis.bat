@@ -26,6 +26,9 @@ rem Claude Code on Windows needs Git Bash, and does not always find it alone.
 if not defined CLAUDE_CODE_GIT_BASH_PATH if exist "%ProgramFiles%\Git\bin\bash.exe" set "CLAUDE_CODE_GIT_BASH_PATH=%ProgramFiles%\Git\bin\bash.exe"
 if not defined CLAUDE_CODE_GIT_BASH_PATH if exist "%LOCALAPPDATA%\Programs\Git\bin\bash.exe" set "CLAUDE_CODE_GIT_BASH_PATH=%LOCALAPPDATA%\Programs\Git\bin\bash.exe"
 
+rem A Google voice chosen with SET-VOICE.bat: its key and the voice's name.
+if exist "%~dp0voice-settings.cmd" call "%~dp0voice-settings.cmd"
+
 start "" /b powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0open-jarvis.ps1"
 call npm start
 exit /b

@@ -67,7 +67,7 @@ index 0000000..75c763a
 +  })
 +}
 diff --git a/bridge/server.mjs b/bridge/server.mjs
-index 121c27c..8479152 100644
+index 121c27c..2e1f4e7 100644
 --- a/bridge/server.mjs
 +++ b/bridge/server.mjs
 @@ -20,6 +20,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
@@ -133,7 +133,117 @@ index 121c27c..8479152 100644
  Your eyes:
  - \`look\` takes one frame and lets you see it. \`watch\` takes several seconds and
    returns them as a grid of stamped frames, so you can read movement rather than
-@@ -1569,7 +1595,9 @@ const wss = new WebSocketServer({
+@@ -762,6 +788,29 @@ const langFrom = (raw) => {
+  * credit; a 402 here means that balance is empty.
+  */
+ const FISH_KEY = process.env.FISH_AUDIO_API_KEY ?? null
++
++/**
++ * Google Cloud Text-to-Speech. When JARVIS_GOOGLE_TTS_KEY is set (and Fish's
++ * key is not) it takes over /tts. Its Chirp 3 HD voices speak natural Hebrew,
++ * which neither Windows nor Chrome offers, and the first million characters a
++ * month are free. JARVIS_GOOGLE_VOICE names the voice (the Hebrew edition's
++ * SET-VOICE.bat picks it by ear); JARVIS_GOOGLE_VOICE_EN / _PT can name one
++ * per language, and otherwise the same Chirp 3 HD character is used there.
++ */
++const GOOGLE_TTS_KEY = process.env.JARVIS_GOOGLE_TTS_KEY?.trim() || null
++const GOOGLE_VOICE = process.env.JARVIS_GOOGLE_VOICE?.trim() || 'he-IL-Chirp3-HD-Charon'
++const GOOGLE_LOCALES = { he: 'he-IL', en: 'en-GB', pt: 'pt-BR' }
++const localeOf = (voiceName) => voiceName.split('-').slice(0, 2).join('-')
++const googleVoiceFor = (lang) => {
++  const named = lang && process.env[`JARVIS_GOOGLE_VOICE_${String(lang).toUpperCase()}`]?.trim()
++  if (named) return { languageCode: localeOf(named), name: named }
++  const locale = GOOGLE_LOCALES[lang] ?? localeOf(GOOGLE_VOICE)
++  if (locale === localeOf(GOOGLE_VOICE)) return { languageCode: locale, name: GOOGLE_VOICE }
++  const chirp = GOOGLE_VOICE.match(/-Chirp3-HD-([A-Za-z]+)$/)
++  return chirp
++    ? { languageCode: locale, name: `${locale}-Chirp3-HD-${chirp[1]}` }
++    : { languageCode: locale, ssmlGender: 'MALE' }
++}
+ const FISH_VOICE_ID =
+   process.env.JARVIS_FISH_VOICE_ID ?? '41f0953d7a6b4c078445c7e65d620eeb' // public "JARVIS" voice (British, calm)
+ /**
+@@ -1044,6 +1093,48 @@ function corsFor(req) {
+   return headers
+ }
+ 
++/**
++ * The same, through Google. Not streamed: Google returns each sentence whole,
++ * as base64 inside JSON, in well under a second for a spoken-length sentence.
++ * A refusal is never marked as spent quota. Past the free allowance Google
++ * bills rather than refuses, so a refusal is a key, billing or rate problem,
++ * and the page falls back to the browser voice for that sentence.
++ */
++async function speakGoogle(res, cors, text, lang, speed) {
++  try {
++    const rate = speedFor(speed, 0.25, 2)
++    const upstream = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
++      method: 'POST',
++      headers: { 'x-goog-api-key': GOOGLE_TTS_KEY, 'content-type': 'application/json' },
++      body: JSON.stringify({
++        input: { text },
++        voice: googleVoiceFor(langFrom(lang) ?? 'he'),
++        audioConfig: { audioEncoding: 'MP3', ...(rate && rate !== 1 ? { speakingRate: rate } : {}) },
++      }),
++    })
++    if (!upstream.ok) {
++      const detail = await upstream.text()
++      lastRefusal = 'error'
++      console.warn(`[jarvis] google tts refused (${upstream.status}):`, detail.replace(/\s+/g, ' ').slice(0, 300))
++      res.writeHead(upstream.status, { ...cors, 'x-jarvis-tts': 'error' })
++      return res.end(detail)
++    }
++    const { audioContent } = await upstream.json()
++    const audio = Buffer.from(String(audioContent ?? ''), 'base64')
++    lastRefusal = null
++    res.writeHead(200, {
++      ...cors,
++      'content-type': 'audio/mpeg',
++      'content-length': audio.length,
++      'cache-control': 'no-cache',
++    })
++    return res.end(audio)
++  } catch (err) {
++    res.writeHead(502, cors)
++    return res.end(String(err?.message ?? err))
++  }
++}
++
+ // One HTTP server for both the speech proxy and the WebSocket upgrade.
+ const http = await import('node:http')
+ 
+@@ -1055,6 +1146,7 @@ const http = await import('node:http')
+  * same quota labelling, one place to change either.
+  */
+ async function speak(res, cors, text, lang, speed) {
++  if (!FISH_KEY && GOOGLE_TTS_KEY) return speakGoogle(res, cors, text, lang, speed)
+   try {
+     const upstream = FISH_KEY
+       ? await fetch('https://api.fish.audio/v1/tts', {
+@@ -1193,6 +1285,12 @@ const handleRequest = async (req, res) => {
+       return res.end(JSON.stringify({ ...creditsCache.body, lastRefusal }))
+     }
+ 
++    // Google has no balance to show: past the free allowance it bills.
++    if (GOOGLE_TTS_KEY) {
++      res.writeHead(200, { ...cors, 'content-type': 'application/json' })
++      return res.end(JSON.stringify({ provider: 'google', lastRefusal }))
++    }
++
+     const key = elevenKey()
+     if (!key) {
+       res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+@@ -1241,7 +1339,8 @@ const handleRequest = async (req, res) => {
+     return res.end(
+       JSON.stringify({
+         ok: true,
+-        tts: Boolean(elevenKey()) || Boolean(FISH_KEY),
++        tts: Boolean(elevenKey()) || Boolean(FISH_KEY) || Boolean(GOOGLE_TTS_KEY),
++        ttsName: FISH_KEY ? 'Fish Audio' : GOOGLE_TTS_KEY ? `Google · ${GOOGLE_VOICE.split('-').pop()}` : elevenKey() ? 'ElevenLabs' : null,
+         stt: sttChain().length > 0,
+       }),
+     )
+@@ -1569,7 +1668,9 @@ const wss = new WebSocketServer({
      done(true)
    },
  })
@@ -144,7 +254,16 @@ index 121c27c..8479152 100644
  
  console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
  
-@@ -1606,9 +1634,11 @@ console.log(
+@@ -1581,7 +1682,7 @@ console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
+ // ready and drops out of the chain.
+ startWhisper()
+ console.log(
+-  `[jarvis] speech out ${FISH_KEY ? `via Fish Audio · model ${FISH_MODEL} · voice ${FISH_VOICE_ID}` : elevenKey() ? `via ElevenLabs · voice ${VOICE_ID}` : 'using browser voice'}` +
++  `[jarvis] speech out ${FISH_KEY ? `via Fish Audio · model ${FISH_MODEL} · voice ${FISH_VOICE_ID}` : GOOGLE_TTS_KEY ? `via Google · voice ${GOOGLE_VOICE}` : elevenKey() ? `via ElevenLabs · voice ${VOICE_ID}` : 'using browser voice'}` +
+     (TTS_LANG ? ` · language ${TTS_LANG}` : ''),
+ )
+ console.log(
+@@ -1606,9 +1707,11 @@ console.log(
  // at all because an extension that is simply not running is indistinguishable
  // at the tool boundary from one that is broken, and this is the one place the
  // difference can be stated before anybody asks a question that depends on it.
@@ -158,7 +277,7 @@ index 121c27c..8479152 100644
        ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
        : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
    )
-@@ -1660,6 +1690,20 @@ wss.on('connection', (socket) => {
+@@ -1660,6 +1763,20 @@ wss.on('connection', (socket) => {
  
    socket.send(JSON.stringify(readyMsg(Object.keys(MCP_SERVERS))))
  
@@ -179,7 +298,7 @@ index 121c27c..8479152 100644
    /** Resolves the pending user message into the SDK's input generator. */
    let deliver = null
    let closed = false
-@@ -1677,13 +1721,13 @@ wss.on('connection', (socket) => {
+@@ -1677,13 +1794,13 @@ wss.on('connection', (socket) => {
        // first, so the words read as being about the picture.
        const content =
          typeof text === 'string'
@@ -195,7 +314,7 @@ index 121c27c..8479152 100644
              ]
        yield {
          type: 'user',
-@@ -1835,6 +1879,13 @@ wss.on('connection', (socket) => {
+@@ -1835,6 +1952,13 @@ wss.on('connection', (socket) => {
     */
    let openingQuestion = null
  
@@ -209,7 +328,7 @@ index 121c27c..8479152 100644
    const startSession = (resumeId) => query({
      prompt: userMessages(),
      options: {
-@@ -1857,7 +1908,12 @@ wss.on('connection', (socket) => {
+@@ -1857,7 +1981,12 @@ wss.on('connection', (socket) => {
          // The user's own Chrome, over the extension's native-host socket. It
          // holds no per-connection state, but it is built here with the rest so
          // the write gate is read once, at the same point as everything else.
@@ -223,7 +342,7 @@ index 121c27c..8479152 100644
          // The camera, which unlike everything else here has to ask and wait.
          jarvis_eyes: visionServer(ask),
        },
-@@ -1877,7 +1933,8 @@ wss.on('connection', (socket) => {
+@@ -1877,7 +2006,8 @@ wss.on('connection', (socket) => {
        // the terminal and rejects newer models set in your settings. Workspace
        // mode is meant to be that same Claude Code, so use the installed CLI.
        pathToClaudeCodeExecutable: WORKSPACE
@@ -233,7 +352,7 @@ index 121c27c..8479152 100644
          : undefined,
        // No filesystem settings at all. Left to its default the SDK loads
        // ~/.claude/settings.json and settings.local.json exactly as the CLI
-@@ -1910,6 +1967,9 @@ wss.on('connection', (socket) => {
+@@ -1910,6 +2040,9 @@ wss.on('connection', (socket) => {
        // would sit silent until the entire answer was written. Partial events
        // are what let speech start on the first finished sentence.
        includePartialMessages: true,
@@ -243,7 +362,7 @@ index 121c27c..8479152 100644
        // Signature is (toolName, input, options) and it must return a
        // PermissionResult object. Returning a bare boolean silently denies
        // everything, with the tool name arriving undefined.
-@@ -2059,7 +2119,9 @@ wss.on('connection', (socket) => {
+@@ -2059,7 +2192,9 @@ wss.on('connection', (socket) => {
          clearResume()
        }
        console.error('[jarvis] session error:', err)
@@ -478,6 +597,33 @@ index 36d9c42..86f7bef 100644
    // -- mute -------------------------------------------------------------------
  
    /**
+diff --git a/src/lib/capabilities.ts b/src/lib/capabilities.ts
+index ef9cd4f..b1b573f 100644
+--- a/src/lib/capabilities.ts
++++ b/src/lib/capabilities.ts
+@@ -20,8 +20,10 @@ import { BACKEND, BRIDGE_HTTP_URL, env } from '../config'
+ export type Capabilities = {
+   /** ElevenLabs speech-to-text (Scribe) is reachable via the bridge. */
+   stt: boolean
+-  /** ElevenLabs text-to-speech is reachable via the bridge. */
++  /** A cloud voice (ElevenLabs, Fish or Google) is reachable via the bridge. */
+   tts: boolean
++  /** Which cloud voice that is, for the HUD. */
++  ttsName?: string
+ }
+ 
+ /** Browser-only until the probe says otherwise. Safe default: the app works. */
+@@ -56,8 +58,8 @@ export async function probeCapabilities(): Promise<Capabilities> {
+       signal: AbortSignal.timeout(3000),
+     })
+     if (res.ok) {
+-      const h = (await res.json()) as { stt?: boolean; tts?: boolean }
+-      current = { stt: Boolean(h.stt), tts: Boolean(h.tts) }
++      const h = (await res.json()) as { stt?: boolean; tts?: boolean; ttsName?: string | null }
++      current = { stt: Boolean(h.stt), tts: Boolean(h.tts), ttsName: h.ttsName ?? undefined }
+     }
+   } catch {
+     // Bridge down or slow — stay on the browser engines rather than blocking
 diff --git a/src/lib/clap.ts b/src/lib/clap.ts
 index f468120..c72d965 100644
 --- a/src/lib/clap.ts
@@ -909,7 +1055,7 @@ index c7868ee..9ac8e1d 100644
 + *  callers do not depend on that. */
 +export const iso = (lang: Lang): string => lang
 diff --git a/src/lib/tts.ts b/src/lib/tts.ts
-index 38f9307..244d006 100644
+index 38f9307..0c6367f 100644
 --- a/src/lib/tts.ts
 +++ b/src/lib/tts.ts
 @@ -8,7 +8,7 @@ import {
@@ -1006,6 +1152,15 @@ index 38f9307..244d006 100644
    }
  
    cachedVoice = candidateVoices()[0] ?? all.find((v) => /^en/i.test(v.lang)) ?? null
+@@ -289,7 +341,7 @@ function pickVoice(): SpeechSynthesisVoice | null {
+  *  always naming a speechSynthesis voice that a cloud or neural engine has
+  *  quietly replaced. */
+ export function currentVoiceName(): string {
+-  if (USE_ELEVENLABS || caps().tts) return 'ElevenLabs'
++  if (USE_ELEVENLABS || caps().tts) return caps().ttsName ?? 'ElevenLabs'
+   if (TTS_ENGINE === 'kokoro' && !kokoro.isUnavailable()) {
+     return KOKORO_VOICE.replace(/^bm_/, '')
+   }
 @@ -304,8 +356,9 @@ export function cycleVoice(): string {
    const now = pickVoice()
    const i = list.findIndex((v) => v.name === now?.name)

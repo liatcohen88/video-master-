@@ -788,6 +788,29 @@ const langFrom = (raw) => {
  * credit; a 402 here means that balance is empty.
  */
 const FISH_KEY = process.env.FISH_AUDIO_API_KEY ?? null
+
+/**
+ * Google Cloud Text-to-Speech. When JARVIS_GOOGLE_TTS_KEY is set (and Fish's
+ * key is not) it takes over /tts. Its Chirp 3 HD voices speak natural Hebrew,
+ * which neither Windows nor Chrome offers, and the first million characters a
+ * month are free. JARVIS_GOOGLE_VOICE names the voice (the Hebrew edition's
+ * SET-VOICE.bat picks it by ear); JARVIS_GOOGLE_VOICE_EN / _PT can name one
+ * per language, and otherwise the same Chirp 3 HD character is used there.
+ */
+const GOOGLE_TTS_KEY = process.env.JARVIS_GOOGLE_TTS_KEY?.trim() || null
+const GOOGLE_VOICE = process.env.JARVIS_GOOGLE_VOICE?.trim() || 'he-IL-Chirp3-HD-Charon'
+const GOOGLE_LOCALES = { he: 'he-IL', en: 'en-GB', pt: 'pt-BR' }
+const localeOf = (voiceName) => voiceName.split('-').slice(0, 2).join('-')
+const googleVoiceFor = (lang) => {
+  const named = lang && process.env[`JARVIS_GOOGLE_VOICE_${String(lang).toUpperCase()}`]?.trim()
+  if (named) return { languageCode: localeOf(named), name: named }
+  const locale = GOOGLE_LOCALES[lang] ?? localeOf(GOOGLE_VOICE)
+  if (locale === localeOf(GOOGLE_VOICE)) return { languageCode: locale, name: GOOGLE_VOICE }
+  const chirp = GOOGLE_VOICE.match(/-Chirp3-HD-([A-Za-z]+)$/)
+  return chirp
+    ? { languageCode: locale, name: `${locale}-Chirp3-HD-${chirp[1]}` }
+    : { languageCode: locale, ssmlGender: 'MALE' }
+}
 const FISH_VOICE_ID =
   process.env.JARVIS_FISH_VOICE_ID ?? '41f0953d7a6b4c078445c7e65d620eeb' // public "JARVIS" voice (British, calm)
 /**
@@ -1070,6 +1093,48 @@ function corsFor(req) {
   return headers
 }
 
+/**
+ * The same, through Google. Not streamed: Google returns each sentence whole,
+ * as base64 inside JSON, in well under a second for a spoken-length sentence.
+ * A refusal is never marked as spent quota. Past the free allowance Google
+ * bills rather than refuses, so a refusal is a key, billing or rate problem,
+ * and the page falls back to the browser voice for that sentence.
+ */
+async function speakGoogle(res, cors, text, lang, speed) {
+  try {
+    const rate = speedFor(speed, 0.25, 2)
+    const upstream = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
+      method: 'POST',
+      headers: { 'x-goog-api-key': GOOGLE_TTS_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        input: { text },
+        voice: googleVoiceFor(langFrom(lang) ?? 'he'),
+        audioConfig: { audioEncoding: 'MP3', ...(rate && rate !== 1 ? { speakingRate: rate } : {}) },
+      }),
+    })
+    if (!upstream.ok) {
+      const detail = await upstream.text()
+      lastRefusal = 'error'
+      console.warn(`[jarvis] google tts refused (${upstream.status}):`, detail.replace(/\s+/g, ' ').slice(0, 300))
+      res.writeHead(upstream.status, { ...cors, 'x-jarvis-tts': 'error' })
+      return res.end(detail)
+    }
+    const { audioContent } = await upstream.json()
+    const audio = Buffer.from(String(audioContent ?? ''), 'base64')
+    lastRefusal = null
+    res.writeHead(200, {
+      ...cors,
+      'content-type': 'audio/mpeg',
+      'content-length': audio.length,
+      'cache-control': 'no-cache',
+    })
+    return res.end(audio)
+  } catch (err) {
+    res.writeHead(502, cors)
+    return res.end(String(err?.message ?? err))
+  }
+}
+
 // One HTTP server for both the speech proxy and the WebSocket upgrade.
 const http = await import('node:http')
 
@@ -1081,6 +1146,7 @@ const http = await import('node:http')
  * same quota labelling, one place to change either.
  */
 async function speak(res, cors, text, lang, speed) {
+  if (!FISH_KEY && GOOGLE_TTS_KEY) return speakGoogle(res, cors, text, lang, speed)
   try {
     const upstream = FISH_KEY
       ? await fetch('https://api.fish.audio/v1/tts', {
@@ -1219,6 +1285,12 @@ const handleRequest = async (req, res) => {
       return res.end(JSON.stringify({ ...creditsCache.body, lastRefusal }))
     }
 
+    // Google has no balance to show: past the free allowance it bills.
+    if (GOOGLE_TTS_KEY) {
+      res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ provider: 'google', lastRefusal }))
+    }
+
     const key = elevenKey()
     if (!key) {
       res.writeHead(200, { ...cors, 'content-type': 'application/json' })
@@ -1267,7 +1339,8 @@ const handleRequest = async (req, res) => {
     return res.end(
       JSON.stringify({
         ok: true,
-        tts: Boolean(elevenKey()) || Boolean(FISH_KEY),
+        tts: Boolean(elevenKey()) || Boolean(FISH_KEY) || Boolean(GOOGLE_TTS_KEY),
+        ttsName: FISH_KEY ? 'Fish Audio' : GOOGLE_TTS_KEY ? `Google · ${GOOGLE_VOICE.split('-').pop()}` : elevenKey() ? 'ElevenLabs' : null,
         stt: sttChain().length > 0,
       }),
     )
@@ -1609,7 +1682,7 @@ console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
 // ready and drops out of the chain.
 startWhisper()
 console.log(
-  `[jarvis] speech out ${FISH_KEY ? `via Fish Audio · model ${FISH_MODEL} · voice ${FISH_VOICE_ID}` : elevenKey() ? `via ElevenLabs · voice ${VOICE_ID}` : 'using browser voice'}` +
+  `[jarvis] speech out ${FISH_KEY ? `via Fish Audio · model ${FISH_MODEL} · voice ${FISH_VOICE_ID}` : GOOGLE_TTS_KEY ? `via Google · voice ${GOOGLE_VOICE}` : elevenKey() ? `via ElevenLabs · voice ${VOICE_ID}` : 'using browser voice'}` +
     (TTS_LANG ? ` · language ${TTS_LANG}` : ''),
 )
 console.log(
