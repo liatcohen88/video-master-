@@ -1,8 +1,94 @@
+diff --git a/bridge/open.mjs b/bridge/open.mjs
+new file mode 100644
+index 0000000..75c763a
+--- /dev/null
++++ b/bridge/open.mjs
+@@ -0,0 +1,62 @@
++import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk'
++import { z } from 'zod'
++import { spawn } from 'node:child_process'
++
++/**
++ * Opening a page on the user's screen, in their default browser.
++ *
++ * The chrome_* tools drive Chrome through the Claude extension's native host,
++ * which listens on a Unix socket, so on Windows they can never connect. This
++ * is the simple half of what they do, and it works everywhere: hand the
++ * address to the operating system and let it open the browser. Web addresses
++ * only, so a page read along the way cannot talk it into starting a program.
++ */
++const openWith = (url) =>
++  process.platform === 'win32'
++    ? // No shell: cmd would read the & in a query string as a second command.
++      spawn('rundll32.exe', ['url.dll,FileProtocolHandler', url], {
++        detached: true,
++        stdio: 'ignore',
++        windowsHide: true,
++      })
++    : spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [url], {
++        detached: true,
++        stdio: 'ignore',
++      })
++
++const say = (text) => ({ content: [{ type: 'text', text }] })
++
++export function openServer() {
++  return createSdkMcpServer({
++    name: 'jarvis_open',
++    version: '1.0.0',
++    tools: [
++      tool(
++        'open_url',
++        'Open a web page in the user\'s browser, on their screen: a site, a YouTube or ' +
++          'Google search, a map. Build the full address yourself, for example ' +
++          'https://www.youtube.com/results?search_query=<the words>.',
++        { url: z.string().describe('The full http or https address to open.') },
++        async ({ url }) => {
++          let target
++          try {
++            target = new URL(String(url).trim())
++          } catch {
++            return say('That is not a web address.')
++          }
++          if (target.protocol !== 'https:' && target.protocol !== 'http:') {
++            return say('Only web pages (http or https) can be opened.')
++          }
++          try {
++            const child = openWith(target.href)
++            child.on('error', (err) => console.error('[jarvis] open_url failed:', err?.message ?? err))
++            child.unref()
++          } catch (err) {
++            return say(`The browser could not be opened: ${err?.message ?? err}`)
++          }
++          return say(`Opened ${target.hostname} in the browser.`)
++        },
++      ),
++    ],
++  })
++}
 diff --git a/bridge/server.mjs b/bridge/server.mjs
-index 121c27c..c88cead 100644
+index 121c27c..8479152 100644
 --- a/bridge/server.mjs
 +++ b/bridge/server.mjs
-@@ -488,7 +488,7 @@ function decideTool(name) {
+@@ -20,6 +20,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
+ import { displayServer } from './panels.mjs'
+ import { uiServer } from './ui.mjs'
+ import { chromeAvailable, chromeServer } from './chrome.mjs'
++import { openServer } from './open.mjs'
+ import { visionServer } from './vision.mjs'
+ import { startWhisper, whisperReady, whisperTranscribe, whisperUnavailable } from './whisper.mjs'
+ import { readSessions, noteSession as writeSession } from './sessions.mjs'
+@@ -462,6 +463,9 @@ function decideTool(name) {
+     // here rather than left to the verb rules below, which read `ui_theme` as
+     // a write and would hold the whole surface back behind ALLOW_WRITES.
+     if (server === 'jarvis' || server === 'jarvis_ui') return true
++    // Opening a web page in the user's browser changes nothing, just as
++    // following a link does, and it only takes http and https addresses.
++    if (server === 'jarvis_open') return true
+ 
+     // The browser server gates itself, at construction: chromeServer() only
+     // builds the acting tools — click, type, form input, close tab — when
+@@ -488,7 +492,7 @@ function decideTool(name) {
    return ALLOW_WRITES
  }
  
@@ -11,7 +97,7 @@ index 121c27c..c88cead 100644
  
  TOOLS ARE FOR TASKS, NOT TALK. A greeting, small talk, a yes or no, a question
  about you or your state, or anything you can answer from what you already know is
-@@ -519,6 +519,15 @@ immediately, critical, urgent, or danger. You do not use exclamation marks.
+@@ -519,6 +523,20 @@ immediately, critical, urgent, or danger. You do not use exclamation marks.
  Use it in roughly half your lines, never twice in one line. In a two-sentence
  turn it attaches to the end of the FIRST sentence. Never use their name.
  
@@ -24,10 +110,30 @@ index 121c27c..c88cead 100644
 +in masculine forms ("בדקתי", "אני מוכן"). Say numbers, dates and times the way
 +Israelis say them out loud. If they switch to English, follow them.
 +
++THE TIME. Every message from the user starts with the local date and time in
++square brackets. Use it to answer the time, the date or the day, and for
++anything that depends on it, such as "tomorrow" or "this evening". Never read
++the brackets out or mention that they are there.
++
  REPORTING.
  - Success is impersonal and unframed: "The render is complete." Never "I've
    finished" or "here's what I found".
-@@ -1569,7 +1578,9 @@ const wss = new WebSocketServer({
+@@ -621,6 +639,14 @@ browser or a web page:
+   you are about to do. After it, say what happened.
+ - If the browser is unreachable, say so once and carry on without it.
+ 
++Opening things for them — \`open_url\`:
++- It opens a web page in their own browser, on their screen. Use it when they
++  ask to open, play or go to something on the web: a YouTube search
++  (https://www.youtube.com/results?search_query=...), a Google search, a map, a
++  site. Build the address yourself.
++- When there are no \`chrome_*\` tools, or the browser is unreachable, this is
++  how you put the web in front of them. Say in a few words what you opened.
++
+ Your eyes:
+ - \`look\` takes one frame and lets you see it. \`watch\` takes several seconds and
+   returns them as a grid of stamped frames, so you can read movement rather than
+@@ -1569,7 +1595,9 @@ const wss = new WebSocketServer({
      done(true)
    },
  })
@@ -38,7 +144,58 @@ index 121c27c..c88cead 100644
  
  console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
  
-@@ -1835,6 +1846,13 @@ wss.on('connection', (socket) => {
+@@ -1606,9 +1634,11 @@ console.log(
+ // at all because an extension that is simply not running is indistinguishable
+ // at the tool boundary from one that is broken, and this is the one place the
+ // difference can be stated before anybody asks a question that depends on it.
+-void chromeAvailable().then((ok) => {
++void (process.platform === 'win32' ? Promise.resolve(null) : chromeAvailable()).then((ok) => {
+   console.log(
+-    ok
++    ok === null
++      ? '[jarvis] browser control is not available on Windows; open_url opens pages in the default browser'
++      : ok
+       ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
+       : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
+   )
+@@ -1660,6 +1690,20 @@ wss.on('connection', (socket) => {
+ 
+   socket.send(JSON.stringify(readyMsg(Object.keys(MCP_SERVERS))))
+ 
++  /**
++   * The local date and time, put at the top of every question. The system
++   * prompt is fixed for the whole session, so without this the model has no
++   * idea what time it is, and "what time is it?" gets an apology.
++   */
++  const localNow = () => {
++    const when = new Date().toLocaleString('en-GB', {
++      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
++      hour: '2-digit', minute: '2-digit', hour12: false,
++    })
++    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
++    return `[Local time: ${when}${zone ? `, ${zone}` : ''}]`
++  }
++
+   /** Resolves the pending user message into the SDK's input generator. */
+   let deliver = null
+   let closed = false
+@@ -1677,13 +1721,13 @@ wss.on('connection', (socket) => {
+       // first, so the words read as being about the picture.
+       const content =
+         typeof text === 'string'
+-          ? text
++          ? `${localNow()}\n${text}`
+           : [
+               {
+                 type: 'image',
+                 source: { type: 'base64', media_type: text.image.mimeType, data: text.image.data },
+               },
+-              { type: 'text', text: `[The user is sharing their screen; this is it right now.]\n${text.text}` },
++              { type: 'text', text: `${localNow()}\n[The user is sharing their screen; this is it right now.]\n${text.text}` },
+             ]
+       yield {
+         type: 'user',
+@@ -1835,6 +1879,13 @@ wss.on('connection', (socket) => {
     */
    let openingQuestion = null
  
@@ -52,7 +209,21 @@ index 121c27c..c88cead 100644
    const startSession = (resumeId) => query({
      prompt: userMessages(),
      options: {
-@@ -1877,7 +1895,8 @@ wss.on('connection', (socket) => {
+@@ -1857,7 +1908,12 @@ wss.on('connection', (socket) => {
+         // The user's own Chrome, over the extension's native-host socket. It
+         // holds no per-connection state, but it is built here with the rest so
+         // the write gate is read once, at the same point as everything else.
+-        jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }),
++        // Not on Windows: the extension's native host listens on a Unix socket,
++        // so there it can never connect, and every browsing turn would begin
++        // with a failed chrome_status. open_url covers opening pages there.
++        ...(process.platform === 'win32' ? {} : { jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }) }),
++        // Opening a page in the user's own browser, on every platform.
++        jarvis_open: openServer(),
+         // The camera, which unlike everything else here has to ask and wait.
+         jarvis_eyes: visionServer(ask),
+       },
+@@ -1877,7 +1933,8 @@ wss.on('connection', (socket) => {
        // the terminal and rejects newer models set in your settings. Workspace
        // mode is meant to be that same Claude Code, so use the installed CLI.
        pathToClaudeCodeExecutable: WORKSPACE
@@ -62,7 +233,7 @@ index 121c27c..c88cead 100644
          : undefined,
        // No filesystem settings at all. Left to its default the SDK loads
        // ~/.claude/settings.json and settings.local.json exactly as the CLI
-@@ -1910,6 +1929,9 @@ wss.on('connection', (socket) => {
+@@ -1910,6 +1967,9 @@ wss.on('connection', (socket) => {
        // would sit silent until the entire answer was written. Partial events
        // are what let speech start on the first finished sentence.
        includePartialMessages: true,
@@ -72,7 +243,7 @@ index 121c27c..c88cead 100644
        // Signature is (toolName, input, options) and it must return a
        // PermissionResult object. Returning a bare boolean silently denies
        // everything, with the tool name arriving undefined.
-@@ -2059,7 +2081,9 @@ wss.on('connection', (socket) => {
+@@ -2059,7 +2119,9 @@ wss.on('connection', (socket) => {
          clearResume()
        }
        console.error('[jarvis] session error:', err)
@@ -857,7 +1028,7 @@ index 38f9307..244d006 100644
        // the character's natural pace — steady, unhurried. The multiplier is
        // the listener's, applied on top: what is invariant is the delivery, not
 diff --git a/src/lib/voice.ts b/src/lib/voice.ts
-index 73b2b22..8cc405e 100644
+index 73b2b22..c8e2f5e 100644
 --- a/src/lib/voice.ts
 +++ b/src/lib/voice.ts
 @@ -95,9 +95,23 @@ const WAKE_DEBOUNCE = 1500
@@ -868,7 +1039,7 @@ index 73b2b22..8cc405e 100644
 + * In this Hebrew edition he is called James (ג'יימס); Jarvis still wakes him.
 + *
 + * Hebrew is the second half. A Hebrew transcriber writes the names in Hebrew
-+ * letters, spelled several ways (ג'יימס, ג׳ימס, גיימס; ג'רוויס, ג׳ארוויס, ג'רביס),
++ * letters, spelled several ways (ג'יימס, ג׳ימס, גיימס, ג'מס; ג'רוויס, ג׳ארוויס, ג'רביס),
 + * with the apostrophe as ', ׳ or ’. JavaScript's \b only knows Latin letters,
 + * so the Hebrew branch marks its edges with explicit Hebrew-letter lookarounds.
   */
@@ -876,7 +1047,7 @@ index 73b2b22..8cc405e 100644
 -  /\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)/i
 +const HE_LETTER = '[\u05D0-\u05EA]'
 +/** The names as a Hebrew transcriber spells them. Shared with App.tsx. */
-+export const HE_NAME = "(?:ג['׳’]?י{1,2}מ[סז]|ג['׳’]?א?ר(?:וו|ו|ב)י[סז])"
++export const HE_NAME = "(?:ג['׳’]?י{0,2}מ[סז]|ג['׳’]?א?ר(?:וו|ו|ב)י[סז])"
 +const HE_PREFIX = '(?:היי|הי|אהלן|יו|אוקיי|אוקי)'
 +const WAKE = new RegExp(
 +  String.raw`\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:james|jaymes|jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)` +

@@ -99,13 +99,13 @@ const WAKE_DEBOUNCE = 1500
  * In this Hebrew edition he is called James (ג'יימס); Jarvis still wakes him.
  *
  * Hebrew is the second half. A Hebrew transcriber writes the names in Hebrew
- * letters, spelled several ways (ג'יימס, ג׳ימס, גיימס; ג'רוויס, ג׳ארוויס, ג'רביס),
+ * letters, spelled several ways (ג'יימס, ג׳ימס, גיימס, ג'מס; ג'רוויס, ג׳ארוויס, ג'רביס),
  * with the apostrophe as ', ׳ or ’. JavaScript's \b only knows Latin letters,
  * so the Hebrew branch marks its edges with explicit Hebrew-letter lookarounds.
  */
 const HE_LETTER = '[\u05D0-\u05EA]'
 /** The names as a Hebrew transcriber spells them. Shared with App.tsx. */
-export const HE_NAME = "(?:ג['׳’]?י{1,2}מ[סז]|ג['׳’]?א?ר(?:וו|ו|ב)י[סז])"
+export const HE_NAME = "(?:ג['׳’]?י{0,2}מ[סז]|ג['׳’]?א?ר(?:וו|ו|ב)י[סז])"
 const HE_PREFIX = '(?:היי|הי|אהלן|יו|אוקיי|אוקי)'
 const WAKE = new RegExp(
   String.raw`\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:james|jaymes|jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)` +

@@ -20,6 +20,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk'
 import { displayServer } from './panels.mjs'
 import { uiServer } from './ui.mjs'
 import { chromeAvailable, chromeServer } from './chrome.mjs'
+import { openServer } from './open.mjs'
 import { visionServer } from './vision.mjs'
 import { startWhisper, whisperReady, whisperTranscribe, whisperUnavailable } from './whisper.mjs'
 import { readSessions, noteSession as writeSession } from './sessions.mjs'
@@ -462,6 +463,9 @@ function decideTool(name) {
     // here rather than left to the verb rules below, which read `ui_theme` as
     // a write and would hold the whole surface back behind ALLOW_WRITES.
     if (server === 'jarvis' || server === 'jarvis_ui') return true
+    // Opening a web page in the user's browser changes nothing, just as
+    // following a link does, and it only takes http and https addresses.
+    if (server === 'jarvis_open') return true
 
     // The browser server gates itself, at construction: chromeServer() only
     // builds the acting tools — click, type, form input, close tab — when
@@ -527,6 +531,11 @@ be guessed, so address them in gender-neutral Hebrew: plural forms ("תגידו"
 "רוצים"), infinitives ("אפשר לבדוק") or impersonal phrasing. Refer to yourself
 in masculine forms ("בדקתי", "אני מוכן"). Say numbers, dates and times the way
 Israelis say them out loud. If they switch to English, follow them.
+
+THE TIME. Every message from the user starts with the local date and time in
+square brackets. Use it to answer the time, the date or the day, and for
+anything that depends on it, such as "tomorrow" or "this evening". Never read
+the brackets out or mention that they are there.
 
 REPORTING.
 - Success is impersonal and unframed: "The render is complete." Never "I've
@@ -629,6 +638,14 @@ browser or a web page:
 - Before anything that sends, buys, deletes or posts, say in one sentence what
   you are about to do. After it, say what happened.
 - If the browser is unreachable, say so once and carry on without it.
+
+Opening things for them — \`open_url\`:
+- It opens a web page in their own browser, on their screen. Use it when they
+  ask to open, play or go to something on the web: a YouTube search
+  (https://www.youtube.com/results?search_query=...), a Google search, a map, a
+  site. Build the address yourself.
+- When there are no \`chrome_*\` tools, or the browser is unreachable, this is
+  how you put the web in front of them. Say in a few words what you opened.
 
 Your eyes:
 - \`look\` takes one frame and lets you see it. \`watch\` takes several seconds and
@@ -1617,9 +1634,11 @@ console.log(
 // at all because an extension that is simply not running is indistinguishable
 // at the tool boundary from one that is broken, and this is the one place the
 // difference can be stated before anybody asks a question that depends on it.
-void chromeAvailable().then((ok) => {
+void (process.platform === 'win32' ? Promise.resolve(null) : chromeAvailable()).then((ok) => {
   console.log(
-    ok
+    ok === null
+      ? '[jarvis] browser control is not available on Windows; open_url opens pages in the default browser'
+      : ok
       ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
       : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
   )
@@ -1671,6 +1690,20 @@ wss.on('connection', (socket) => {
 
   socket.send(JSON.stringify(readyMsg(Object.keys(MCP_SERVERS))))
 
+  /**
+   * The local date and time, put at the top of every question. The system
+   * prompt is fixed for the whole session, so without this the model has no
+   * idea what time it is, and "what time is it?" gets an apology.
+   */
+  const localNow = () => {
+    const when = new Date().toLocaleString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return `[Local time: ${when}${zone ? `, ${zone}` : ''}]`
+  }
+
   /** Resolves the pending user message into the SDK's input generator. */
   let deliver = null
   let closed = false
@@ -1688,13 +1721,13 @@ wss.on('connection', (socket) => {
       // first, so the words read as being about the picture.
       const content =
         typeof text === 'string'
-          ? text
+          ? `${localNow()}\n${text}`
           : [
               {
                 type: 'image',
                 source: { type: 'base64', media_type: text.image.mimeType, data: text.image.data },
               },
-              { type: 'text', text: `[The user is sharing their screen; this is it right now.]\n${text.text}` },
+              { type: 'text', text: `${localNow()}\n[The user is sharing their screen; this is it right now.]\n${text.text}` },
             ]
       yield {
         type: 'user',
@@ -1875,7 +1908,12 @@ wss.on('connection', (socket) => {
         // The user's own Chrome, over the extension's native-host socket. It
         // holds no per-connection state, but it is built here with the rest so
         // the write gate is read once, at the same point as everything else.
-        jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }),
+        // Not on Windows: the extension's native host listens on a Unix socket,
+        // so there it can never connect, and every browsing turn would begin
+        // with a failed chrome_status. open_url covers opening pages there.
+        ...(process.platform === 'win32' ? {} : { jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }) }),
+        // Opening a page in the user's own browser, on every platform.
+        jarvis_open: openServer(),
         // The camera, which unlike everything else here has to ask and wait.
         jarvis_eyes: visionServer(ask),
       },
