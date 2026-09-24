@@ -1,0 +1,725 @@
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useStore, accentFor, type Phase } from '../store'
+import { t as translate, type StringKey } from '../lib/i18n'
+import { configure } from '../lib/brain'
+import { BladeSweep, Blades } from './Blades'
+import { Effects } from './Effects'
+import { Pointer } from './Pointer'
+import { GestureGuide } from './GestureGuide'
+
+const statusKey: Record<Phase, StringKey> = {
+  offline: 'statusOffline',
+  boot: 'statusBoot',
+  dormant: 'statusDormant',
+  waking: 'statusWaking',
+  listening: 'statusListening',
+  thinking: 'statusThinking',
+  tooling: 'statusTooling',
+  speaking: 'statusSpeaking',
+}
+
+function Corner({ at }: { at: 'tl' | 'tr' | 'bl' | 'br' }) {
+  return <div className={`corner corner-${at}`} />
+}
+
+/* ------------------------------------------------------------------ decode */
+
+/**
+ * The glyphs the ghost is drawn from. Uppercase, digits and rules only: the
+ * point is that the unresolved text reads as *machine*, so lowercase letters
+ * and anything with a descender are left out — they look like badly rendered
+ * words rather than an unfinished decode.
+ */
+const GLYPHS = '/\\|<>[]{}=+*#%&$0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+
+/** Characters of noise shown ahead of the resolved text. */
+const GHOST = 22
+/** Repaint interval for the scramble. ~24fps is plenty for glyph noise. */
+const FRAME_MS = 42
+/** Floor on the resolve rate, characters per second. */
+const MIN_RATE = 110
+/** The frontier is never allowed to trail the streamed text by longer. */
+const MAX_LAG_MS = 420
+
+function scramble(s: string, seed: number) {
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    // Whitespace is left alone so word shapes and line breaks hold still while
+    // the glyphs underneath churn.
+    if (c === ' ' || c === '\n' || c === '\t') {
+      out += c
+      continue
+    }
+    out += GLYPHS[(seed * 7919 + i * 104729 + c.charCodeAt(0)) % GLYPHS.length]
+  }
+  return out
+}
+
+/**
+ * JARVIS's lines, arriving the way a computer would produce them.
+ *
+ * The hard part is not the effect, it is that the text underneath is *live*.
+ * The store appends a token at a time, so this component re-renders dozens of
+ * times a second with a slightly longer string, and the naive implementation —
+ * scramble the whole thing, resolve it over N milliseconds — restarts the
+ * animation on every token and never finishes decoding anything.
+ *
+ * So the frontier is a ref and only ever moves forward. Everything behind it
+ * has settled and is plain text that will never animate again; a short window
+ * ahead of it is noise; the rest is present in the DOM but invisible, which
+ * keeps the line wrapping identical to the finished paragraph and means the
+ * accessibility tree always holds the real sentence. The rate scales with how
+ * far behind the frontier has fallen, so a single token drips and a 300
+ * character burst clears inside MAX_LAG_MS — the decode must never be the
+ * reason the transcript trails the voice.
+ *
+ * The rAF loop repaints on a 42ms gate rather than every frame, and stops dead
+ * the moment the frontier catches up.
+ */
+function DecodeText({ text }: { text: string }) {
+  const reduced = useReducedMotion()
+  const settled = useRef(0)
+  const raf = useRef(0)
+  const latest = useRef(text)
+  const [tick, bump] = useState(0)
+
+  useEffect(() => {
+    // The running loop reads the length through this ref rather than through
+    // its own closure, so a token landing mid-sweep simply extends the target
+    // instead of leaving the loop chasing a length that is already stale.
+    latest.current = text
+
+    if (reduced) {
+      settled.current = text.length
+      return
+    }
+    if (raf.current || settled.current >= text.length) return
+
+    let prev = performance.now()
+    let painted = 0
+
+    const step = (now: number) => {
+      // Clamped so a backgrounded tab does not resolve the whole answer in one
+      // enormous frame the moment it comes back.
+      const dt = Math.min(now - prev, 120) / 1000
+      prev = now
+
+      const target = latest.current.length
+      const rate = Math.max(MIN_RATE, (target - settled.current) / (MAX_LAG_MS / 1000))
+      settled.current = Math.min(target, settled.current + rate * dt)
+
+      if (now - painted >= FRAME_MS) {
+        painted = now
+        bump((n) => n + 1)
+      }
+
+      if (settled.current < latest.current.length) {
+        raf.current = requestAnimationFrame(step)
+      } else {
+        raf.current = 0
+        bump((n) => n + 1)
+      }
+    }
+    raf.current = requestAnimationFrame(step)
+  }, [text, reduced])
+
+  useEffect(
+    () => () => {
+      if (raf.current) cancelAnimationFrame(raf.current)
+      raf.current = 0
+    },
+    [],
+  )
+
+  const n = Math.floor(settled.current)
+  if (reduced || n >= text.length) return <>{text}</>
+
+  return (
+    <>
+      {text.slice(0, n)}
+      <span className="decode-ghost">{scramble(text.slice(n, n + GHOST), tick)}</span>
+      <span className="decode-veil">{text.slice(n + GHOST)}</span>
+    </>
+  )
+}
+
+/* --------------------------------------------------------------------- hud */
+
+/**
+ * How one past conversation reads in the list.
+ *
+ * The opening question is the only thing that tells two conversations apart at
+ * a glance — a uuid tells you nothing and a timestamp tells you almost nothing
+ * — so it leads, with the age after it for the cases where you asked much the
+ * same thing twice.
+ */
+function sessionLabel(c: { id: string; title?: string; at?: number }): string {
+  const when = c.at ? sinceLabel(Date.now() - c.at) : ''
+  const name = c.title || `session ${c.id.slice(0, 8)}`
+  return when ? `${name} · ${when}` : name
+}
+
+function sinceLabel(ms: number): string {
+  const mins = Math.round(ms / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
+export function Hud({
+  onStop,
+  onSubmitText,
+}: {
+  onStop: () => void
+  onSubmitText: (text: string) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const phase = useStore((s) => s.phase)
+  const caption = useStore((s) => s.caption)
+  const turns = useStore((s) => s.turns)
+  const activeTool = useStore((s) => s.activeTool)
+  const connected = useStore((s) => s.connected)
+  const error = useStore((s) => s.error)
+  const level = useStore((s) => s.level)
+  const voice = useStore((s) => s.voice)
+  const bootNote = useStore((s) => s.bootNote)
+  const gestures = useStore((s) => s.gestures)
+  const looking = useStore((s) => s.looking)
+  const ui = useStore((s) => s.ui)
+  const setError = useStore((s) => s.setError)
+
+  // Notices clear themselves after a few seconds. Most are informational — a
+  // reconnect, a stood-down mic — and a banner that never leaves reads as a
+  // stuck error. The user can also dismiss it with the x.
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(null), 7000)
+    return () => clearTimeout(t)
+  }, [error, setError])
+  const muted = useStore((s) => s.muted)
+  const setMuted = useStore((s) => s.setMuted)
+  const noInput = useStore((s) => s.noInput)
+  const voiceMuted = useStore((s) => s.voiceMuted)
+  const setVoiceMuted = useStore((s) => s.setVoiceMuted)
+  const credits = useStore((s) => s.credits)
+  const voiceSpeed = useStore((s) => s.voiceSpeed)
+  const setVoiceSpeed = useStore((s) => s.setVoiceSpeed)
+  const voiceGap = useStore((s) => s.voiceGap)
+  const setVoiceGap = useStore((s) => s.setVoiceGap)
+  const lang = useStore((s) => s.lang)
+  const setLang = useStore((s) => s.setLang)
+  /** Bound to the current language so the call sites stay one short word. */
+  const tr = (key: StringKey) => translate(lang, key)
+  const queue = useStore((s) => s.queue)
+  const bridge = useStore((s) => s.bridge)
+  const settingsOpen = useStore((s) => s.settingsOpen)
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen)
+  const blades = useStore((s) => s.blades)
+  const pushBlade = useStore((s) => s.pushBlade)
+  const focusBlade = useStore((s) => s.focusBlade)
+  const toggleBladeHidden = useStore((s) => s.toggleBladeHidden)
+  /** Open the webcam or a screen share as a sticky blade, or bring the one
+   *  already open forward. */
+  const openEye = (source: 'camera' | 'screen') => {
+    const id = `eye-${source}`
+    if (blades.some((b) => b.id === id)) {
+      toggleBladeHidden(id, false)
+      focusBlade(id)
+      return
+    }
+    pushBlade({
+      id,
+      kind: 'camera',
+      source,
+      title: source === 'screen' ? translate(useStore.getState().lang, 'screenShare') : translate(useStore.getState().lang, 'camera'),
+      size: 'tall',
+      hold: 'sticky',
+    })
+  }
+  const removeQueued = useStore((s) => s.removeQueued)
+  const echoGuard = useStore((s) => s.echoGuard)
+  const setEchoGuard = useStore((s) => s.setEchoGuard)
+  // Open on first load; the user can fold it away once it gets long.
+  const [systemsOpen, setSystemsOpen] = useState(true)
+  const systemCount = connected.length + 1 // + Web
+
+  // accentFor folds JARVIS's overrides in over the phase colour, so one
+  // variable on the root carries a theme change into every .hud-* rule without
+  // a single component knowing a theme exists.
+  const colour = accentFor(phase, ui)
+
+  useEffect(() => {
+    // The ground has to be set on the document, not painted here: the HUD sits
+    // above the 3D scene, so a background drawn inside it would cover the
+    // reactor rather than sit behind it. --bg is what html, body, #root and the
+    // boot screen all pin themselves to.
+    const root = document.documentElement
+    if (ui.background) root.style.setProperty('--bg', ui.background)
+    else root.style.removeProperty('--bg')
+  }, [ui.background])
+
+  return (
+    <div className="hud" style={{ ['--accent' as string]: colour }}>
+      {/* First in the tree on purpose. Everything after it is positioned with
+          `z-index: auto`, so paint order is document order and the sweep stays
+          behind the transcript and the panels without a z-index war. */}
+      <BladeSweep />
+
+      <Corner at="tl" />
+      <Corner at="tr" />
+      <Corner at="bl" />
+      <Corner at="br" />
+
+      <header className="hud-top">
+        {ui.chrome.brand && (
+          <div className="brand">
+            <span className="brand-mark">J.A.M.E.S.</span>
+            <span className="brand-sub">Just A Most Exceptional System</span>
+          </div>
+        )}
+
+        <div className="status">
+          <span className="dot" />
+          <span className="status-text">
+            {/* bootNote is the voice-model download readout. It is only ever
+                the right thing to show during boot — as a general fallback a
+                note that never got cleared (a stuck 'voice 97%') sits over
+                LISTENING and PROCESSING for the rest of the session. */}
+            {phase === 'boot' && bootNote ? bootNote : tr(statusKey[phase])}
+          </span>
+        </div>
+        {/* Visible only while he is working. Same call as Escape. */}
+        {(phase === 'thinking' || phase === 'tooling' || phase === 'speaking') && (
+          <button className="stop-btn" onClick={onStop} title="Stop (Esc)">
+            <span className="stop-square" />
+            STOP
+          </button>
+        )}
+      </header>
+
+      {/* Left rail: which integrations are live */}
+      {ui.chrome.systems && (
+        <aside className="rail rail-left">
+          <button
+            className="rail-title rail-toggle"
+            onClick={() => setSystemsOpen((o) => !o)}
+            aria-expanded={systemsOpen}
+          >
+            SYSTEMS <span className="rail-count">{systemCount}</span>
+            <span className={`rail-chevron ${systemsOpen ? 'open' : ''}`} />
+          </button>
+          {systemsOpen && (
+            // Capped height and its own scroll, so a long MCP list stays a list
+            // instead of running off the top and bottom of the frame.
+            <div className="rail-list">
+              {connected.length === 0 && <div className="rail-item dim">none linked</div>}
+              {connected.map((c) => (
+                <div key={c} className="rail-item">
+                  <span className="tick" />
+                  {c}
+                </div>
+              ))}
+              <div className="rail-item">
+                <span className="tick" />
+                Web
+              </div>
+            </div>
+          )}
+          {phase !== 'offline' && phase !== 'boot' && (
+            <div className="rail-actions">
+              <button className="rail-btn" onClick={() => openEye('camera')} title="Open the camera">
+                CAMERA
+              </button>
+              <button
+                className="rail-btn"
+                onClick={() => openEye('screen')}
+                title="Share a tab, a window or the whole screen. He sees it with every message while it is shared."
+              >
+                SCREEN
+              </button>
+              <button
+                className={`rail-btn ${settingsOpen ? 'is-on' : ''}`}
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                title="Model, effort and session settings"
+              >
+                SETTINGS
+              </button>
+            </div>
+          )}
+          {settingsOpen && phase !== 'offline' && (
+            <div className="settings">
+              <div className="settings-row">
+                <label>{tr('settingsModel')}</label>
+                <select
+                  value={bridge.model}
+                  onChange={(e) => configure({ model: e.target.value })}
+                >
+                  {(bridge.models.length ? bridge.models : [{ id: bridge.model, label: bridge.model || tr('settingsDefault') }]).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-row">
+                <label>{tr('settingsEffort')}</label>
+                <select
+                  value={bridge.effort}
+                  onChange={(e) => configure({ effort: e.target.value })}
+                >
+                  {(bridge.efforts.length ? bridge.efforts : [bridge.effort]).map((e) => (
+                    <option key={e} value={e}>
+                      {e || tr('settingsDefaultFromSettings')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/*
+                A range rather than a dropdown: the useful move here is one
+                notch faster and listen, not picking a number off a list. Five
+                per cent a step is about the smallest change that is audible
+                over a sentence.
+              */}
+              <div className="settings-row">
+                <label>{tr('settingsSpeed')}</label>
+                <div className="speed">
+                  <input
+                    type="range"
+                    min={0.7}
+                    max={1.6}
+                    step={0.05}
+                    value={voiceSpeed}
+                    onChange={(e) => setVoiceSpeed(Number(e.target.value))}
+                  />
+                  <span className="speed-value mono">
+                    {voiceSpeed === 1 ? tr('speedNormal') : `${voiceSpeed.toFixed(2)}×`}
+                  </span>
+                </div>
+              </div>
+              <div className="settings-row">
+                <label>{tr('settingsGap')}</label>
+                <div className="speed">
+                  <input
+                    type="range"
+                    min={0}
+                    max={800}
+                    step={50}
+                    value={voiceGap}
+                    onChange={(e) => setVoiceGap(Number(e.target.value))}
+                  />
+                  <span className="speed-value mono">
+                    {voiceGap === 0 ? tr('speedNormal') : `+${voiceGap}ms`}
+                  </span>
+                </div>
+              </div>
+              <div className="settings-row">
+                <label>{tr('settingsNoise')}</label>
+                <select
+                  value={echoGuard}
+                  onChange={(e) => setEchoGuard(e.target.value as 'standard' | 'strict')}
+                >
+                  <option value="standard">{tr('noiseStandardOption')}</option>
+                  <option value="strict">{tr('noiseStrictOption')}</option>
+                </select>
+              </div>
+              {bridge.sessions.length > 0 && (
+                <div className="settings-row">
+                  <label>{tr('settingsConversation')}</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) configure({ resume: e.target.value })
+                    }}
+                    title={tr('resumeHint')}
+                  >
+                    <option value="">{tr('settingsCurrent')}</option>
+                    {bridge.sessions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {sessionLabel(c)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="settings-row settings-actions">
+                <button
+                  className="rail-btn"
+                  onClick={() => configure({ fresh: true })}
+                  title={tr('newConversationHint')}
+                >
+                  {tr('newConversation')}
+                </button>
+                <span className="settings-note">
+                  {bridge.resumed ? tr('resumedNote') : tr('freshNote')}
+                </span>
+              </div>
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* Right rail: live telemetry, mostly for flavour */}
+      <aside className="rail rail-right">
+        <div className="rail-title">{tr('signal')}</div>
+        <div className="meter">
+          <div className="meter-fill" style={{ height: `${level * 100}%` }} />
+        </div>
+        <div className="rail-item mono">
+          {muted ? tr('muted') : noInput ? tr('noInput') : `${(level * 100).toFixed(0).padStart(3, '0')}%`}
+        </div>
+        {/*
+          Language, as two halves of one control rather than a dropdown or a
+          toggle. A dropdown hides the state you are not in, and a toggle makes
+          you work out which way is on; a segmented pair shows both options and
+          which one is live, and is one click either way — which is the whole
+          point of putting it out here instead of in the settings panel.
+        */}
+        <div className="seg" role="group" aria-label={tr('settingsLanguage')}>
+          {(['he', 'en', 'pt'] as const).map((code) => (
+            <button
+              key={code}
+              type="button"
+              className={`seg-btn ${lang === code ? 'is-on' : ''}`}
+              onClick={() => setLang(code)}
+              aria-pressed={lang === code}
+            >
+              {code.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        {phase !== 'offline' && (
+          <button
+            className={`mute-btn ${muted ? 'is-muted' : ''}`}
+            onClick={() => setMuted(!muted)}
+            aria-pressed={muted}
+            title="Mute microphone (M)"
+          >
+            <span className="mute-icon" />
+            {muted ? tr('micOff') : tr('micOn')}
+          </button>
+        )}
+        {phase !== 'offline' && (
+          <button
+            className={`mute-btn ${voiceMuted ? 'is-muted' : ''}`}
+            onClick={() => setVoiceMuted(!voiceMuted)}
+            aria-pressed={voiceMuted}
+            title={tr('voiceMuteHint')}
+          >
+            <span className="mute-icon" />
+            {voiceMuted ? tr('voiceOff') : tr('voiceOn')}
+          </button>
+        )}
+        {/*
+          The speech budget, when the engine has one. Shown as a bar rather
+          than a number because the question it answers is "how much is left",
+          not "how many characters have I spent" — and it turns red before it
+          runs out rather than at the moment it does, which is too late to do
+          anything about it.
+        */}
+        {credits && credits.limit > 0 && (
+          <div
+            className="credits"
+            title={
+              credits.resetAt
+                ? `${credits.used.toLocaleString()} / ${credits.limit.toLocaleString()} · ${new Date(credits.resetAt).toLocaleDateString()}`
+                : `${credits.used.toLocaleString()} / ${credits.limit.toLocaleString()}`
+            }
+          >
+            <div className="rail-item mono">
+              {credits.used >= credits.limit ? tr('creditsSpent') : tr('creditsLabel')}
+            </div>
+            <div className="credits-bar">
+              <div
+                className={`credits-fill ${credits.used / credits.limit > 0.9 ? 'is-low' : ''}`}
+                style={{ width: `${Math.min(100, Math.round((1 - credits.used / credits.limit) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {phase !== 'offline' && (
+          <button
+            className={`mute-btn ${echoGuard === 'strict' ? 'is-strict' : ''}`}
+            onClick={() => setEchoGuard(echoGuard === 'strict' ? 'standard' : 'strict')}
+            aria-pressed={echoGuard === 'strict'}
+            title={
+              echoGuard === 'strict'
+                ? 'Noise guard STRICT: voice isolation on, and nothing is heard while JARVIS speaks. Press Escape to cut him off.'
+                : 'Noise guard STANDARD: echo cancellation and noise suppression; a loud interruption still cuts him off.'
+            }
+          >
+            <span className="mute-icon" />
+            {echoGuard === 'strict' ? tr('noiseStrict') : tr('noiseStandard')}
+          </button>
+        )}
+      </aside>
+
+      <AnimatePresence>
+        {activeTool && ui.chrome.toolBadge && (
+          <motion.div
+            className="tool-badge"
+            // Anchored to the TOP of the frame, not the middle. The old home was
+            // viewport-centre plus a fixed drop, which on a tall or square
+            // window landed the headline straight on top of the bottom
+            // transcript — two elements pinned to different edges of the screen
+            // were always going to meet somewhere. Up here it sits in its own
+            // band with the rest of the status chrome and can never collide with
+            // the log. Framer owns `transform` on an animated element, so the
+            // centring (x: -50%) lives in these props, not the stylesheet.
+            initial={{ opacity: 0, x: '-50%', y: -8, filter: 'blur(6px)' }}
+            animate={{ opacity: 1, x: '-50%', y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, x: '-50%', y: -8, filter: 'blur(6px)' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+          >
+            <span className="tool-kicker">
+              <span className="spinner" />
+              accessing
+            </span>
+            <span className="tool-name">{activeTool.replace(/[_-]/g, ' ')}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Conversation log — last few turns, fading upward */}
+      {ui.chrome.transcript && (
+        <div className="log">
+          <AnimatePresence initial={false}>
+            {turns.slice(-4).map((t) => (
+              <motion.div
+                key={t.id}
+                className={`log-line log-${t.role}`}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              >
+                <span className="log-who">{t.role === 'user' ? tr('speakerYou') : tr('speakerJarvis')}</span>
+                {/* Only his half decodes. What the user said was never
+                    transmitted from anywhere — dressing it up as machine
+                    output would be a lie about where the words came from. */}
+                {/* dir="auto": a Hebrew line reads right to left, an English one left to right. */}
+                <span className="log-text" dir="auto">
+                  {t.role === 'jarvis' ? <DecodeText text={t.text} /> : t.text}
+                </span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {caption && (
+          <motion.div
+            className="caption"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {caption}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* What was said while he was busy, waiting its turn. */}
+      <AnimatePresence>
+        {queue.length > 0 && (
+          <motion.div
+            className="queue"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+          >
+            <div className="queue-title">UP NEXT · {queue.length}</div>
+            {queue.map((q, i) => (
+              <div key={`${i}-${q}`} className="queue-item">
+                <span className="queue-n">{i + 1}</span>
+                <span className="queue-text">{q}</span>
+                <button className="queue-x" onClick={() => removeQueued(i)} title="Drop">
+                  ✕
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* The one surface. Panels used to sit alongside this as a second place
+          for things to appear, which meant two places to look and a decision
+          the model had to make on grounds it could not know. Everything renders
+          here now; Panels.tsx is unmounted rather than deleted so the design
+          system it documents stays findable. */}
+      <Blades />
+
+      {/* Suggestions strip removed: the type-to-JARVIS bar sits here now, and the
+          rotating "try saying…" text read as clutter cycling behind the box. */}
+
+      {error && (
+        <div className="error">
+          <span className="error-text">{error}</span>
+          <button
+            className="error-x"
+            onClick={() => useStore.getState().setError(null)}
+            title="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Type to JARVIS. The reliable path — no wake word, no microphone. Enter
+          sends; while he is busy it joins the queue. */}
+      {phase !== 'offline' && phase !== 'boot' && (
+        <form
+          className="textbar"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const t = draft.trim()
+            if (!t) return
+            onSubmitText(t)
+            setDraft('')
+          }}
+        >
+          <span className="textbar-prompt">›</span>
+          <input
+            className="textbar-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Type to JARVIS…"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </form>
+      )}
+
+      <footer className="hud-bottom">
+        <span className="hint">
+          type below, or <kbd>M</kbd> for voice · <kbd>Space</kbd> talk · <kbd>G</kbd> hands · <kbd>Esc</kbd> stop
+          {voice && (
+            <>
+              {' · '}
+              <kbd>V</kbd> voice: {voice.replace(/\(.*?\)/g, '').trim()}
+            </>
+          )}
+        </span>
+      </footer>
+
+      {/* Last, so a flash or a tear reads as being on the glass rather than
+          underneath the chrome. It is pointer-events: none and unmounts the
+          instant it finishes. */}
+      <Effects />
+
+      {/* Above even the effects: the reticle shows where a press will land, and
+          a press that lands under a flourish is a press you cannot aim. */}
+      <Pointer />
+      {(gestures || looking) && (
+        <div className="hands-live">
+          {looking ? `LOOKING — ${looking.toUpperCase()}` : 'CAMERA ON · G TO STOP'}
+        </div>
+      )}
+      <GestureGuide live={gestures} />
+    </div>
+  )
+}

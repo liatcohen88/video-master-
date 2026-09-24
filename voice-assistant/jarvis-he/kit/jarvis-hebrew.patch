@@ -1,7 +1,16 @@
 diff --git a/bridge/server.mjs b/bridge/server.mjs
-index 121c27c..77d91ec 100644
+index 121c27c..2fc051a 100644
 --- a/bridge/server.mjs
 +++ b/bridge/server.mjs
+@@ -488,7 +488,7 @@ function decideTool(name) {
+   return ALLOW_WRITES
+ }
+ 
+-const SYSTEM_PROMPT = `You are JARVIS. You are speaking out loud to one person.
++const SYSTEM_PROMPT = `You are JAMES (in Hebrew: ג'יימס). You are speaking out loud to one person.
+ 
+ TOOLS ARE FOR TASKS, NOT TALK. A greeting, small talk, a yes or no, a question
+ about you or your state, or anything you can answer from what you already know is
 @@ -519,6 +519,15 @@ immediately, critical, urgent, or danger. You do not use exclamation marks.
  Use it in roughly half your lines, never twice in one line. In a two-sentence
  turn it attaches to the end of the FIRST sentence. Never use their name.
@@ -18,7 +27,18 @@ index 121c27c..77d91ec 100644
  REPORTING.
  - Success is impersonal and unframed: "The render is complete." Never "I've
    finished" or "here's what I found".
-@@ -1877,7 +1886,8 @@ wss.on('connection', (socket) => {
+@@ -1569,7 +1578,9 @@ const wss = new WebSocketServer({
+     done(true)
+   },
+ })
+-server.listen(PORT)
++// JARVIS_BRIDGE_HOST=127.0.0.1 keeps the bridge to this computer (and spares
++// Windows users a firewall prompt); unset, it listens as it always has.
++server.listen(PORT, process.env.JARVIS_BRIDGE_HOST || undefined)
+ 
+ console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
+ 
+@@ -1877,7 +1888,8 @@ wss.on('connection', (socket) => {
        // the terminal and rejects newer models set in your settings. Workspace
        // mode is meant to be that same Claude Code, so use the installed CLI.
        pathToClaudeCodeExecutable: WORKSPACE
@@ -48,6 +68,19 @@ index 8442766..f99735d 100644
    const python = resolvePython()
    if (!python && !existsSync(WORKER)) {
      unavailable = true
+diff --git a/index.html b/index.html
+index 5abd1db..3eff1ed 100644
+--- a/index.html
++++ b/index.html
+@@ -62,7 +62,7 @@
+       "
+     />
+ 
+-    <title>J.A.R.V.I.S.</title>
++    <title>J.A.M.E.S.</title>
+   </head>
+   <body>
+     <div id="root"></div>
 diff --git a/package.json b/package.json
 index 61a7a6c..de9fc50 100644
 --- a/package.json
@@ -62,10 +95,10 @@ index 61a7a6c..de9fc50 100644
    },
    "dependencies": {
 diff --git a/scripts/check-i18n.ts b/scripts/check-i18n.ts
-index 00f4f14..5306bbd 100644
+index 00f4f14..2c223bf 100644
 --- a/scripts/check-i18n.ts
 +++ b/scripts/check-i18n.ts
-@@ -20,7 +20,7 @@ const source = readFileSync(new URL('../src/lib/i18n.ts', import.meta.url), 'utf
+@@ -20,10 +20,10 @@ const source = readFileSync(new URL('../src/lib/i18n.ts', import.meta.url), 'utf
  const keys = [...source.matchAll(/^  ([a-zA-Z]+):/gm)].map((m) => m[1] as StringKey)
  assert.ok(keys.length > 40, `expected the whole table, found ${keys.length} keys`)
  
@@ -73,7 +106,11 @@ index 00f4f14..5306bbd 100644
 +const LANGS: Lang[] = ['en', 'pt', 'he']
  
  /** Words that are the same in both languages, or proper nouns. */
- const SHARED = new Set(['ONLINE', 'JARVIS', 'normal'])
+-const SHARED = new Set(['ONLINE', 'JARVIS', 'normal'])
++const SHARED = new Set(['ONLINE', 'JARVIS', 'JAMES', 'normal'])
+ 
+ for (const key of new Set(keys)) {
+   for (const lang of LANGS) {
 @@ -35,6 +35,8 @@ for (const key of new Set(keys)) {
    if (!SHARED.has(en)) {
      assert.notEqual(pt, en, `${key} was never translated — still "${en}"`)
@@ -107,17 +144,24 @@ index 00f4f14..5306bbd 100644
  
  /**
   * The first-load default.
-@@ -76,7 +85,8 @@ assert.equal(iso('en'), 'en')
+@@ -76,17 +85,23 @@ assert.equal(iso('en'), 'en')
   * nothing stored the browser decides.
   */
  const pick = (stored: string | null, tags: string[]): string => {
 -  if (stored === 'pt' || stored === 'en') return stored
+-  return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
 +  if (stored === 'pt' || stored === 'en' || stored === 'he') return stored
 +  if (tags.some((tag) => /^(he|iw)\b/i.test(tag ?? ''))) return 'he'
-   return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
++  return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'he'
  }
  
-@@ -88,5 +98,10 @@ assert.equal(pick(null, []), 'en', 'no answer from the browser falls back to Eng
+ assert.equal(pick(null, ['pt-BR', 'pt', 'en-US']), 'pt', 'a pt-BR browser starts in Portuguese')
+ assert.equal(pick(null, ['pt']), 'pt')
+ assert.equal(pick(null, ['pt-PT']), 'pt')
+-assert.equal(pick(null, ['en-US']), 'en')
+-assert.equal(pick(null, []), 'en', 'no answer from the browser falls back to English')
++assert.equal(pick(null, ['en-US']), 'he', 'the Hebrew edition starts in Hebrew')
++assert.equal(pick(null, []), 'he', 'no answer from the browser falls back to Hebrew')
  assert.equal(pick('en', ['pt-BR']), 'en', 'a stored choice beats the browser')
  assert.equal(pick('pt', ['en-US']), 'pt')
  assert.equal(pick('garbage', ['pt-BR']), 'pt', 'a corrupt stored value is ignored')
@@ -130,7 +174,7 @@ index 00f4f14..5306bbd 100644
 -console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in both languages`)
 +console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in all three languages`)
 diff --git a/src/App.tsx b/src/App.tsx
-index 36d9c42..f50b9a6 100644
+index 36d9c42..705988a 100644
 --- a/src/App.tsx
 +++ b/src/App.tsx
 @@ -5,7 +5,7 @@ import { Boot } from './ui/Boot'
@@ -149,10 +193,10 @@ index 36d9c42..f50b9a6 100644
 -const NAME = '(?:jarvis|jarvys|jervis|travis|jarviss|java\'s|jarv)'
 -/** A bare vocative — "Jarvis", "hey jarvis" — with nothing asked. */
 -const BARE_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}[\\s,.!?]*$`, 'i')
-+const NAME = `(?:jarvis|jarvys|jervis|travis|jarviss|java's|jarv|${HE_NAME})`
++const NAME = `(?:james|jaymes|jarvis|jarvys|jervis|travis|jarviss|java's|jarv|${HE_NAME})`
 +/** Greetings that may come before the name, in English and in Hebrew. */
 +const PREFIX = '(?:hey|hi|ok|okay|yo|היי|הי|אהלן|יו|אוקיי|אוקי)'
-+/** A bare vocative — "Jarvis", "hey jarvis", "היי ג'רוויס" — with nothing asked. */
++/** A bare vocative — "James", "hey jarvis", "היי ג'יימס" — with nothing asked. */
 +const BARE_NAME = new RegExp(`^${PREFIX}?[\\s,]*${NAME}[\\s,.!?]*$`, 'i')
  /** A leading vocative on a real command: "Jarvis, what's the weather". */
 -const LEADING_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}\\b[\\s,.:!?-]*`, 'i')
@@ -356,7 +400,7 @@ index 9b267b8..e42c361 100644
  ]
  
 diff --git a/src/lib/i18n.ts b/src/lib/i18n.ts
-index c7868ee..61a28c7 100644
+index c7868ee..f80f575 100644
 --- a/src/lib/i18n.ts
 +++ b/src/lib/i18n.ts
 @@ -1,7 +1,7 @@
@@ -369,7 +413,7 @@ index c7868ee..61a28c7 100644
   * ours, and nothing here needs plurals, gendered agreement or date formats —
   * the one place that formats a number reads it through the speech synthesiser,
   * not through Intl. A library would add a dependency, a loader and a key
-@@ -18,7 +18,7 @@
+@@ -18,13 +18,13 @@
   *     steered by the transcription language.
   */
  
@@ -378,6 +422,22 @@ index c7868ee..61a28c7 100644
  
  const en = {
    // Phase readout, centre of the HUD.
+   statusOffline: 'OFFLINE',
+   statusBoot: 'INITIALISING',
+-  statusDormant: 'STANDBY — SAY “HEY JARVIS”',
++  statusDormant: 'STANDBY — SAY “HEY JAMES”',
+   statusWaking: 'ONLINE',
+   statusListening: 'LISTENING',
+   statusThinking: 'PROCESSING',
+@@ -40,7 +40,7 @@ const en = {
+   noiseStrict: 'NOISE STRICT',
+   noiseStandard: 'NOISE STD',
+   speakerYou: 'YOU',
+-  speakerJarvis: 'JARVIS',
++  speakerJarvis: 'JAMES',
+   screenShare: 'Screen share',
+   camera: 'Camera',
+   handControl: 'HAND CONTROL',
 @@ -104,6 +104,9 @@ const en = {
      'The speech budget is spent, so his voice is off. Answers still appear on screen.',
    imageUnavailable: 'image unavailable',
@@ -388,7 +448,25 @@ index c7868ee..61a28c7 100644
  } as const
  
  export type StringKey = keyof typeof en
-@@ -187,9 +190,103 @@ const pt: Record<StringKey, string> = {
+@@ -111,7 +114,7 @@ export type StringKey = keyof typeof en
+ const pt: Record<StringKey, string> = {
+   statusOffline: 'DESLIGADO',
+   statusBoot: 'INICIALIZANDO',
+-  statusDormant: 'EM ESPERA — DIGA “EI JARVIS”',
++  statusDormant: 'EM ESPERA — DIGA “EI JAMES”',
+   statusWaking: 'ONLINE',
+   statusListening: 'OUVINDO',
+   statusThinking: 'PROCESSANDO',
+@@ -126,7 +129,7 @@ const pt: Record<StringKey, string> = {
+   noiseStrict: 'RUÍDO ESTRITO',
+   noiseStandard: 'RUÍDO PADRÃO',
+   speakerYou: 'VOCÊ',
+-  speakerJarvis: 'JARVIS',
++  speakerJarvis: 'JAMES',
+   screenShare: 'Compartilhar tela',
+   camera: 'Câmera',
+   handControl: 'CONTROLE POR GESTOS',
+@@ -187,9 +190,104 @@ const pt: Record<StringKey, string> = {
      'Os créditos de voz acabaram, então a voz dele está desligada. As respostas continuam na tela.',
    imageUnavailable: 'imagem indisponível',
    videoUnavailable: 'vídeo indisponível',
@@ -403,12 +481,13 @@ index c7868ee..61a28c7 100644
 + * rules of its own. Hebrew has no "sir", and the user's gender is unknown, so
 + * nothing here addresses them as masculine or feminine: instructions use the
 + * plural or the infinitive ("אמרו", "לחזור"), which reads as neutral. JARVIS
-+ * himself is masculine ("מקשיב", "ממתין"), since that is the character.
++ * himself is masculine ("מקשיב", "ממתין"), since that is the character. In
++ * this edition the character is called James (ג׳יימס).
 + */
 +const he: Record<StringKey, string> = {
 +  statusOffline: 'כבוי',
 +  statusBoot: 'מאתחל',
-+  statusDormant: 'בהמתנה — אמרו “היי ג׳רוויס”',
++  statusDormant: 'בהמתנה — אמרו “היי ג׳יימס”',
 +  statusWaking: 'מקוון',
 +  statusListening: 'מקשיב',
 +  statusThinking: 'מעבד',
@@ -423,7 +502,7 @@ index c7868ee..61a28c7 100644
 +  noiseStrict: 'רעש: קפדני',
 +  noiseStandard: 'רעש: רגיל',
 +  speakerYou: 'אתם',
-+  speakerJarvis: 'ג׳רוויס',
++  speakerJarvis: 'ג׳יימס',
 +  screenShare: 'שיתוף מסך',
 +  camera: 'מצלמה',
 +  handControl: 'שליטה בידיים',
@@ -493,7 +572,7 @@ index c7868ee..61a28c7 100644
  
  /**
   * Read one string.
-@@ -202,5 +299,7 @@ export function t(lang: Lang, key: StringKey): string {
+@@ -202,5 +300,7 @@ export function t(lang: Lang, key: StringKey): string {
    return TABLE[lang][key]
  }
  
@@ -623,41 +702,43 @@ index 38f9307..244d006 100644
        // the character's natural pace — steady, unhurried. The multiplier is
        // the listener's, applied on top: what is invariant is the delivery, not
 diff --git a/src/lib/voice.ts b/src/lib/voice.ts
-index 73b2b22..4a83ee8 100644
+index 73b2b22..588f550 100644
 --- a/src/lib/voice.ts
 +++ b/src/lib/voice.ts
-@@ -95,9 +95,21 @@ const WAKE_DEBOUNCE = 1500
+@@ -95,9 +95,23 @@ const WAKE_DEBOUNCE = 1500
   * languages rather than one per language, because the wake word has to work
   * while the interface is still set to the wrong one: that is precisely when
   * you need to reach him to change it.
 + *
-+ * Hebrew is the second half. A Hebrew transcriber writes the name in Hebrew
-+ * letters, spelled several ways (ג'רוויס, ג׳ארוויס, גרוויס, ג'רביס), with the
-+ * apostrophe as ', ׳ or ’. JavaScript's \b only knows Latin letters, so the
-+ * Hebrew branch marks its edges with explicit Hebrew-letter lookarounds.
++ * In this Hebrew edition he is called James (ג'יימס); Jarvis still wakes him.
++ *
++ * Hebrew is the second half. A Hebrew transcriber writes the names in Hebrew
++ * letters, spelled several ways (ג'יימס, ג׳ימס, גיימס; ג'רוויס, ג׳ארוויס, ג'רביס),
++ * with the apostrophe as ', ׳ or ’. JavaScript's \b only knows Latin letters,
++ * so the Hebrew branch marks its edges with explicit Hebrew-letter lookarounds.
   */
 -const WAKE =
 -  /\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)/i
 +const HE_LETTER = '[\u05D0-\u05EA]'
-+/** The name as a Hebrew transcriber spells it. Shared with App.tsx. */
-+export const HE_NAME = "ג['׳’]?א?ר(?:וו|ו|ב)י[סז]"
++/** The names as a Hebrew transcriber spells them. Shared with App.tsx. */
++export const HE_NAME = "(?:ג['׳’]?י{1,2}מ[סז]|ג['׳’]?א?ר(?:וו|ו|ב)י[סז])"
 +const HE_PREFIX = '(?:היי|הי|אהלן|יו|אוקיי|אוקי)'
 +const WAKE = new RegExp(
-+  String.raw`\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)` +
++  String.raw`\b(?:hey|hi|ok|okay|yo|ei|ai|oi|opa|ô|o)?\s*(?:james|jaymes|jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv|jarvez|jarves|charles|jarbas)\b(?!'s)` +
 +    `|(?<!${HE_LETTER})(?:${HE_PREFIX}[\\s,]*)?${HE_NAME}(?!${HE_LETTER})`,
 +  'i',
 +)
  
  /** Everything after the wake phrase, which is usually the actual command. */
  function afterWake(text: string): string {
-@@ -293,8 +305,13 @@ const norm = (s: string) =>
+@@ -293,8 +307,13 @@ const norm = (s: string) =>
   * he happens to be saying. Suppressing "stop" because he just said "stop"
   * would be the single most infuriating failure this file could have.
   */
 -const OVERRIDE =
 -  /\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b/i
 +const OVERRIDE = new RegExp(
-+  String.raw`\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b` +
++  String.raw`\b(stop|wait|james|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b` +
 +    // Hebrew: only words he is unlikely to say himself, so his own voice
 +    // leaking into the mic does not cut him off ("לא" and "רגע" are left out).
 +    `|(?<!${HE_LETTER})(?:עצור|תעצור|עצרי|תעצרי|תפסיק|תפסיקי|חכה|תחכה|חכי|תחכי|שקט|ביטול|סטופ|לא משנה|${HE_NAME})(?!${HE_LETTER})`,
@@ -666,7 +747,7 @@ index 73b2b22..4a83ee8 100644
  
  /**
   * Words too common to be evidence of anything.
-@@ -818,7 +835,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
+@@ -818,7 +837,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
      rec = new Ctor()
      rec.continuous = true
      rec.interimResults = true
@@ -678,10 +759,10 @@ index 73b2b22..4a83ee8 100644
        running = true
        diag.running = true
 diff --git a/src/store.ts b/src/store.ts
-index 76d9799..9c49ece 100644
+index 76d9799..8ac7c8a 100644
 --- a/src/store.ts
 +++ b/src/store.ts
-@@ -112,18 +112,20 @@ const LANG_KEY = 'jarvis.lang'
+@@ -112,21 +112,24 @@ const LANG_KEY = 'jarvis.lang'
  const savedLang = (): Lang => {
    try {
      const stored = localStorage.getItem(LANG_KEY)
@@ -695,20 +776,50 @@ index 76d9799..9c49ece 100644
  
 -/** 'pt' for pt, pt-BR, pt-PT; English for everything else, since English is
 - *  the only other language the table has. */
-+/** 'he' when the browser lists Hebrew anywhere (he, he-IL, or the legacy iw):
-+ *  Israeli setups often put English first and Hebrew second. Then 'pt' for pt,
-+ *  pt-BR, pt-PT, and English for everything else. */
++/** This is the Hebrew edition, so a first visit starts in Hebrew: when the
++ *  browser lists Hebrew anywhere (he, he-IL, or the legacy iw) and also when it
++ *  names nothing we know. Only a browser that asks for Portuguese starts in
++ *  Portuguese. EN is one click away, and the choice is remembered. */
  const fromBrowser = (): Lang => {
    try {
      const tags = [navigator.language, ...(navigator.languages ?? [])]
+-    return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
 +    if (tags.some((tag) => /^(he|iw)\b/i.test(tag ?? ''))) return 'he'
-     return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'en'
++    return tags.some((tag) => /^pt\b/i.test(tag ?? '')) ? 'pt' : 'he'
    } catch {
-     return 'en'
+-    return 'en'
++    return 'he'
+   }
+ }
+ 
+diff --git a/src/ui/Boot.tsx b/src/ui/Boot.tsx
+index 5ee9aed..90259fd 100644
+--- a/src/ui/Boot.tsx
++++ b/src/ui/Boot.tsx
+@@ -147,7 +147,7 @@ function Rings({ reduced }: { reduced: boolean }) {
+         animate={{ opacity: 1, letterSpacing: '0.42em' }}
+         transition={{ duration: 0.7, delay: 0.5, ease }}
+       >
+-        J.A.R.V.I.S
++        J.A.M.E.S
+       </motion.text>
+     </svg>
+   )
 diff --git a/src/ui/Hud.tsx b/src/ui/Hud.tsx
-index caf2924..0132fee 100644
+index caf2924..0251e85 100644
 --- a/src/ui/Hud.tsx
 +++ b/src/ui/Hud.tsx
+@@ -277,8 +277,8 @@ export function Hud({
+       <header className="hud-top">
+         {ui.chrome.brand && (
+           <div className="brand">
+-            <span className="brand-mark">J.A.R.V.I.S.</span>
+-            <span className="brand-sub">Just A Rather Very Intelligent System</span>
++            <span className="brand-mark">J.A.M.E.S.</span>
++            <span className="brand-sub">Just A Most Exceptional System</span>
+           </div>
+         )}
+ 
 @@ -479,7 +479,7 @@ export function Hud({
            point of putting it out here instead of in the settings panel.
          */}
