@@ -1,10 +1,11 @@
 ﻿# JAMES's voice: a natural Hebrew voice from Google Cloud Text-to-Speech.
 #
 # Asks for the Google API key (pasted here, and kept on this computer only),
-# plays the Hebrew male voices one after another so the voice is picked by ear,
-# saves the choice next to JAMES in voice-settings.cmd, which start-jarvis.bat
-# reads, and restarts him. Run it again to change the voice, or to go back to
-# the free Windows voice.
+# then shows every Hebrew male voice in one list: selecting a voice plays it,
+# so voices can be compared back and forth before one is chosen. The choice is
+# saved next to JAMES in voice-settings.cmd, which start-jarvis.bat reads, and
+# he restarts. Run it again to change the voice, or to go back to the free
+# Windows voice; the key is kept in google-key.txt so it is pasted only once.
 #
 # Saved as UTF-8 with a BOM, like the installer, for the Hebrew text.
 
@@ -18,11 +19,13 @@ Add-Type -AssemblyName System.Drawing
 $Target   = Join-Path $env:USERPROFILE 'jarvis'
 $Bridge   = Join-Path $Target 'bridge\server.mjs'
 $Settings = Join-Path $Target 'voice-settings.cmd'
+$KeyFile  = Join-Path $Target 'google-key.txt'
 $Title    = "הקול של ג'יימס"
 $Api      = 'https://texttospeech.googleapis.com/v1'
 $Sample   = "שלום, אני ג'יימס. ככה אני אשמע מעכשיו. במה אפשר לעזור?"
 $Key      = $null
 $Heard    = @{}
+$Player   = $null
 $Owner    = New-Object System.Windows.Forms.Form
 $Owner.TopMost = $true
 
@@ -101,7 +104,7 @@ function Ask([string]$Text, [string[]]$Buttons, [switch]$WithBox) {
 # What Google's refusal means, in words, with the page that fixes it opened.
 function Explain-GoogleError([string]$Detail) {
     if ($Detail -match 'API_KEY_INVALID|API key not valid') {
-        return "Google לא מכירה את המפתח הזה. כדאי להעתיק אותו שוב מדף Credentials ב-Google Cloud, ולהריץ שוב את SET-VOICE.bat."
+        return "Google לא מכירה את המפתח הזה. כדאי להעתיק אותו שוב מדף Credentials ב-Google Cloud (לחיצה על המפתח, ואז Show key)."
     }
     if ($Detail -match 'SERVICE_DISABLED|has not been used|it is disabled') {
         $link = 'https://console.cloud.google.com/apis/library/texttospeech.googleapis.com'
@@ -141,23 +144,24 @@ function Invoke-Google([string]$Method, [string]$Path, $Body = $null) {
     }
 }
 
-# Plays the sample sentence in one voice. Each voice is generated once: a
-# second listen replays the same file.
-function Play-Voice([string]$Name) {
-    if (-not $Heard.ContainsKey($Name)) {
+# Plays a sentence in one voice without waiting for it to end, so the next
+# voice can be picked mid-sentence. Each voice and sentence is generated once.
+function Play-Voice([string]$Name, [string]$Text) {
+    $cacheKey = "$Name|$Text"
+    if (-not $Heard.ContainsKey($cacheKey)) {
         $body = @{
-            input       = @{ text = $Sample }
+            input       = @{ text = $Text }
             voice       = @{ languageCode = 'he-IL'; name = $Name }
             audioConfig = @{ audioEncoding = 'LINEAR16' }
         }
         $answer = Invoke-Google 'POST' 'text:synthesize' $body
         $wav = Join-Path $env:TEMP ('james-voice-{0}.wav' -f ($Heard.Count + 1))
         [IO.File]::WriteAllBytes($wav, [Convert]::FromBase64String($answer.audioContent))
-        $Heard[$Name] = $wav
+        $Heard[$cacheKey] = $wav
     }
-    $player = New-Object System.Media.SoundPlayer $Heard[$Name]
-    $player.PlaySync()
-    $player.Dispose()
+    if ($script:Player) { $script:Player.Stop(); $script:Player.Dispose() }
+    $script:Player = New-Object System.Media.SoundPlayer $Heard[$cacheKey]
+    $script:Player.Play()
 }
 
 # Most natural first: Chirp 3 HD, with the calmest characters at the front.
@@ -173,10 +177,148 @@ function Rank([string]$Name) {
     return 300
 }
 
-function Describe([string]$Name) {
-    if ($Name -match 'Chirp3-HD-(\w+)$') { return "$($Matches[1]) (Chirp 3 HD, הכי טבעי)" }
-    if ($Name -match '-(Neural2|Wavenet|Standard)-(\w+)$') { return "$($Matches[2]) ($($Matches[1]))" }
+function Voice-Name([string]$Name) {
+    if ($Name -match 'Chirp3-HD-(\w+)$') { return $Matches[1] }
+    if ($Name -match '-(Neural2|Wavenet|Standard)-(\w+)$') { return "$($Matches[1]) $($Matches[2])" }
     return $Name
+}
+
+function Voice-Kind([string]$Name) {
+    if ($Name -match 'Chirp3-HD') { return 'הכי טבעי (Chirp 3 HD)' }
+    if ($Name -match 'Neural2') { return 'טבעי (Neural2)' }
+    if ($Name -match 'Wavenet') { return 'טבעי למחצה (WaveNet)' }
+    if ($Name -match 'Standard') { return 'רגיל (Standard)' }
+    return ''
+}
+
+function Describe([string]$Name) {
+    return "$(Voice-Name $Name), $(Voice-Kind $Name)"
+}
+
+# One window with every voice. Selecting a voice plays it (arrows work too), so
+# voices can be compared back and forth; the sentence they say can be changed.
+# Returns the chosen voice's name, or $null.
+function Choose-Voice([string[]]$Voices, [string]$Current) {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = $Title
+    $form.RightToLeft = 'Yes'
+    $form.RightToLeftLayout = $true
+    $form.StartPosition = 'CenterScreen'
+    $form.TopMost = $true
+    $form.Size = New-Object System.Drawing.Size(640, 700)
+    $form.MinimumSize = New-Object System.Drawing.Size(480, 480)
+    $form.Font = New-Object System.Drawing.Font('Segoe UI', 11)
+
+    $table = New-Object System.Windows.Forms.TableLayoutPanel
+    $table.Dock = 'Fill'
+    $table.Padding = New-Object System.Windows.Forms.Padding(12)
+    $table.ColumnCount = 1
+    $table.RowCount = 5
+    [void]$table.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle('Percent', 100)))
+    [void]$table.RowStyles.Add((New-Object System.Windows.Forms.RowStyle('AutoSize')))
+    [void]$table.RowStyles.Add((New-Object System.Windows.Forms.RowStyle('Percent', 100)))
+    [void]$table.RowStyles.Add((New-Object System.Windows.Forms.RowStyle('AutoSize')))
+    [void]$table.RowStyles.Add((New-Object System.Windows.Forms.RowStyle('AutoSize')))
+    [void]$table.RowStyles.Add((New-Object System.Windows.Forms.RowStyle('AutoSize')))
+
+    $intro = New-Object System.Windows.Forms.Label
+    $intro.Text = "לחיצה על קול משמיעה אותו. אפשר לעבור בין הקולות עם החיצים ולחזור לכל קול כמה שרוצים. כשמחליטים: 'לבחור בקול הזה'."
+    $intro.AutoSize = $true
+    $intro.MaximumSize = New-Object System.Drawing.Size(590, 0)
+    $intro.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 8)
+
+    $list = New-Object System.Windows.Forms.ListView
+    $list.View = 'Details'
+    $list.FullRowSelect = $true
+    $list.MultiSelect = $false
+    $list.HideSelection = $false
+    $list.RightToLeftLayout = $true
+    $list.Dock = 'Fill'
+    [void]$list.Columns.Add('מספר', 70)
+    [void]$list.Columns.Add('קול', 220)
+    [void]$list.Columns.Add('סוג', 260)
+    for ($n = 0; $n -lt $Voices.Count; $n++) {
+        $item = New-Object System.Windows.Forms.ListViewItem ([string]($n + 1))
+        $shown = Voice-Name $Voices[$n]
+        if ($Voices[$n] -eq $Current) { $shown += ' (עכשיו)' }
+        [void]$item.SubItems.Add($shown)
+        [void]$item.SubItems.Add((Voice-Kind $Voices[$n]))
+        [void]$list.Items.Add($item)
+    }
+
+    $sampleLabel = New-Object System.Windows.Forms.Label
+    $sampleLabel.Text = 'המשפט שהקולות אומרים (אפשר לשנות):'
+    $sampleLabel.AutoSize = $true
+    $sampleLabel.Margin = New-Object System.Windows.Forms.Padding(0, 10, 0, 4)
+
+    $sampleBox = New-Object System.Windows.Forms.TextBox
+    $sampleBox.Text = $Sample
+    $sampleBox.Dock = 'Fill'
+
+    $row = New-Object System.Windows.Forms.FlowLayoutPanel
+    $row.AutoSize = $true
+    $row.WrapContents = $false
+    $row.Margin = New-Object System.Windows.Forms.Padding(0, 12, 0, 0)
+    $choose = New-Object System.Windows.Forms.Button
+    $choose.Text = 'לבחור בקול הזה'
+    $play = New-Object System.Windows.Forms.Button
+    $play.Text = 'להשמיע שוב'
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = 'ביטול'
+    foreach ($button in @($choose, $play, $cancel)) {
+        $button.AutoSize = $true
+        $button.Padding = New-Object System.Windows.Forms.Padding(10, 3, 10, 3)
+        $row.Controls.Add($button)
+    }
+
+    $table.Controls.Add($intro, 0, 0)
+    $table.Controls.Add($list, 0, 1)
+    $table.Controls.Add($sampleLabel, 0, 2)
+    $table.Controls.Add($sampleBox, 0, 3)
+    $table.Controls.Add($row, 0, 4)
+    $form.Controls.Add($table)
+    $form.CancelButton = $cancel
+
+    $script:picked = $null
+    $script:quiet = $true
+    $playSelected = {
+        if ($script:quiet -or $list.SelectedIndices.Count -ne 1) { return }
+        $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+        try {
+            $text = $sampleBox.Text.Trim()
+            if (-not $text) { $text = $Sample }
+            Play-Voice $Voices[$list.SelectedIndices[0]] $text
+        } catch {
+            Popup ($_.Exception.Message) 'OK' 'Warning' | Out-Null
+        } finally {
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
+        }
+    }
+    $list.Add_SelectedIndexChanged($playSelected)
+    $list.Add_ItemActivate($playSelected)
+    $play.Add_Click($playSelected)
+    $choose.Add_Click({
+        if ($list.SelectedIndices.Count -ne 1) {
+            Popup 'קודם לבחור קול מהרשימה.' | Out-Null
+            return
+        }
+        $script:picked = $Voices[$list.SelectedIndices[0]]
+        $form.Close()
+    })
+    $cancel.Add_Click({ $form.Close() })
+    # The voice in use now is selected when the window opens, silently.
+    $form.Add_Shown({
+        $at = [Math]::Max(0, [array]::IndexOf($Voices, $Current))
+        $list.Items[$at].Selected = $true
+        $list.Items[$at].Focused = $true
+        $list.EnsureVisible($at)
+        [void]$list.Focus()
+        $script:quiet = $false
+    })
+    $form.Add_FormClosed({ if ($script:Player) { $script:Player.Stop() } })
+    [void]$form.ShowDialog()
+    $form.Dispose()
+    return $script:picked
 }
 
 # The same as the installer: only the JAMES that owns the bridge port is
@@ -208,55 +350,64 @@ try {
         exit 1
     }
 
-    # A key saved earlier is reused, so the voice can be changed without it.
+    # A key saved earlier is reused, so it is pasted only once.
+    $saved = $null
+    $current = $null
     if (Test-Path $Settings) {
         $found = Select-String -Path $Settings -Pattern 'JARVIS_GOOGLE_TTS_KEY=([0-9A-Za-z_\-]{30,80})'
-        if ($found) {
-            $answer = Ask "ג'יימס כבר מדבר בקול של Google. מה לעשות?" @('להחליף קול', 'לחזור לקול של Windows', 'יציאה')
-            if ($answer.Index -eq 1) {
-                Remove-Item $Settings -Force
-                Restart-James
-                Popup "ג'יימס חזר לקול של Windows, והוא נפתח מחדש." | Out-Null
-                exit 0
-            }
-            if ($answer.Index -ne 0) { exit 0 }
-            $Key = $found.Matches[0].Groups[1].Value
-        }
+        if ($found) { $saved = $found.Matches[0].Groups[1].Value }
+        $found = Select-String -Path $Settings -Pattern 'JARVIS_GOOGLE_VOICE=([\w\-]+)'
+        if ($found) { $current = $found.Matches[0].Groups[1].Value }
+    }
+    if (-not $saved -and (Test-Path $KeyFile)) {
+        $text = (Get-Content $KeyFile -Raw).Trim()
+        if ($text -match '^[0-9A-Za-z_\-]{30,80}$') { $saved = $text }
     }
 
-    while (-not $Key) {
-        $answer = Ask ("להדביק כאן את המפתח מ-Google Cloud (API key)." + "`n" + "הוא מתחיל ב-AIza, ונשמר רק במחשב הזה. אין לשלוח אותו לאף אחד, גם לא בצ'אט.") @('המשך', 'ביטול') -WithBox
+    if ($current) {
+        $answer = Ask "ג'יימס כבר מדבר בקול של Google. מה לעשות?" @('להחליף קול', 'לחזור לקול של Windows', 'יציאה')
+        if ($answer.Index -eq 1) {
+            Remove-Item $Settings -Force
+            Restart-James
+            Popup "ג'יימס חזר לקול של Windows, והוא נפתח מחדש. המפתח נשמר, כך שאפשר לחזור לקולות של Google בלי להדביק אותו שוב." | Out-Null
+            exit 0
+        }
         if ($answer.Index -ne 0) { exit 0 }
-        if ($answer.Text -match '^[0-9A-Za-z_\-]{30,80}$') {
-            $Key = $answer.Text
-        } else {
-            Popup "זה לא נראה כמו מפתח של Google. מפתח מתחיל בדרך כלל ב-AIza, ויש בו כ-39 אותיות ומספרים. כדאי להעתיק אותו שוב." 'OK' 'Warning' | Out-Null
-        }
     }
 
-    # The Hebrew voices Google has now, men's voices only: JAMES speaks of
-    # himself in the masculine.
-    $all = @((Invoke-Google 'GET' 'voices?languageCode=he-IL').voices)
+    # The Hebrew voices Google has now. Listing them is also the key's test.
+    $Key = $saved
+    $all = $null
+    while (-not $all) {
+        while (-not $Key) {
+            $answer = Ask ("להדביק כאן את המפתח מ-Google Cloud (API key)." + "`n" + "הוא מתחיל ב-AIza, ונשמר רק במחשב הזה. אין לשלוח אותו לאף אחד, גם לא בצ'אט.") @('המשך', 'ביטול') -WithBox
+            if ($answer.Index -ne 0) { exit 0 }
+            if ($answer.Text -match '^[0-9A-Za-z_\-]{30,80}$') {
+                $Key = $answer.Text
+            } else {
+                Popup "זה לא נראה כמו מפתח של Google. מפתח מתחיל בדרך כלל ב-AIza, ויש בו כ-39 אותיות ומספרים. כדאי להעתיק אותו שוב." 'OK' 'Warning' | Out-Null
+            }
+        }
+        try {
+            $all = @((Invoke-Google 'GET' 'voices?languageCode=he-IL').voices)
+        } catch {
+            if ($_.Exception.Message -notlike '*לא מכירה את המפתח*') { throw }
+            Popup ($_.Exception.Message) 'OK' 'Warning' | Out-Null
+            Remove-Item $KeyFile -Force -ErrorAction SilentlyContinue
+            $Key = $null
+        }
+    }
+    # Google accepted it: keep it, so changing the voice never needs it again.
+    [IO.File]::WriteAllText($KeyFile, $Key, (New-Object System.Text.ASCIIEncoding))
+
+    # Men's voices only: JAMES speaks of himself in the masculine.
     $male = @($all | Where-Object { $_.ssmlGender -eq 'MALE' })
     if (-not $male.Count) { $male = $all }
     if (-not $male.Count) { throw 'Google did not return any Hebrew voices.' }
     $voices = @($male | Sort-Object @{ Expression = { Rank $_.name } }, @{ Expression = { $_.name } } | ForEach-Object { $_.name })
 
-    Popup ("המפתח עובד. עכשיו נשמע את הקולות אחד אחד, עם אותו משפט." + "`n" + "כדאי להגביר את הרמקולים.") | Out-Null
-
-    $at = 0
-    $chosen = $null
-    while (-not $chosen) {
-        $name = $voices[$at]
-        Play-Voice $name
-        $answer = Ask ("קול {0} מתוך {1}: {2}" -f ($at + 1), $voices.Count, (Describe $name)) @('לבחור בקול הזה', 'לשמוע שוב', 'הקול הבא', 'ביטול')
-        switch ($answer.Index) {
-            0 { $chosen = $name }
-            1 { }
-            2 { $at = ($at + 1) % $voices.Count }
-            default { exit 0 }
-        }
-    }
+    $chosen = Choose-Voice $voices $current
+    if (-not $chosen) { exit 0 }
 
     $lines = @(
         "@rem JAMES's Google voice, written by SET-VOICE.bat. Delete this file to go back to the Windows voice.",
@@ -266,7 +417,7 @@ try {
     [IO.File]::WriteAllLines($Settings, [string[]]$lines, (New-Object System.Text.ASCIIEncoding))
 
     Restart-James
-    Popup ("מעכשיו ג'יימס מדבר בקול " + (Describe $chosen) + "." + "`n`n" + "הוא נפתח מחדש: ללחוץ 'הפעלה' ולהגיד 'היי ג'יימס'." + "`n" + "כדי להחליף קול, להפעיל שוב את SET-VOICE.bat.") | Out-Null
+    Popup ("מעכשיו ג'יימס מדבר בקול " + (Voice-Name $chosen) + "." + "`n`n" + "הוא נפתח מחדש: ללחוץ 'הפעלה' ולהגיד 'היי ג'יימס'." + "`n" + "כדי להחליף קול, להפעיל שוב את SET-VOICE.bat.") | Out-Null
 }
 catch {
     Popup ($_.Exception.Message) 'OK' 'Error' | Out-Null
