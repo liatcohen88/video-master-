@@ -18,6 +18,14 @@ set "JARVIS_LOCAL_WHISPER=off"
 set "JARVIS_BRIDGE_HOST=127.0.0.1"
 set "VITE_BRIDGE_URL=ws://127.0.0.1:8787"
 
+rem Sonnet 5 answers quickly and is light on the Claude plan's usage limits.
+rem Opus 5 can still be picked in SETTINGS. brain-check.mjs uses the same one.
+if not defined JARVIS_MODEL set "JARVIS_MODEL=claude-sonnet-5"
+
+rem Claude Code on Windows needs Git Bash, and does not always find it alone.
+if not defined CLAUDE_CODE_GIT_BASH_PATH if exist "%ProgramFiles%\Git\bin\bash.exe" set "CLAUDE_CODE_GIT_BASH_PATH=%ProgramFiles%\Git\bin\bash.exe"
+if not defined CLAUDE_CODE_GIT_BASH_PATH if exist "%LOCALAPPDATA%\Programs\Git\bin\bash.exe" set "CLAUDE_CODE_GIT_BASH_PATH=%LOCALAPPDATA%\Programs\Git\bin\bash.exe"
+
 start "" /b powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0open-jarvis.ps1"
 call npm start
 exit /b

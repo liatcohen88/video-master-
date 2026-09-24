@@ -1846,6 +1846,13 @@ wss.on('connection', (socket) => {
    */
   let openingQuestion = null
 
+  /**
+   * The last of what Claude Code wrote to its stderr. When it cannot start at
+   * all (no login, or no Git Bash on Windows) that is the only place the
+   * reason appears: the SDK itself just says the process exited.
+   */
+  let claudeSaid = ''
+
   const startSession = (resumeId) => query({
     prompt: userMessages(),
     options: {
@@ -1922,6 +1929,9 @@ wss.on('connection', (socket) => {
       // would sit silent until the entire answer was written. Partial events
       // are what let speech start on the first finished sentence.
       includePartialMessages: true,
+      stderr: (data) => {
+        claudeSaid = (claudeSaid + String(data)).slice(-600)
+      },
       // Signature is (toolName, input, options) and it must return a
       // PermissionResult object. Returning a bare boolean silently denies
       // everything, with the tool name arriving undefined.
@@ -2071,7 +2081,9 @@ wss.on('connection', (socket) => {
         clearResume()
       }
       console.error('[jarvis] session error:', err)
-      send({ type: 'error', message: String(err?.message ?? err) })
+      const reason = claudeSaid.replace(/\s+/g, ' ').trim()
+      if (reason) console.error('[jarvis] Claude Code said:', reason)
+      send({ type: 'error', message: String(err?.message ?? err) + (reason ? ` (${reason.slice(-300)})` : '') })
       // The stream is finished either way — nothing will ever be read from it
       // again. Leaving the socket open would leave the client believing it has
       // a working bridge, and every later question would hang for ever waiting

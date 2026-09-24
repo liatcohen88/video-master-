@@ -74,6 +74,7 @@ const en = {
 
   // Notices and errors.
   errGeneric: 'Something went wrong.',
+  errNoAnswer: 'I could not get an answer just now. The details are on the screen.',
   errNoAudio: 'No audio from the microphone — check it is not in use elsewhere, or reload.',
   errPowerUp: 'Power-up failed. Click to try again.',
   errMicDenied: 'Microphone access denied — voice input is unavailable.',
@@ -162,6 +163,7 @@ const pt: Record<StringKey, string> = {
   gestureFrame: 'dois L com as mãos para redimensionar',
 
   errGeneric: 'Algo deu errado.',
+  errNoAnswer: 'Não consegui obter uma resposta agora. Os detalhes estão na tela.',
   errNoAudio: 'Nenhum áudio do microfone — verifique se ele não está em uso em outro lugar, ou recarregue.',
   errPowerUp: 'Falha ao ligar. Clique para tentar de novo.',
   errMicDenied: 'Acesso ao microfone negado — entrada de voz indisponível.',
@@ -256,6 +258,7 @@ const he: Record<StringKey, string> = {
   gestureFrame: 'שתי פינות בצורת L כדי לשנות גודל',
 
   errGeneric: 'משהו השתבש.',
+  errNoAnswer: 'לא הצלחתי לקבל תשובה. הפרטים על המסך.',
   errNoAudio: 'לא מגיע קול מהמיקרופון. כדאי לבדוק שהוא לא תפוס בתוכנה אחרת, או לרענן את הדף.',
   errPowerUp: 'ההפעלה נכשלה. לחיצה תנסה שוב.',
   errMicDenied: 'הגישה למיקרופון נחסמה, ולכן אי אפשר לדבר בקול.',

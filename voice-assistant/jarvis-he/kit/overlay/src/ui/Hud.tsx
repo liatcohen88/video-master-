@@ -194,10 +194,11 @@ export function Hud({
 
   // Notices clear themselves after a few seconds. Most are informational — a
   // reconnect, a stood-down mic — and a banner that never leaves reads as a
-  // stuck error. The user can also dismiss it with the x.
+  // stuck error. The user can also dismiss it with the x. A long one, such as
+  // the reason Claude Code gave for not starting, stays long enough to read.
   useEffect(() => {
     if (!error) return
-    const t = setTimeout(() => setError(null), 7000)
+    const t = setTimeout(() => setError(null), Math.max(7000, error.length * 80))
     return () => clearTimeout(t)
   }, [error, setError])
   const muted = useStore((s) => s.muted)

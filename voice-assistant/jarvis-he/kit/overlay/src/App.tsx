@@ -259,6 +259,12 @@ export default function App() {
       store
         .getState()
         .setError(err instanceof Error ? err.message : say('errGeneric'))
+      // Said as well as shown. The banner is gone in seconds, and without a
+      // word he would just stand there, as if the question never arrived.
+      const oops = createSpeaker()
+      speaker.current = oops
+      oops.say(say('errNoAnswer'))
+      void oops.end()
     } finally {
       if (!stale()) {
         speaker.current = null

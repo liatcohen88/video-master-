@@ -1,9 +1,9 @@
 ﻿# JAMES (JARVIS in Hebrew) - one-click installer for Windows.
 #
-# Installs whatever is missing (Node.js, Google Chrome, Claude Code and the
-# Windows Hebrew voice), downloads JARVIS, adds the Hebrew edition from this
-# kit, puts a shortcut on the desktop and starts it. Running it again repairs
-# and updates the installation in place.
+# Installs whatever is missing (Node.js, Google Chrome, Git, Claude Code and
+# the Windows Hebrew voice), downloads JARVIS, adds the Hebrew edition from this
+# kit, checks that Claude answers, puts a shortcut on the desktop and starts it.
+# Running it again repairs and updates the installation in place.
 #
 # Saved as UTF-8 with a BOM: Windows PowerShell 5.1 needs the BOM to read the
 # Hebrew messages below correctly.
@@ -66,6 +66,51 @@ function Find-Chrome {
         "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
     )
     return $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+}
+
+# Claude Code on Windows runs its commands through Git Bash, and refuses to
+# start without it ("requires git-bash"). JAMES's brain is Claude Code.
+function Find-GitBash {
+    $candidates = @(
+        "$env:ProgramFiles\Git\bin\bash.exe",
+        "${env:ProgramFiles(x86)}\Git\bin\bash.exe",
+        "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+    )
+    return $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+}
+
+# Installs Claude Code if it is missing and opens it in a window of its own,
+# where the user logs in with their Claude account. Returns when that window
+# is closed.
+function Connect-Claude([string]$Why) {
+    if (-not (Test-Command 'claude')) {
+        Write-Host '    Installing Claude Code...'
+        Start-PowerShell 'irm https://claude.ai/install.ps1 | iex'
+        Update-SessionPath
+    }
+    if (-not (Test-Command 'claude')) { return }
+    Popup ($Why + "`n`n" + "אחרי לחיצה על אישור ייפתח חלון של Claude Code: לבחור התחברות עם חשבון Claude, ולאשר בדפדפן. אם אין שם אפשרות כזאת, להקליד /login וללחוץ Enter." + "`n`n" + "כשזה נגמר, או אם כבר מחוברים, לסגור את החלון, וההתקנה תמשיך לבד.") | Out-Null
+    Start-PowerShell 'claude' -KeepOpen
+}
+
+# One tiny question to Claude, asked the way JAMES asks it (brain-check.mjs:
+# the same SDK and model as the bridge). Returns '' when an answer came back,
+# otherwise the reason: no login, no Git Bash, a model the plan lacks...
+function Test-Brain {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    Push-Location $Target
+    try {
+        $said = ((& node (Join-Path $Target 'brain-check.mjs') 2>&1) | ForEach-Object { "$_" }) -join "`n"
+        $code = $LASTEXITCODE
+    } finally {
+        Pop-Location
+        $ErrorActionPreference = $previous
+    }
+    if ($code -eq 0) { return '' }
+    $said = "$said".Trim()
+    if (-not $said) { $said = "exit code $code" }
+    return $said
 }
 
 # An update must not copy files under a running JAMES. Only the instance that
@@ -142,27 +187,37 @@ try {
         Write-Host '    Chrome was not found. Install it from https://www.google.com/chrome for Hebrew speech.' -ForegroundColor Yellow
     }
 
-    # 3. Claude Code, logged in: JAMES runs on the Claude subscription
+    # 3. Git: Claude Code on Windows needs Git Bash
+    Step 'Git'
+    if (-not (Find-GitBash) -and (Test-Command 'winget')) {
+        Write-Host '    Installing Git...'
+        $ErrorActionPreference = 'Continue'
+        & winget install -e --id Git.Git --accept-package-agreements --accept-source-agreements --silent
+        $ErrorActionPreference = 'Stop'
+        Update-SessionPath
+    }
+    $gitBash = Find-GitBash
+    if ($gitBash) {
+        # Named explicitly: Claude Code's own search for it is unreliable on Windows.
+        $env:CLAUDE_CODE_GIT_BASH_PATH = $gitBash
+        Write-Host "    OK ($gitBash)"
+    } else {
+        Write-Host '    Git was not found. Install it from https://git-scm.com/download/win if Claude Code asks for it.' -ForegroundColor Yellow
+    }
+
+    # 4. Claude Code, logged in: JAMES runs on the Claude subscription
     Step 'Claude Code'
     $credentials = Join-Path $env:USERPROFILE '.claude\.credentials.json'
     if (-not (Test-Path $credentials)) {
-        if (-not (Test-Command 'claude')) {
-            Write-Host '    Installing Claude Code...'
-            Start-PowerShell 'irm https://claude.ai/install.ps1 | iex'
-            Update-SessionPath
-        }
-        if (Test-Command 'claude') {
-            Popup ("ג'יימס עובד דרך Claude Code, וצריך להיות מחוברים אליו." + "`n`n" + "אחרי לחיצה על אישור ייפתח חלון חדש של Claude Code: לבחור התחברות עם חשבון Claude, ולאשר בדפדפן." + "`n`n" + "כשזה נגמר, או אם כבר מחוברים, לסגור את החלון, וההתקנה תמשיך לבד.") | Out-Null
-            Start-PowerShell 'claude' -KeepOpen
-        }
+        Connect-Claude "ג'יימס עובד דרך Claude Code, וצריך להיות מחוברים אליו."
     }
     if (Test-Path $credentials) {
         Write-Host '    Logged in'
     } else {
-        Write-Host '    Could not confirm the Claude Code login. JAMES will say so if it is missing.' -ForegroundColor Yellow
+        Write-Host '    Could not confirm the Claude Code login.' -ForegroundColor Yellow
     }
 
-    # 4. JARVIS itself, at the exact version the Hebrew edition was written for
+    # 5. JARVIS itself, at the exact version the Hebrew edition was written for
     Step 'Downloading JARVIS'
     if (Test-Path (Join-Path $Target 'package.json')) {
         Write-Host "    Already downloaded: $Target"
@@ -180,7 +235,7 @@ try {
         Write-Host "    Saved in $Target"
     }
 
-    # 5. The Hebrew edition: the changed files, the launcher and the icon
+    # 6. The Hebrew edition: the changed files, the launcher and the icon
     Step 'Adding the Hebrew edition'
     Stop-RunningJames
     $overlay = (Resolve-Path (Join-Path $Kit 'overlay')).ProviderPath
@@ -190,12 +245,12 @@ try {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
     }
-    foreach ($name in @('start-jarvis.bat', 'open-jarvis.ps1', 'jarvis.ico')) {
+    foreach ($name in @('start-jarvis.bat', 'open-jarvis.ps1', 'brain-check.mjs', 'jarvis.ico')) {
         Copy-Item -LiteralPath (Join-Path $Kit $name) -Destination (Join-Path $Target $name) -Force
     }
     Write-Host '    OK'
 
-    # 6. Packages
+    # 7. Packages
     Step 'Installing packages (the longest step, a few minutes)'
     Push-Location $Target
     $ErrorActionPreference = 'Continue'
@@ -205,7 +260,28 @@ try {
     Pop-Location
     if ($npmExit -ne 0) { throw 'npm install failed. Scroll up in this window to see why.' }
 
-    # 7. The Windows Hebrew voice, which Chrome speaks Hebrew with
+    # 8. Does the brain answer? Found here, a problem gets a readable message.
+    #    Found later, JAMES just says "yes?" and then has nothing to add.
+    Step 'Testing the brain (one short question to Claude)'
+    $brainProblem = Test-Brain
+    if ($brainProblem -match 'log ?in|logged|API key|OAuth|credential|401') {
+        Write-Host "    $brainProblem" -ForegroundColor Yellow
+        Connect-Claude "ג'יימס צריך חיבור לחשבון Claude, והחיבור עוד לא עובד."
+        $brainProblem = Test-Brain
+    }
+    if ($brainProblem) {
+        Write-Host "    No answer: $brainProblem" -ForegroundColor Yellow
+        $shown = $brainProblem.Substring(0, [Math]::Min(600, $brainProblem.Length))
+        $next = "אפשר ללחוץ Ctrl+C כדי להעתיק את ההודעה הזאת, ולהדביק אותה בשיחה עם Claude. ההתקנה ממשיכה בינתיים."
+        if ($brainProblem -match 'git-?bash') {
+            $next = "חסר Git for Windows: להתקין אותו מ-git-scm.com/download/win, ולהפעיל את ההתקנה שוב." + "`n" + $next
+        }
+        Popup ("בבדיקה, המוח של ג'יימס (Claude) לא ענה. בלי המוח ג'יימס עונה 'כן?' ואז שותק." + "`n`n" + "זה מה שחזר:" + "`n" + $shown + "`n`n" + $next) 'OK' 'Warning' | Out-Null
+    } else {
+        Write-Host '    OK: Claude answered'
+    }
+
+    # 9. The Windows Hebrew voice, which Chrome speaks Hebrew with
     Step 'Hebrew voice'
     if (Test-HebrewVoice) {
         Write-Host '    OK'
@@ -225,7 +301,7 @@ try {
         }
     }
 
-    # 8. Desktop shortcut
+    # 10. Desktop shortcut
     Step 'Desktop shortcut'
     $desktop = [Environment]::GetFolderPath('Desktop')
     $shell = New-Object -ComObject WScript.Shell
@@ -244,7 +320,7 @@ try {
     $link.Save()
     Write-Host "    $linkPath"
 
-    # 9. Start
+    # 11. Start
     Step 'Starting JAMES'
     Start-Process -FilePath (Join-Path $Target 'start-jarvis.bat') -WorkingDirectory $Target -WindowStyle Minimized
     Popup ("ג'יימס מותקן!" + "`n`n" + "בעוד רגע ייפתח חלון של Chrome:" + "`n" + "1. ללחוץ על 'הפעלה'." + "`n" + "2. לאשר גישה למיקרופון." + "`n" + "3. להגיד: היי ג'יימס, או למחוא כפיים פעמיים" + "`n`n" + "בפעם הבאה: לחיצה כפולה על ג'יימס בשולחן העבודה." + "`n" + "החלון השחור הממוזער הוא המנוע שלו, וסגירה שלו מכבה אותו.") | Out-Null
@@ -252,6 +328,6 @@ try {
 catch {
     Write-Host ''
     Write-Host ('  Stopped: ' + $_.Exception.Message) -ForegroundColor Red
-    Popup ("ההתקנה נעצרה:" + "`n`n" + $_.Exception.Message + "`n`n" + "אפשר להפעיל את ההתקנה שוב (היא ממשיכה מאיפה שנעצרה), או לשלוח לי צילום מסך של החלון השחור.") 'OK' 'Error' | Out-Null
+    Popup ("ההתקנה נעצרה:" + "`n`n" + $_.Exception.Message + "`n`n" + "אפשר להפעיל את ההתקנה שוב (היא ממשיכה מאיפה שנעצרה). אם זה חוזר: Ctrl+C מעתיק את ההודעה הזאת, ואפשר להדביק אותה בשיחה עם Claude.") 'OK' 'Error' | Out-Null
     exit 1
 }

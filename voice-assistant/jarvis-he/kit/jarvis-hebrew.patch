@@ -1,5 +1,5 @@
 diff --git a/bridge/server.mjs b/bridge/server.mjs
-index 121c27c..2fc051a 100644
+index 121c27c..c88cead 100644
 --- a/bridge/server.mjs
 +++ b/bridge/server.mjs
 @@ -488,7 +488,7 @@ function decideTool(name) {
@@ -38,7 +38,21 @@ index 121c27c..2fc051a 100644
  
  console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
  
-@@ -1877,7 +1888,8 @@ wss.on('connection', (socket) => {
+@@ -1835,6 +1846,13 @@ wss.on('connection', (socket) => {
+    */
+   let openingQuestion = null
+ 
++  /**
++   * The last of what Claude Code wrote to its stderr. When it cannot start at
++   * all (no login, or no Git Bash on Windows) that is the only place the
++   * reason appears: the SDK itself just says the process exited.
++   */
++  let claudeSaid = ''
++
+   const startSession = (resumeId) => query({
+     prompt: userMessages(),
+     options: {
+@@ -1877,7 +1895,8 @@ wss.on('connection', (socket) => {
        // the terminal and rejects newer models set in your settings. Workspace
        // mode is meant to be that same Claude Code, so use the installed CLI.
        pathToClaudeCodeExecutable: WORKSPACE
@@ -48,6 +62,27 @@ index 121c27c..2fc051a 100644
          : undefined,
        // No filesystem settings at all. Left to its default the SDK loads
        // ~/.claude/settings.json and settings.local.json exactly as the CLI
+@@ -1910,6 +1929,9 @@ wss.on('connection', (socket) => {
+       // would sit silent until the entire answer was written. Partial events
+       // are what let speech start on the first finished sentence.
+       includePartialMessages: true,
++      stderr: (data) => {
++        claudeSaid = (claudeSaid + String(data)).slice(-600)
++      },
+       // Signature is (toolName, input, options) and it must return a
+       // PermissionResult object. Returning a bare boolean silently denies
+       // everything, with the tool name arriving undefined.
+@@ -2059,7 +2081,9 @@ wss.on('connection', (socket) => {
+         clearResume()
+       }
+       console.error('[jarvis] session error:', err)
+-      send({ type: 'error', message: String(err?.message ?? err) })
++      const reason = claudeSaid.replace(/\s+/g, ' ').trim()
++      if (reason) console.error('[jarvis] Claude Code said:', reason)
++      send({ type: 'error', message: String(err?.message ?? err) + (reason ? ` (${reason.slice(-300)})` : '') })
+       // The stream is finished either way — nothing will ever be read from it
+       // again. Leaving the socket open would leave the client believing it has
+       // a working bridge, and every later question would hang for ever waiting
 diff --git a/bridge/whisper.mjs b/bridge/whisper.mjs
 index 8442766..f99735d 100644
 --- a/bridge/whisper.mjs
@@ -174,7 +209,7 @@ index 00f4f14..2c223bf 100644
 -console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in both languages`)
 +console.log(`OK — ${new Set(keys).size} keys translated, fillers answer in all three languages`)
 diff --git a/src/App.tsx b/src/App.tsx
-index 36d9c42..4b207cc 100644
+index 36d9c42..86f7bef 100644
 --- a/src/App.tsx
 +++ b/src/App.tsx
 @@ -5,7 +5,7 @@ import { Boot } from './ui/Boot'
@@ -214,7 +249,20 @@ index 36d9c42..4b207cc 100644
  
  export default function App() {
    const store = useStore
-@@ -791,6 +797,44 @@ export default function App() {
+@@ -253,6 +259,12 @@ export default function App() {
+       store
+         .getState()
+         .setError(err instanceof Error ? err.message : say('errGeneric'))
++      // Said as well as shown. The banner is gone in seconds, and without a
++      // word he would just stand there, as if the question never arrived.
++      const oops = createSpeaker()
++      speaker.current = oops
++      oops.say(say('errNoAnswer'))
++      void oops.end()
+     } finally {
+       if (!stale()) {
+         speaker.current = null
+@@ -791,6 +803,44 @@ export default function App() {
      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [phase])
  
@@ -476,7 +524,7 @@ index 9b267b8..e42c361 100644
  ]
  
 diff --git a/src/lib/i18n.ts b/src/lib/i18n.ts
-index c7868ee..af32d69 100644
+index c7868ee..9ac8e1d 100644
 --- a/src/lib/i18n.ts
 +++ b/src/lib/i18n.ts
 @@ -1,7 +1,7 @@
@@ -520,7 +568,15 @@ index c7868ee..af32d69 100644
  
    // Settings panel.
    settingsModel: 'Model',
-@@ -104,6 +106,9 @@ const en = {
+@@ -72,6 +74,7 @@ const en = {
+ 
+   // Notices and errors.
+   errGeneric: 'Something went wrong.',
++  errNoAnswer: 'I could not get an answer just now. The details are on the screen.',
+   errNoAudio: 'No audio from the microphone — check it is not in use elsewhere, or reload.',
+   errPowerUp: 'Power-up failed. Click to try again.',
+   errMicDenied: 'Microphone access denied — voice input is unavailable.',
+@@ -104,6 +107,9 @@ const en = {
      'The speech budget is spent, so his voice is off. Answers still appear on screen.',
    imageUnavailable: 'image unavailable',
    videoUnavailable: 'video unavailable',
@@ -530,7 +586,7 @@ index c7868ee..af32d69 100644
  } as const
  
  export type StringKey = keyof typeof en
-@@ -111,7 +116,7 @@ export type StringKey = keyof typeof en
+@@ -111,7 +117,7 @@ export type StringKey = keyof typeof en
  const pt: Record<StringKey, string> = {
    statusOffline: 'DESLIGADO',
    statusBoot: 'INICIALIZANDO',
@@ -539,7 +595,7 @@ index c7868ee..af32d69 100644
    statusWaking: 'ONLINE',
    statusListening: 'OUVINDO',
    statusThinking: 'PROCESSANDO',
-@@ -126,11 +131,13 @@ const pt: Record<StringKey, string> = {
+@@ -126,11 +132,13 @@ const pt: Record<StringKey, string> = {
    noiseStrict: 'RUÍDO ESTRITO',
    noiseStandard: 'RUÍDO PADRÃO',
    speakerYou: 'VOCÊ',
@@ -554,7 +610,15 @@ index c7868ee..af32d69 100644
  
    settingsModel: 'Modelo',
    settingsEffort: 'Esforço',
-@@ -187,9 +194,106 @@ const pt: Record<StringKey, string> = {
+@@ -155,6 +163,7 @@ const pt: Record<StringKey, string> = {
+   gestureFrame: 'dois L com as mãos para redimensionar',
+ 
+   errGeneric: 'Algo deu errado.',
++  errNoAnswer: 'Não consegui obter uma resposta agora. Os detalhes estão na tela.',
+   errNoAudio: 'Nenhum áudio do microfone — verifique se ele não está em uso em outro lugar, ou recarregue.',
+   errPowerUp: 'Falha ao ligar. Clique para tentar de novo.',
+   errMicDenied: 'Acesso ao microfone negado — entrada de voz indisponível.',
+@@ -187,9 +196,107 @@ const pt: Record<StringKey, string> = {
      'Os créditos de voz acabaram, então a voz dele está desligada. As respostas continuam na tela.',
    imageUnavailable: 'imagem indisponível',
    videoUnavailable: 'vídeo indisponível',
@@ -621,6 +685,7 @@ index c7868ee..af32d69 100644
 +  gestureFrame: 'שתי פינות בצורת L כדי לשנות גודל',
 +
 +  errGeneric: 'משהו השתבש.',
++  errNoAnswer: 'לא הצלחתי לקבל תשובה. הפרטים על המסך.',
 +  errNoAudio: 'לא מגיע קול מהמיקרופון. כדאי לבדוק שהוא לא תפוס בתוכנה אחרת, או לרענן את הדף.',
 +  errPowerUp: 'ההפעלה נכשלה. לחיצה תנסה שוב.',
 +  errMicDenied: 'הגישה למיקרופון נחסמה, ולכן אי אפשר לדבר בקול.',
@@ -662,7 +727,7 @@ index c7868ee..af32d69 100644
  
  /**
   * Read one string.
-@@ -202,5 +306,7 @@ export function t(lang: Lang, key: StringKey): string {
+@@ -202,5 +309,7 @@ export function t(lang: Lang, key: StringKey): string {
    return TABLE[lang][key]
  }
  
@@ -973,10 +1038,24 @@ index 5ee9aed..90259fd 100644
      </svg>
    )
 diff --git a/src/ui/Hud.tsx b/src/ui/Hud.tsx
-index caf2924..0251e85 100644
+index caf2924..e8558f3 100644
 --- a/src/ui/Hud.tsx
 +++ b/src/ui/Hud.tsx
-@@ -277,8 +277,8 @@ export function Hud({
+@@ -194,10 +194,11 @@ export function Hud({
+ 
+   // Notices clear themselves after a few seconds. Most are informational — a
+   // reconnect, a stood-down mic — and a banner that never leaves reads as a
+-  // stuck error. The user can also dismiss it with the x.
++  // stuck error. The user can also dismiss it with the x. A long one, such as
++  // the reason Claude Code gave for not starting, stays long enough to read.
+   useEffect(() => {
+     if (!error) return
+-    const t = setTimeout(() => setError(null), 7000)
++    const t = setTimeout(() => setError(null), Math.max(7000, error.length * 80))
+     return () => clearTimeout(t)
+   }, [error, setError])
+   const muted = useStore((s) => s.muted)
+@@ -277,8 +278,8 @@ export function Hud({
        <header className="hud-top">
          {ui.chrome.brand && (
            <div className="brand">
@@ -987,7 +1066,7 @@ index caf2924..0251e85 100644
            </div>
          )}
  
-@@ -479,7 +479,7 @@ export function Hud({
+@@ -479,7 +480,7 @@ export function Hud({
            point of putting it out here instead of in the settings panel.
          */}
          <div className="seg" role="group" aria-label={tr('settingsLanguage')}>
@@ -996,7 +1075,7 @@ index caf2924..0251e85 100644
              <button
                key={code}
                type="button"
-@@ -600,7 +600,8 @@ export function Hud({
+@@ -600,7 +601,8 @@ export function Hud({
                  {/* Only his half decodes. What the user said was never
                      transmitted from anywhere — dressing it up as machine
                      output would be a lie about where the words came from. */}
