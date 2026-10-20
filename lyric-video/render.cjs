@@ -1,6 +1,7 @@
 // Frame-by-frame renderer: drives index.html's renderFrame(t) in headless Chromium
 // and pipes the screenshots into ffmpeg. Long timelines split across workers.
 //   node render.cjs out=out/preview.mp4 [start=0 end=5.2 fps=30 workers=3 audio=song.mp3 audioStart=0]
+//     faster drafts: img=jpeg preset=medium
 //   node render.cjs stills=0.3,1.2,2.0 dir=out/stills
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
@@ -14,6 +15,8 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 const W = 1080, H = 1920;
 const FPS = +(args.fps || 30);
 const CRF = String(args.crf || 17);
+const IMG = args.img === 'jpeg' ? 'jpeg' : 'png';
+const PRESET = args.preset || 'slow';
 const PAGE = 'file://' + path.resolve(__dirname, args.page || 'index.html');
 
 async function openPage() {
@@ -37,13 +40,14 @@ function run(cmd, argv) {
 
 async function renderSegment(f0, f1, start, file) {
   const { browser, page } = await openPage();
-  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', CRF, '-pix_fmt', 'yuv420p', '-r', String(FPS), file],
+  const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', IMG === 'jpeg' ? 'mjpeg' : 'png',
+    '-framerate', String(FPS), '-i', '-',
+    '-c:v', 'libx264', '-preset', PRESET, '-crf', CRF, '-pix_fmt', 'yuv420p', '-r', String(FPS), file],
     { stdio: ['pipe', 'inherit', 'inherit'] });
   const closed = new Promise(r => ff.on('close', r));
   for (let f = f0; f < f1; f++) {
     await page.evaluate(t => window.renderFrame(t), start + f / FPS);
-    const buf = await page.screenshot({ type: 'png' });
+    const buf = await page.screenshot(IMG === 'jpeg' ? { type: 'jpeg', quality: 95 } : { type: 'png' });
     if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
     if ((f - f0) % 30 === 0) console.log(`[${f0}-${f1}] frame ${f}`);
   }
@@ -90,7 +94,7 @@ async function renderSegment(f0, f1, start, file) {
   for (let i = 0; i < workers && i * per < n; i++) {
     const seg = `${out}.part${i}.mp4`;
     segs.push(seg);
-    jobs.push(run(process.execPath, [__filename, `page=${args.page || 'index.html'}`, `fps=${FPS}`, `crf=${CRF}`,
+    jobs.push(run(process.execPath, [__filename, `page=${args.page || 'index.html'}`, `fps=${FPS}`, `crf=${CRF}`, `img=${IMG}`, `preset=${PRESET}`,
       `segment=${seg}`, `f0=${i * per}`, `f1=${Math.min(n, (i + 1) * per)}`, `start=${start}`]));
   }
   await Promise.all(jobs);

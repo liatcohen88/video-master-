@@ -19,3 +19,11 @@ Sync to the song (numpy only — tempo, beat grid, onsets, loudness):
     python3 analyze_audio.py song.mp3 > out/audio.json
 
 `render.cjs` splits long timelines across `workers=N` headless browsers (default 3) and concatenates the segments.
+
+Morning pipeline (after the sync page has been used):
+
+1. Read the saved timings: ArtifactData `get` of `sync/current` on the sync page artifact, saved to `out/sync.json`.
+2. `python3 make_data.py out/sync.json [song.mp3] > data.js` — snaps each tapped line to the nearest onset.
+3. `node render.cjs out=out/full.mp4 workers=3 [audio=song.mp3]` (`img=jpeg preset=medium` for a quick draft).
+
+`data.sample.js` / `data.demo.js` are placeholder timelines for testing (copy one to `data.js`). `data.js` itself is git-ignored.
