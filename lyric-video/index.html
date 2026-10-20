@@ -62,6 +62,20 @@
   #lkGood { color: #f3b63e; }
   #lkBad { color: #ee3d30; }
 
+  /* --- scene D: credits pasted on a saloon wall --- */
+  #sceneD .wood { background-color: #3a2213; background-size: 100% 100%; }
+  #sceneD .lamp { background: radial-gradient(ellipse 72% 52% at 50% 42%, rgba(255, 196, 120, .30) 0%, rgba(255, 170, 90, .08) 45%, rgba(0, 0, 0, .45) 100%); mix-blend-mode: soft-light; }
+  .poster { position: absolute; left: 0; top: 0; background: #ecdcb8; border-radius: 3px; display: grid; place-items: center; opacity: 0; }
+  .poster .paper { position: absolute; inset: 0; mix-blend-mode: multiply; opacity: .75; background-size: 100% 100%; border-radius: 3px; box-shadow: inset 0 0 70px rgba(110, 66, 20, .5); }
+  .poster .frame { position: absolute; inset: 22px; border: 7px double #1a0f08; }
+  .poster .inner { position: relative; display: grid; justify-items: center; gap: 4px; text-align: center; }
+  .poster .kicker { font-family: "Frank Ruhl Libre", serif; font-weight: 800; color: #1a0f08; display: flex; align-items: center; gap: 18px; line-height: 1.2; }
+  .poster .kicker i { width: .5em; height: .5em; background: #1a0f08; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+  .poster .pname { font-family: "Suez One", serif; color: #1a0f08; line-height: 1.12; white-space: nowrap; text-shadow: -7px 5px 0 rgba(130, 70, 20, .42); }
+  .poster .prule { position: relative; height: 8px; background: #1a0f08; margin-top: 8px; }
+  .poster .prule::before { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; background: #1a0f08; transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 6px #ecdcb8, 0 0 0 11px #1a0f08; }
+  .nail { position: absolute; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ddd0ba 0%, #8b7a66 38%, #2e251d 82%); box-shadow: 0 3px 4px rgba(0, 0, 0, .55); }
+
   /* --- screen-space film layers --- */
   #vignette, #flicker, #flash, #iris { position: absolute; inset: 0; pointer-events: none; }
   #vignette { background: radial-gradient(ellipse 82% 64% at 50% 47%, rgba(0, 0, 0, 0) 50%, rgba(14, 6, 2, .66) 100%); mix-blend-mode: multiply; }
@@ -127,6 +141,23 @@
       <svg class="layer" id="fxC" viewBox="0 0 1080 1920"></svg>
     </section>
 
+    <section id="sceneD" class="scene">
+      <div class="bg wood" id="wood"></div>
+      <div class="bg lamp"></div>
+      <div class="anchor" style="left:540px; top:650px"><div class="poster" id="p1" style="width:840px; height:620px">
+        <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
+        <div class="inner"><span class="kicker" style="font-size:76px"><i></i>בכיכוב<i></i></span><span class="pname" id="p1n">אודיה</span><span class="prule" style="width:420px"></span></div>
+      </div></div>
+      <div class="anchor" style="left:330px; top:1250px"><div class="poster" id="p2" style="width:560px; height:440px">
+        <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
+        <div class="inner"><span class="kicker" style="font-size:58px"><i></i>עם<i></i></span><span class="pname" id="p2n">איזי</span><span class="prule" style="width:250px"></span></div>
+      </div></div>
+      <div class="anchor" style="left:742px; top:1302px"><div class="poster" id="p3" style="width:560px; height:440px">
+        <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
+        <div class="inner"><span class="kicker" style="font-size:58px"><i></i>עם<i></i></span><span class="pname" id="p3n">ליעד מאיר</span><span class="prule" style="width:250px"></span></div>
+      </div></div>
+    </section>
+
     <svg class="layer" id="burnSvg" viewBox="0 0 1080 1920"><path id="burn" fill="none" stroke="#160602" stroke-width="15" stroke-linejoin="round"/></svg>
     <canvas id="parts" class="layer" width="1080" height="1920"></canvas>
   </div>
@@ -139,6 +170,8 @@
   <div id="iris"></div>
 </div>
 
+<script>window.LYRICS = null;</script>
+<script src="data.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -196,7 +229,9 @@ const T = {
   letters: 2.98, letterGap: .075, letterDur: .44,
   odeyaGlint: 3.74,
   lockIn: 3.98, lockHit: 4.22,
-  end: 5.2,
+  whip: [5.20, 5.46],         // whip-pan to the saloon wall
+  slaps: [5.56, 6.30, 6.92],  // credit posters slapped on, one per performer
+  end: 8.0,
 };
 window.DURATION = T.end;
 const HOLE = { x: 540, y: 560 };
@@ -210,6 +245,7 @@ const flashes = [
   ...T.shots.map(t => ({ t, a: .42, d: .07 })),
   { t: T.cutC, a: .75, d: .14 },
   { t: T.lockHit, a: .28, d: .1 },
+  ...T.slaps.map(t => ({ t: t + .12, a: .12, d: .07 })),
 ];
 const kicks = [
   { t: T.goodSlam + .08, a: 28 },
@@ -219,6 +255,7 @@ const kicks = [
   ...T.shots.map(t => ({ t, a: 17 })),
   ...[...LETTERS].map((_, i) => ({ t: T.letters + i * T.letterGap + .16, a: 5 })),
   { t: T.lockHit, a: 24 },
+  ...T.slaps.map((t, i) => ({ t: t + .12, a: i ? 16 : 22 })),
 ];
 
 // ---------- text styling ----------
@@ -240,10 +277,10 @@ function fit(el, maxW, maxPx) {
 
 // ---------- particles (closed-form so every frame is independent) ----------
 const emitters = [];
-function emit(kind, t0, o) { emitters.push(Object.assign({ kind, t0, seed: emitters.length * 977 + 31 }, o)); }
+function emit(kind, t0, o, list = emitters) { list.push(Object.assign({ kind, t0, seed: list.length * 977 + 31 + (list === emitters ? 0 : 50000) }, o)); }
 
-function drawParticles(ctx, t) {
-  for (const e of emitters) {
+function drawParticles(ctx, t, list = emitters) {
+  for (const e of list) {
     if (t < e.t0 || t < e.from || t >= e.to) continue;
     const r = rng(e.seed);
     for (let i = 0; i < e.n; i++) {
@@ -371,6 +408,35 @@ function ragPath(cx, cy, R) {
   return d + 'Z';
 }
 
+function woodTexture() {
+  const W = 1400, H = 2240, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d'), r = rng(2024), plank = 132;
+  for (let y0 = 0, row = 0; y0 < H; y0 += plank, row++) {
+    x.fillStyle = `hsl(${22 + r() * 6}, ${40 + r() * 12}%, ${15 + r() * 7}%)`;
+    x.fillRect(0, y0, W, plank);
+    for (let k = 0; k < 70; k++) {
+      const yy = y0 + r() * plank, amp = 2 + r() * 6, ph = r() * 6.28, fq = .002 + r() * .006;
+      x.strokeStyle = r() < .55 ? `rgba(0,0,0,${.05 + r() * .12})` : `rgba(255,214,160,${.03 + r() * .06})`;
+      x.lineWidth = .6 + r() * 1.8;
+      x.beginPath();
+      for (let xx = 0; xx <= W; xx += 20) { const yv = yy + Math.sin(xx * fq + ph) * amp; xx ? x.lineTo(xx, yv) : x.moveTo(xx, yv); }
+      x.stroke();
+    }
+    if (r() < .6) {
+      const kx = r() * W, ky = y0 + plank * (.3 + r() * .4);
+      for (let q = 0; q < 6; q++) { x.strokeStyle = `rgba(20,8,2,${.28 - q * .035})`; x.lineWidth = 2; x.beginPath(); x.ellipse(kx, ky, 10 + q * 7, 4 + q * 3, 0, 0, Math.PI * 2); x.stroke(); }
+    }
+    x.fillStyle = 'rgba(8,3,1,.85)'; x.fillRect(0, y0, W, 6);
+    x.fillStyle = 'rgba(255,200,140,.08)'; x.fillRect(0, y0 + 6, W, 2);
+    const jx = (row % 2 ? 300 : 820) + r() * 140;
+    x.fillStyle = 'rgba(8,3,1,.75)'; x.fillRect(jx, y0, 5, plank);
+    x.fillStyle = 'rgba(28,18,10,.9)';
+    for (const nx of [jx - 18, jx + 23]) for (const ny of [y0 + 26, y0 + plank - 26]) { x.beginPath(); x.arc(nx, ny, 5, 0, Math.PI * 2); x.fill(); }
+  }
+  return c.toDataURL('image/jpeg', .9);
+}
+
 // ---------- build ----------
 let star, letters = [], sparkA, sparkC, holeA, holesB = [], odeyaW = 0, mbIndex = 0;
 function sparkle(parent) {
@@ -460,6 +526,13 @@ function build() {
     holesB.push({ g, x: fx * bw, y: fy * bh, fx: 540 + (fx - .5) * bw, fy: 930 + (fy - .5) * bh, t: T.shots[i] });
   });
   sparkC = sparkle($('fxC'));
+  $('wood').style.backgroundImage = `url(${woodTexture()})`;
+  document.querySelectorAll('.poster .paper').forEach((el, i) => {
+    el.style.backgroundImage = `url(${paperTexture(41 + i, 40, 30, 190)}), url(${paperTexture(51 + i, 160, 120, 218)})`;
+  });
+  fit($('p1n'), 700, 250);
+  fit($('p2n'), 440, 210);
+  fit($('p3n'), 450, 210);
 
   // paper textures
   document.querySelectorAll('.paper').forEach((el, i) => {
@@ -476,6 +549,7 @@ function build() {
     const cx = 540 + odeyaW / 2 - (i + .5) * odeyaW / LETTERS.length;
     emit('puff', T.letters + i * T.letterGap + .16, { x0: cx - 50, x1: cx + 50, y: 1150, jy: 12, n: 10, rgb: '255,214,160', alpha: .3, size: [10, 22], grow: 70, spread: 110, rise: [30, 120], drag: 3.5, g: 80, life: [.5, .9], from: T.cutC, to: 99 });
   });
+  POSTERS.forEach((o, i) => emit('puff', o.t + .12, { x0: o.x - o.w * .45, x1: o.x + o.w * .45, y: o.y + o.h * .5, jy: 14, n: 22, rgb: '214,180,136', alpha: .15, size: [20, 44], grow: 150, spread: 380, rise: [20, 110], drag: 3.2, g: 90, life: [.6, 1.1], from: T.whip[0], to: 99 }));
   emit('spark', T.lockHit, { x0: 530, x1: 550, y: 560, jy: 30, n: 46, rgb: '255,226,160', alpha: 1, speed: [500, 1500], drag: 4.5, g: 1600, life: [.3, .6], from: T.cutC, to: 99 });
   emit('puff', T.lockHit, { x0: 500, x1: 580, y: 570, jy: 20, n: 24, rgb: '255,214,160', alpha: .35, size: [14, 30], grow: 140, spread: 300, rise: [20, 160], drag: 3, g: 60, life: [.6, 1.1], from: T.cutC, to: 99 });
 }
@@ -596,9 +670,15 @@ function renderB(t) {
 }
 
 function renderC(t) {
-  const on = t >= T.cutC;
-  $('sceneC').style.visibility = on ? 'visible' : 'hidden';
+  const on = t >= T.cutC && t < T.whip[1];
+  const sc = $('sceneC');
+  sc.style.visibility = on ? 'visible' : 'hidden';
   if (!on) return;
+  if (t >= T.whip[0]) {
+    const p = prog(t, ...T.whip), dur = T.whip[1] - T.whip[0];
+    sc.style.transform = `translateX(${(-1300 * ease.inCubic(p)).toFixed(1)}px)`;
+    motionBlur(sc, 1300 * 3 * p * p / dur / FPS * .5);
+  } else { sc.style.transform = 'none'; sc.style.filter = 'none'; }
   const p = ease.outCubic(prog(t, ...T.sunRise));
   const cy = lerp(1900, 1080, p);
   $('sun').style.top = cy + 'px';
@@ -634,6 +714,32 @@ function renderC(t) {
   }
 }
 
+const POSTERS = [
+  { id: 'p1', t: T.slaps[0], x: 540, y: 650, w: 840, h: 620, fromX: 900, fromY: -520, fromRot: 18, rot: -3 },
+  { id: 'p2', t: T.slaps[1], x: 330, y: 1250, w: 560, h: 440, fromX: -900, fromY: 300, fromRot: -16, rot: 4 },
+  { id: 'p3', t: T.slaps[2], x: 742, y: 1302, w: 560, h: 440, fromX: 900, fromY: 420, fromRot: 14, rot: -5 },
+];
+function renderD(t) {
+  const sc = $('sceneD');
+  const on = t >= T.whip[0];
+  sc.style.visibility = on ? 'visible' : 'hidden';
+  if (!on) return;
+  const dur = T.whip[1] - T.whip[0], p = prog(t, T.whip[0] + .04, T.whip[1] + .04);
+  const x = 1300 * (1 - ease.outCubic(p));
+  sc.style.transform = x > .5 ? `translateX(${x.toFixed(1)}px)` : 'none';
+  motionBlur(sc, x > .5 ? 1300 * 3 * (1 - p) * (1 - p) / dur / FPS * .5 : 0);
+  for (const o of POSTERS) {
+    const el = $(o.id), d = t - o.t, sd = .26;
+    if (d < 0) { el.style.opacity = 0; continue; }
+    const q = clamp(d / sd), e = ease.outExpo(q), lift = 1 - e;
+    let s = lerp(1.45, 1, e);
+    if (q >= 1) { const d2 = d - sd; s = 1 - .03 * Math.exp(-d2 * 13) * Math.cos(d2 * 42); }
+    el.style.opacity = 1;
+    el.style.transform = `translate(-50%, -50%) translate(${(o.fromX * lift).toFixed(1)}px, ${(o.fromY * lift).toFixed(1)}px) rotate(${lerp(o.fromRot, o.rot, e).toFixed(2)}deg) scale(${s.toFixed(4)})`;
+    el.style.boxShadow = `0 ${(14 + 60 * lift).toFixed(1)}px ${(34 + 90 * lift).toFixed(1)}px rgba(0,0,0,${(.5 + .2 * lift).toFixed(3)})`;
+  }
+}
+
 function renderCamera(t) {
   let x = 0, y = 0, r = 0, s = 1;
   for (const k of kicks) {
@@ -647,7 +753,8 @@ function renderCamera(t) {
   }
   if (t < T.shot0) s *= 1 + .035 * ease.inOutCubic(prog(t, T.goodSlam, T.shot0));
   else if (t < T.cutC) s *= 1 + .035 * ease.inOutCubic(prog(t, T.badSlam, T.cutC));
-  else s *= 1 + .06 * ease.inOutCubic(prog(t, T.cutC, T.end));
+  else if (t < T.whip[0]) s *= 1 + .06 * ease.inOutCubic(prog(t, T.cutC, T.whip[0]));
+  else s *= 1 + .05 * ease.inOutCubic(prog(t, T.whip[1], T.end)) + .008 * Math.max(0, t - T.end);
   x += Math.sin(t * 5.3) * .9 + Math.sin(t * 13.1 + 2) * .5;   // gate weave
   y += Math.sin(t * 4.1 + 1) * 1.1 + Math.sin(t * 11.7) * .4;
   $('cam').style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) rotate(${r.toFixed(3)}deg) scale(${s.toFixed(4)})`;
@@ -657,17 +764,24 @@ const partsCtx = $('parts').getContext('2d');
 const grainCtx = $('grain').getContext('2d');
 const dirtCtx = $('dirt').getContext('2d');
 
-window.renderFrame = t => {
-  const frame = Math.round(t * FPS);
-  renderA(t); renderB(t); renderC(t);
-  renderCamera(t);
+window.renderFrame = time => {
+  const frame = Math.round(time * FPS);
+  const L = window.LyricEngine || null;
+  const lyr = !!L && L.isLyrics(time);
+  const t = L ? L.introTime(time) : time;    // intro timeline (stretched or squeezed to fit before the vocals)
+  if (lyr) for (const id of ['sceneA', 'sceneB', 'sceneC', 'sceneD']) $(id).style.visibility = 'hidden';
+  else { renderA(t); renderB(t); renderC(t); renderD(t); renderCamera(t); }
+  if (L) L.render(time, lyr);
 
   partsCtx.clearRect(0, 0, 1080, 1920);
-  if (t >= T.cutC) drawSky(partsCtx, t);
-  drawParticles(partsCtx, t);
+  if (lyr) L.drawParticles(partsCtx, time);
+  else {
+    if (t >= T.cutC && t < T.whip[0]) drawSky(partsCtx, t);
+    drawParticles(partsCtx, t);
+  }
 
-  let fa = 0;
-  for (const f of flashes) { const d = t - f.t; if (d >= 0 && d < f.d) fa = Math.max(fa, f.a * (1 - d / f.d)); }
+  let fa = lyr ? L.flash(time) : 0;
+  if (!lyr) for (const f of flashes) { const d = t - f.t; if (d >= 0 && d < f.d) fa = Math.max(fa, f.a * (1 - d / f.d)); }
   $('flash').style.opacity = fa.toFixed(3);
   $('flicker').style.opacity = (.015 + rng(frame * 13 + 5)() * .05).toFixed(3);
 
@@ -690,9 +804,11 @@ window.renderFrame = t => {
   ]);
   await document.fonts.ready;
   build();
+  if (window.LyricEngine) window.LyricEngine.build();
   window.renderFrame(0);
   window.__ready = true;
 })();
 </script>
+<script src="lyrics-engine.js"></script>
 </body>
 </html>
