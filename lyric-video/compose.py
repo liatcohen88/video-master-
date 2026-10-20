@@ -510,6 +510,14 @@ def build_song():
             for beat in range(4):
                 for s16 in ((0, 2, 3) if gallop == 1 else (0, 1, 2, 3)):
                     hoof(t + (beat + s16 / 4) * BEAT, high=s16 != 2, gain=0.11 if s16 else 0.14, pan=-0.2 + 0.4 * (s16 % 2))
+    # accents that match the video's keyword effects (bullet hole on הרע, sparkle on הטוב / ואני)
+    for line in lines:
+        for w in line['words']:
+            bare = ''.join(ch for ch in w['text'] if '\u05d0' <= ch <= '\u05ea')
+            if bare in ('הרע', 'והרע'):
+                gunshot(w['t'], 0.14, pan=0.25, echo=False)
+            elif bare in ('הטוב', 'והטוב', 'אני', 'ואני'):
+                ting(w['t'] + 0.1, 0.05)
     anvil(bt(5), 0.14)
     anvil(bt(14), 0.14)
     for b in (1, 10):
