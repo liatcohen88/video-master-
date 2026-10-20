@@ -199,7 +199,7 @@
       wrap.appendChild(box); a.appendChild(wrap); host.appendChild(a);
       l.el = a; l.box = box;
       // fit: largest size that keeps the line within three rows and the safe area
-      let size = l.world === 'wall' ? 132 : 150;
+      let size = l.world === 'wall' ? 300 : 340;   // short lines go big, long ones shrink to fit
       a.style.visibility = 'visible';
       for (; size > 64; size -= 6) {
         box.style.fontSize = size + 'px';
