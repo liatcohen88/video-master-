@@ -13,3 +13,9 @@ Render (global Playwright lives in /opt/node22/lib/node_modules):
 Style: spaghetti-western poster (the title spoofs "The Good, the Bad and the Ugly").
 Mustard field + sheriff star for הטוב, blood-red target rings + bullet holes for הרע,
 desert sunset with dropping letters for ועודיה; film grain, dust, scratches, gate weave.
+
+Sync to the song (numpy only — tempo, beat grid, onsets, loudness):
+
+    python3 analyze_audio.py song.mp3 > out/audio.json
+
+`render.cjs` splits long timelines across `workers=N` headless browsers (default 3) and concatenates the segments.
