@@ -9,7 +9,11 @@
   const E = window.LyricEngine = { active: true };
   const lines = D.lines.filter(l => l.t != null && String(l.text || '').trim()).map((l, i) => ({
     i, text: String(l.text).trim(), label: String(l.label || '').trim(), t: +l.t,
+    world: l.world || null, given: Array.isArray(l.words) ? l.words : null,
   }));
+  const KW = Object.assign({ good: '^ו?ה?טוב$', bad: '^ו?ה?רע$', hero: '^ו?[עא]ודיה$' }, D.keywords || {});
+  const KWRE = Object.fromEntries(Object.entries(KW).map(([k, v]) => [k, new RegExp(v)]));
+  const TITLE = Object.assign({ l1: ['הטוב', 'הרע'], l2: 'ועודיה' }, D.title || {});
   lines.sort((a, b) => a.t - b.t);
   const first = lines[0].t;
   const END = D.end != null ? +D.end : lines.at(-1).t + 3.5;
@@ -49,7 +53,7 @@
     const repeated = s.lines.filter(l => count.get(l.text) > 1).length / s.lines.length;
     const chorus = /פזמון|chorus|הוק|hook/i.test(s.label) || (!s.label && repeated >= .5) || /אודיה/.test(s.label);
     s.world = (D.worlds && D.worlds[s.label]) || (chorus ? 'dusk' : WORLDS[rot++ % 4]);
-    for (const l of s.lines) l.world = s.world;
+    for (const l of s.lines) l.world = l.world || s.world;
   }
 
   // ---------- timing: show window per line, word times snapped to the song's onsets ----------
@@ -62,6 +66,13 @@
   };
   lines.forEach((l, i) => {
     const next = i + 1 < lines.length ? lines[i + 1].t : END;
+    if (l.given) {   // exact word times (composed songs)
+      l.words = l.given.map(w => ({ text: String(w.text), t: +w.t }));
+      l.lastWord = l.words.at(-1).t;
+      l.out = Math.min(next, l.lastWord + 2.6);
+      l.gapAfter = next - l.out;
+      return;
+    }
     const words = l.text.split(/\s+/).filter(Boolean);
     const spread = Math.max(.25, Math.min((next - l.t) * .82, .4 * words.length + .5));
     const wts = words.map(w => 1 + w.replace(/[^א-תA-Za-z0-9]/g, '').length * .35);
@@ -117,8 +128,8 @@
   .lline.w-red .wd.kw-bad { color: #f7e8c8; }
   .lline.w-wall .wd.kw-good { color: #9a6a06; }
   .lline.w-wall .wd.kw-bad { color: #a4161a; }
-  .lline .wd.kw-odeya { color: #ffd27a; }
-  #lyricLock { font-family: "Suez One", serif; text-align: center; line-height: 1.1; opacity: 0; }
+  .lline .wd.kw-hero { color: #ffd27a; }
+  #lyricLock { font-family: "Suez One", serif; text-align: center; line-height: 1.1; opacity: 0; white-space: nowrap; }
   #lyricLock .l1 span { display: inline-block; }
   `;
   document.head.appendChild(css);
@@ -163,9 +174,12 @@
     // the title lockup for instrumental gaps and the outro
     const lock = document.createElement('div');
     lock.className = 'anchor llock'; lock.style.left = '540px'; lock.style.top = '900px';
-    lock.innerHTML = '<div class="lwrap" id="lyricLock"><div class="l1"><span class="g">הטוב</span> <span class="b">הרע</span></div><div class="l2">ועודיה</div></div>';
+    lock.innerHTML = '<div class="lwrap" id="lyricLock"><div class="l1"><span class="g"></span> <span class="b"></span></div><div class="l2"></div></div>';
     scene.appendChild(lock);
     const lk = $('lyricLock');
+    lk.querySelector('.g').textContent = TITLE.l1[0];
+    lk.querySelector('.b').textContent = TITLE.l1[1];
+    lk.querySelector('.l2').textContent = TITLE.l2;
     lk.querySelector('.l1').style.fontSize = '150px';
     lk.querySelector('.g').style.cssText = `color:#f3b63e; text-shadow:${blockShadow(12, '#160704', 4)}`;
     lk.querySelector('.b').style.cssText = `color:#ee3d30; text-shadow:${blockShadow(12, '#160704', 4)}`;
@@ -187,9 +201,9 @@
         const s = document.createElement('span');
         s.className = 'wd'; s.textContent = w.text;
         const bare = w.text.replace(/[^א-ת]/g, '');
-        if (/^ו?ה?טוב$/.test(bare)) w.kw = 'good';
-        else if (/^ו?ה?רע$/.test(bare)) w.kw = 'bad';
-        else if (/^ו?[עא]ודיה$/.test(bare)) w.kw = 'odeya';
+        if (KWRE.good.test(bare)) w.kw = 'good';
+        else if (KWRE.bad.test(bare)) w.kw = 'bad';
+        else if (KWRE.hero.test(bare)) w.kw = 'hero';
         if (w.kw) s.classList.add('kw-' + w.kw);
         if (shadows[l.world]) s.style.textShadow = shadows[l.world];
         w.jitter = (r() - .5) * (l.world === 'wall' ? 7 : 10);

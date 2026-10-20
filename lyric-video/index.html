@@ -148,11 +148,11 @@
         <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
         <div class="inner"><span class="kicker" style="font-size:76px"><i></i>בכיכוב<i></i></span><span class="pname" id="p1n">אודיה</span><span class="prule" style="width:420px"></span></div>
       </div></div>
-      <div class="anchor" style="left:330px; top:1250px"><div class="poster" id="p2" style="width:560px; height:440px">
+      <div class="anchor" style="left:300px; top:1250px"><div class="poster" id="p2" style="width:500px; height:440px">
         <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
         <div class="inner"><span class="kicker" style="font-size:58px"><i></i>עם<i></i></span><span class="pname" id="p2n">איזי</span><span class="prule" style="width:250px"></span></div>
       </div></div>
-      <div class="anchor" style="left:742px; top:1302px"><div class="poster" id="p3" style="width:560px; height:440px">
+      <div class="anchor" style="left:772px; top:1302px"><div class="poster" id="p3" style="width:500px; height:440px">
         <div class="paper"></div><div class="frame"></div><i class="nail" style="right:34px"></i><i class="nail" style="left:34px"></i>
         <div class="inner"><span class="kicker" style="font-size:58px"><i></i>עם<i></i></span><span class="pname" id="p3n">ליעד מאיר</span><span class="prule" style="width:250px"></span></div>
       </div></div>
@@ -170,7 +170,7 @@
   <div id="iris"></div>
 </div>
 
-<script>window.LYRICS = null;</script>
+<script>window.LYRICS = null; window.SONG = null;</script>
 <script src="data.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -235,8 +235,10 @@ const T = {
 };
 window.DURATION = T.end;
 const HOLE = { x: 540, y: 560 };
-const LETTERS = 'ועודיה';
-const LROT = [-14, 9, -7, 12, -10, 8];
+// song-specific text; data.js may override it with window.SONG
+const SONG = Object.assign({ title: 'הטוב הרע ועודיה', hero: 'ועודיה', heroSize: 300, lock: ['הטוב', 'הרע'], posters: null }, window.SONG || {});
+const LETTERS = SONG.hero;
+const LROT = [...LETTERS].map((_, i) => [-14, 9, -7, 12, -10, 8][i % 6]);
 
 const flashes = [
   { t: T.goodSlam + .06, a: .18, d: .08 },
@@ -443,6 +445,14 @@ function sparkle(parent) {
   return svg('path', { d: 'M0 -70 C9 -9 9 -9 70 0 C9 9 9 9 0 70 C-9 9 -9 9 -70 0 C-9 -9 -9 -9 0 -70 Z', fill: '#fffbe9', opacity: 0 }, parent);
 }
 function build() {
+  document.title = SONG.title;
+  $('lkGood').textContent = SONG.lock[0];
+  $('lkBad').textContent = SONG.lock[1];
+  (SONG.posters || []).forEach((p, i) => {
+    const k = $('p' + (i + 1)).querySelector('.kicker');
+    k.replaceChildren(document.createElement('i'), document.createTextNode(p.kicker), document.createElement('i'));
+    $('p' + (i + 1) + 'n').textContent = p.name;
+  });
   // motion-blur filters (horizontal)
   const defs = $('filters');
   for (let i = 0; i <= 14; i++) {
@@ -497,7 +507,7 @@ function build() {
     s.className = 'L'; s.textContent = ch;
     wOdeya.appendChild(s); letters.push(s);
   }
-  fit(wOdeya, 900, 300);
+  fit(wOdeya, 900, SONG.heroSize);
   const odeyaShadow = blockShadow(18, '#1c0805', 6, ['-30px 40px 50px rgba(20,4,0,.5)']);
   letters.forEach(s => s.style.textShadow = odeyaShadow);
   odeyaW = wOdeya.offsetWidth;
@@ -531,8 +541,8 @@ function build() {
     el.style.backgroundImage = `url(${paperTexture(41 + i, 40, 30, 190)}), url(${paperTexture(51 + i, 160, 120, 218)})`;
   });
   fit($('p1n'), 700, 250);
-  fit($('p2n'), 440, 210);
-  fit($('p3n'), 450, 210);
+  fit($('p2n'), 390, 210);
+  fit($('p3n'), 390, 210);
 
   // paper textures
   document.querySelectorAll('.paper').forEach((el, i) => {
@@ -716,8 +726,8 @@ function renderC(t) {
 
 const POSTERS = [
   { id: 'p1', t: T.slaps[0], x: 540, y: 650, w: 840, h: 620, fromX: 900, fromY: -520, fromRot: 18, rot: -3 },
-  { id: 'p2', t: T.slaps[1], x: 330, y: 1250, w: 560, h: 440, fromX: -900, fromY: 300, fromRot: -16, rot: 4 },
-  { id: 'p3', t: T.slaps[2], x: 742, y: 1302, w: 560, h: 440, fromX: 900, fromY: 420, fromRot: 14, rot: -5 },
+  { id: 'p2', t: T.slaps[1], x: 300, y: 1250, w: 500, h: 440, fromX: -900, fromY: 300, fromRot: -16, rot: 4 },
+  { id: 'p3', t: T.slaps[2], x: 772, y: 1302, w: 500, h: 440, fromX: 900, fromY: 420, fromRot: 14, rot: -5 },
 ];
 function renderD(t) {
   const sc = $('sceneD');
