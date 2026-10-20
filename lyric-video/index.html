@@ -236,7 +236,9 @@ const T = {
 window.DURATION = T.end;
 const HOLE = { x: 540, y: 560 };
 // song-specific text; data.js may override it with window.SONG
-const SONG = Object.assign({ title: 'הטוב הרע ועודיה', hero: 'ועודיה', heroSize: 300, lock: ['הטוב', 'הרע'], posters: null }, window.SONG || {});
+const SONG = Object.assign({ title: 'הטוב הרע ועודיה', dir: 'rtl', words: ['הטוב', 'הרע'], hero: 'ועודיה', heroSize: 300, letterGap: null, lock: ['הטוב', 'הרע'], posters: null }, window.SONG || {});
+if (SONG.letterGap) T.letterGap = SONG.letterGap;
+const LTR = SONG.dir === 'ltr';
 const LETTERS = SONG.hero;
 const LROT = [...LETTERS].map((_, i) => [-14, 9, -7, 12, -10, 8][i % 6]);
 
@@ -446,6 +448,9 @@ function sparkle(parent) {
 }
 function build() {
   document.title = SONG.title;
+  $('stage').style.direction = SONG.dir;
+  $('wGood').textContent = $('gGood').textContent = SONG.words[0];
+  $('wBad').textContent = $('gBad').textContent = SONG.words[1];
   $('lkGood').textContent = SONG.lock[0];
   $('lkBad').textContent = SONG.lock[1];
   (SONG.posters || []).forEach((p, i) => {
@@ -556,7 +561,7 @@ function build() {
   emit('puff', T.badSlam + .1, { x0: 260, x1: 820, y: 1190, jy: 20, n: 26, rgb: '50,6,6', alpha: .3, size: [26, 50], grow: 160, spread: 420, rise: [20, 120], drag: 3.2, g: 140, life: [.7, 1.2], from: T.holeGrow[0], to: T.cutC });
   holesB.forEach(h => emit('puff', h.t, { x0: h.fx - 6, x1: h.fx + 6, y: h.fy, jy: 6, n: 16, rgb: '232,222,204', alpha: .55, size: [8, 18], grow: 90, spread: 90, rise: [90, 240], drag: 2.4, g: -80, life: [.6, 1.1], from: T.holeGrow[0], to: T.cutC }));
   letters.forEach((s, i) => {
-    const cx = 540 + odeyaW / 2 - (i + .5) * odeyaW / LETTERS.length;
+    const cx = LTR ? 540 - odeyaW / 2 + (i + .5) * odeyaW / LETTERS.length : 540 + odeyaW / 2 - (i + .5) * odeyaW / LETTERS.length;
     emit('puff', T.letters + i * T.letterGap + .16, { x0: cx - 50, x1: cx + 50, y: 1150, jy: 12, n: 10, rgb: '255,214,160', alpha: .3, size: [10, 22], grow: 70, spread: 110, rise: [30, 120], drag: 3.5, g: 80, life: [.5, .9], from: T.cutC, to: 99 });
   });
   POSTERS.forEach((o, i) => emit('puff', o.t + .12, { x0: o.x - o.w * .45, x1: o.x + o.w * .45, y: o.y + o.h * .5, jy: 14, n: 22, rgb: '214,180,136', alpha: .15, size: [20, 44], grow: 150, spread: 380, rise: [20, 110], drag: 3.2, g: 90, life: [.6, 1.1], from: T.whip[0], to: 99 }));
@@ -704,7 +709,7 @@ function renderC(t) {
     el.style.opacity = clamp(d / .05);
     el.style.transform = `translateY(${y.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
   });
-  spark(sparkC, t, T.odeyaGlint, .4, 540 + odeyaW / 2 - 70, 1010 - 120, 1.25);
+  spark(sparkC, t, T.odeyaGlint, .4, LTR ? 540 - odeyaW / 2 + 70 : 540 + odeyaW / 2 - 70, 1010 - 120, 1.25);
 
   // "הטוב," and "הרע" crash into each other above the sun
   const lp = prog(t, T.lockIn, T.lockHit);
@@ -813,6 +818,8 @@ window.renderFrame = time => {
     document.fonts.load('900 100px "Frank Ruhl Libre"', 'ועודיה'),
   ]);
   await document.fonts.ready;
+  // lyrics-engine.js is a later <script>; wait until every script has run before building
+  if (document.readyState !== 'complete') await new Promise(r => addEventListener('load', r, { once: true }));
   build();
   if (window.LyricEngine) window.LyricEngine.build();
   window.renderFrame(0);

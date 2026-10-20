@@ -131,6 +131,7 @@
   .lline .wd.kw-hero { color: #ffd27a; }
   #lyricLock { font-family: "Suez One", serif; text-align: center; line-height: 1.1; opacity: 0; white-space: nowrap; }
   #lyricLock .l1 span { display: inline-block; }
+  #lyricLock .l1, #lyricLock .l2 { width: max-content; margin-inline: auto; }
   `;
   document.head.appendChild(css);
 
@@ -180,12 +181,16 @@
     lk.querySelector('.g').textContent = TITLE.l1[0];
     lk.querySelector('.b').textContent = TITLE.l1[1];
     lk.querySelector('.l2').textContent = TITLE.l2;
+    lk.style.direction = D.dir || 'rtl';
+    if (D.upper) lk.style.textTransform = 'uppercase';
     lk.querySelector('.l1').style.fontSize = '150px';
     lk.querySelector('.g').style.cssText = `color:#f3b63e; text-shadow:${blockShadow(12, '#160704', 4)}`;
     lk.querySelector('.b').style.cssText = `color:#ee3d30; text-shadow:${blockShadow(12, '#160704', 4)}`;
     const l2 = lk.querySelector('.l2');
     l2.style.fontSize = '290px'; l2.style.color = '#fcedcf';
     l2.style.textShadow = blockShadow(18, '#1c0805', 6, ['-30px 40px 50px rgba(20,4,0,.5)']);
+    fit(lk.querySelector('.l1'), 900, 150);
+    fit(l2, 900, 290);
 
     const shadows = {
       red: blockShadow(16, '#1a0505', 4, ['-26px 30px 34px rgba(0,0,0,.35)']),
@@ -196,11 +201,13 @@
       a.className = 'anchor'; a.style.left = '540px'; a.style.top = '900px'; a.style.visibility = 'hidden';
       const wrap = document.createElement('div'); wrap.className = 'lwrap';
       const box = document.createElement('div'); box.className = 'lline w-' + l.world;
+      box.style.direction = D.dir || 'rtl';
+      if (D.upper) box.style.textTransform = 'uppercase';
       const r = rng(1000 + l.i);
       l.words.forEach(w => {
         const s = document.createElement('span');
         s.className = 'wd'; s.textContent = w.text;
-        const bare = w.text.replace(/[^א-ת]/g, '');
+        const bare = w.text.replace(/[^א-תA-Za-z]/g, '').toLowerCase();
         if (KWRE.good.test(bare)) w.kw = 'good';
         else if (KWRE.bad.test(bare)) w.kw = 'bad';
         else if (KWRE.hero.test(bare)) w.kw = 'hero';
@@ -233,7 +240,7 @@
         if (l.world === 'yellow' || l.world === 'red') myKicks.push({ t: w.t + .05, a: k ? 4 : 9 });
         if (!w.kw) return;
         myKicks.push({ t: w.t + .05, a: 16 });
-        if (w.kw === 'bad') {
+        if (w.kw === 'bad' && D.holes !== false) {
           myFlashes.push({ t: w.t, a: .35, d: .07 });
           const g = svg('g', { opacity: 0 }, fx);
           svg('circle', { r: 22, fill: '#f1d9a8' }, g);
@@ -244,7 +251,7 @@
             svg('path', { d: `M${(Math.cos(an) * 18).toFixed(1)} ${(Math.sin(an) * 18).toFixed(1)} L${(Math.cos(an) * (18 + len)).toFixed(1)} ${(Math.sin(an) * (18 + len)).toFixed(1)}`, stroke: '#1a0505', 'stroke-width': 3.5, 'stroke-linecap': 'round' }, g);
           }
           holes.push({ g, t: w.t, until: l.out, x: p.x + (rr() - .5) * 60, y: p.y - l.size * .1 });
-        } else {
+        } else if (w.kw !== 'bad') {
           const sp = svg('path', { d: 'M0 -70 C9 -9 9 -9 70 0 C9 9 9 9 0 70 C-9 9 -9 9 -70 0 C-9 -9 -9 -9 0 -70 Z', fill: '#fffbe9', opacity: 0 }, fx);
           sparkles.push({ el: sp, t: w.t + .1, x: p.x + l.size * .35, y: p.y - l.size * .45 });
         }
