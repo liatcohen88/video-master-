@@ -27,3 +27,14 @@ Morning pipeline (after the sync page has been used):
 3. `node render.cjs out=out/full.mp4 workers=3 [audio=song.mp3]` (`img=jpeg preset=medium` for a quick draft).
 
 `data.sample.js` / `data.demo.js` are placeholder timelines for testing (copy one to `data.js`). `data.js` itself is git-ignored.
+
+Songs made entirely in code (`synth.py` is the shared toolkit):
+
+- `clementine.py` — "Oh My Darling, Clementine" (traditional, public domain) as a country-trap remix, English, left to right.
+- `compose.py` — "הטוב, הרע ואני", an original song in the same western style.
+
+Each script writes the WAV and a `data.*.js` timeline with exact word times (one note per syllable):
+
+    python3 clementine.py out/clementine.wav data.clementine.js
+    cp data.clementine.js data.js
+    node render.cjs out=out/clementine_video.mp4 workers=3 img=jpeg preset=medium audio=out/clementine.wav
