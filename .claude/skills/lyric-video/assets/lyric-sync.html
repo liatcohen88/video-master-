@@ -1,0 +1,629 @@
+<title>סנכרון הטוב הרע ועודיה</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=IBM+Plex+Sans+Hebrew:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  /* Layout: one thumb-width column of four steps — a dusk-lit western control desk, the tap pad as its centrepiece */
+  :root {
+    --bg: #170d08;
+    --surface: #24140c;
+    --raise: #331e12;
+    --line: #4d2e1b;
+    --fg: #f7e8c8;
+    --muted: #c9a883;
+    --accent: #e8a930;
+    --accent-ink: #1c0f06;
+    --rec: #cf3528;
+    --rec-ink: #fff4e6;
+    --ok: #9cc983;
+    --display: "Suez One", "Frank Ruhl Libre", Georgia, serif;
+    --body: "IBM Plex Sans Hebrew", "Heebo", "Arial Hebrew", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  html { background: var(--bg); }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.55; direction: rtl; }
+  .page {
+    max-width: 640px; margin: 0 auto; display: grid; gap: 30px;
+    padding-block: 22px 72px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { display: grid; gap: 8px; }
+  .eyebrow { font-size: 13px; letter-spacing: .06em; color: var(--muted); margin: 0; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(32px, 9vw, 48px); line-height: 1.05; margin: 0; text-wrap: balance; }
+  h1 .good { color: var(--accent); }
+  h1 .bad { color: var(--rec); }
+  header p { color: var(--muted); margin: 0; max-width: 62ch; }
+
+  .step { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 22px; min-width: 0; }
+  .step h2 { font-family: var(--display); font-weight: 400; font-size: 25px; line-height: 1.2; margin: 0; display: flex; gap: 10px; align-items: center; }
+  .step h2 .n { font-family: var(--mono); font-size: 14px; width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; background: var(--accent); color: var(--accent-ink); }
+  .hint { color: var(--muted); margin: 0; font-size: 15px; max-width: 62ch; }
+  .hint b { color: var(--fg); font-weight: 500; }
+
+  textarea {
+    width: 100%; min-height: 230px; resize: vertical; box-sizing: border-box;
+    background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; font: inherit; line-height: 1.75;
+  }
+  textarea::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .chip { font-size: 14px; padding: 4px 11px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line); color: var(--fg); font-variant-numeric: tabular-nums; }
+  .chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .chip.warn { color: var(--accent); }
+
+  button, .filebtn {
+    font: inherit; font-weight: 700; font-size: 15px; border-radius: 10px; padding: 9px 16px; min-height: 44px;
+    border: 1px solid var(--line); background: var(--raise); color: var(--fg); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative;
+  }
+  button.primary, .filebtn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, textarea:focus-visible, .filebtn:focus-within, input[type="radio"]:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+
+  .modes { display: grid; gap: 8px; }
+  .modes label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+  .modes label:has(input:checked) { border-color: var(--accent); }
+  .modes input { accent-color: var(--accent); margin-top: 5px; flex: none; }
+  .modes small { display: block; color: var(--muted); font-size: 14px; }
+
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+  .meta { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
+  .clock { font-family: var(--mono); font-variant-numeric: tabular-nums; direction: ltr; color: var(--fg); }
+  .prev { color: var(--muted); font-size: 15px; min-height: 1.6em; overflow-wrap: anywhere; }
+  .next-label { font-size: 13px; letter-spacing: .05em; color: var(--accent); margin: 0; }
+  .now { font-family: var(--display); font-size: clamp(25px, 7.4vw, 36px); line-height: 1.25; min-height: 2.6em; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+  .now.placeholder { color: var(--muted); font-size: 22px; }
+  #tap {
+    width: 100%; min-height: 200px; height: 34vh; max-height: 300px; border: 0; border-radius: 18px;
+    background: var(--rec); color: var(--rec-ink); font-family: var(--display); font-weight: 400; font-size: clamp(38px, 12vw, 60px);
+    touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    box-shadow: inset 0 -8px 0 rgba(0, 0, 0, .22);
+  }
+  #tap:disabled { background: var(--raise); color: var(--muted); box-shadow: none; opacity: 1; }
+  #tap.hit { animation: hit .2s ease-out; }
+  @keyframes hit { from { filter: brightness(1.7); transform: scale(.985); } to { filter: none; transform: none; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  .controls button { flex: 1 1 0; min-width: 0; }
+  .kbd { font-size: 13px; color: var(--muted); margin: 0; }
+
+  ol.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  ol.lines li { display: grid; grid-template-columns: 4.4em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 9px; background: var(--surface); border: 1px solid transparent; }
+  ol.lines li.label { grid-template-columns: 1fr; background: none; padding: 12px 2px 0; color: var(--accent); font-weight: 700; font-size: 14px; letter-spacing: .03em; }
+  ol.lines li.playing { border-color: var(--accent); }
+  ol.lines li.missing .time { color: var(--rec); }
+  .time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); direction: ltr; text-align: left; background: none; border: 0; padding: 0; min-height: 0; font-weight: 500; cursor: pointer; justify-content: flex-start; }
+  .text { overflow-wrap: anywhere; }
+  .nudge { display: flex; gap: 4px; direction: ltr; }
+  .nudge button { min-height: 34px; padding: 3px 8px; font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .empty { color: var(--muted); margin: 0; padding: 14px; border: 1px dashed var(--line); border-radius: 10px; }
+  .status { margin: 0; font-weight: 700; min-height: 1.5em; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--rec); }
+  #copyBox { width: 100%; min-height: 90px; font-family: var(--mono); font-size: 12px; direction: ltr; text-align: left; }
+
+  @media (prefers-reduced-motion: reduce) { #tap.hit { animation: none; } }
+</style>
+
+<main class="page">
+  <header>
+    <p class="eyebrow">אודיה, איזי וליעד מאיר · קליפ מילים</p>
+    <h1><span class="good">הטוב</span> <span class="bad">הרע</span> ועודיה</h1>
+    <p>מדביקים את המילים, מנגנים את השיר ומקישים בכל פעם ששורה מתחילה. הזמנים נשמרים כאן, ומכאן הם נכנסים ישר לקליפ.</p>
+  </header>
+
+  <section class="step" aria-labelledby="s1">
+    <h2 id="s1"><span class="n">1</span>המילים</h2>
+    <p class="hint">להדביק את מילות השיר, כל שורה בשורה נפרדת. שורה בסוגריים מרובעים, כמו <b>[פזמון]</b> או <b>[איזי]</b>, היא כותרת של קטע: לא מקישים עליה, אבל היא עוזרת לצבוע כל קטע לפי מי ששר אותו.</p>
+    <textarea id="lyrics" spellcheck="false" placeholder="[בית ראשון · איזי]&#10;השורה הראשונה&#10;השורה השנייה&#10;&#10;[פזמון]&#10;שורה מהפזמון&#10;…"></textarea>
+    <div class="row">
+      <span class="chip" id="lineCount">עדיין אין שורות</span>
+      <span class="chip" id="labelCount" hidden></span>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <h2 id="s2"><span class="n">2</span>השיר</h2>
+    <div class="modes" role="radiogroup" aria-label="איך השיר מתנגן">
+      <label><input type="radio" name="mode" id="modeFile" value="file" checked><span>יש קובץ של השיר במכשיר<small>הכי מדויק. הקובץ נשאר במכשיר, ונשמרים רק הזמנים והקצב.</small></span></label>
+      <label><input type="radio" name="mode" id="modeWatch" value="stopwatch"><span>השיר יתנגן ממקום אחר (ספוטיפיי, יוטיוב)<small>לוחצים ״התחלה״ בדיוק כשהשיר מתחיל, ומקישים כרגיל.</small></span></label>
+    </div>
+    <div class="row" id="fileRow">
+      <label class="filebtn primary">בחירת קובץ השיר<input type="file" id="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg"></label>
+      <span class="chip" id="audioInfo">לא נבחר קובץ</span>
+    </div>
+    <audio id="player" preload="auto"></audio>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <h2 id="s3"><span class="n">3</span>מקישים בזמן</h2>
+    <p class="hint">ללחוץ ״התחלה״, ואז להקיש על הכפתור האדום בדיוק כשכל שורה מתחילה להישמע. אחרי השורה האחרונה מקישים פעם אחת נוספת כשהיא נגמרת.</p>
+    <div class="stage">
+      <div class="meta"><span id="progress">שורה 0 מתוך 0</span><span class="clock" id="clock">0:00.0</span></div>
+      <div class="prev" id="prevLine"></div>
+      <p class="next-label" id="nextLabel">השורה הבאה</p>
+      <p class="now placeholder" id="nowLine">השורות יופיעו כאן אחרי ההדבקה</p>
+      <button id="tap" type="button" disabled>עכשיו</button>
+      <div class="controls">
+        <button id="startBtn" type="button" class="primary">התחלה</button>
+        <button id="undoBtn" type="button" disabled>שורה אחורה</button>
+        <button id="restartBtn" type="button" disabled>מההתחלה</button>
+      </div>
+      <p class="kbd">במחשב: מקש רווח במקום הכפתור האדום.</p>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s4">
+    <h2 id="s4"><span class="n">4</span>בדיקה ושמירה</h2>
+    <p class="hint">אפשר לתקן כל שורה בעשירית שנייה. עם קובץ שיר, לחיצה על הזמן מנגנת משם.</p>
+    <div class="row">
+      <button id="previewBtn" type="button" disabled>ניגון עם המילים</button>
+      <button id="saveBtn" type="button" class="primary" disabled>שמירה</button>
+      <button id="copyBtn" type="button" disabled>העתקת הנתונים</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <textarea id="copyBox" readonly hidden></textarea>
+    <p class="empty" id="listEmpty">אחרי ההקשות יופיעו כאן כל השורות עם הזמנים שלהן.</p>
+    <ol class="lines" id="lines"></ol>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const st = {
+  lyrics: '', items: [], lines: [], taps: [], end: null,
+  mode: 'file', audio: null, running: false, acc: 0, t0: 0, dirty: false,
+};
+const player = $('#player');
+let db = null, saving = false, objectUrl = null, wakeLock = null, playingIdx = -1;
+
+// ---------- lyrics ----------
+function parse(text) {
+  const items = [];
+  let label = '';
+  for (const raw of text.split(/\r?\n/)) {
+    const s = raw.trim();
+    if (!s) continue;
+    const m = s.match(/^\[(.+)\]$/);
+    if (m) { label = m[1].trim(); items.push({ kind: 'label', text: label }); }
+    else items.push({ kind: 'line', text: s, label });
+  }
+  return items;
+}
+function setLyrics(text, keepTaps) {
+  const before = st.lines.map(l => l.text).join('\n');
+  st.lyrics = text;
+  st.items = parse(text);
+  st.lines = st.items.filter(i => i.kind === 'line');
+  if (!keepTaps && st.lines.map(l => l.text).join('\n') !== before) { st.taps = []; st.end = null; }
+  const labels = st.items.length - st.lines.length;
+  $('#lineCount').textContent = st.lines.length ? `${st.lines.length} שורות לסנכרון` : 'עדיין אין שורות';
+  $('#lineCount').className = 'chip' + (st.lines.length ? ' ok' : '');
+  $('#labelCount').hidden = !labels;
+  $('#labelCount').textContent = `${labels} כותרות קטעים`;
+  try { localStorage.setItem('lyric-sync-draft', text); } catch (e) {}
+  render();
+}
+
+// ---------- time ----------
+const fmt = t => {
+  if (t == null) return '—';
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+};
+const r3 = x => Math.round(x * 1000) / 1000;
+function now() {
+  if (st.mode === 'file') return player.currentTime || 0;
+  return st.acc + (st.running ? (performance.now() - st.t0) / 1000 : 0);
+}
+function tick() {
+  $('#clock').textContent = fmt(now());
+  if (st.running || !player.paused) {
+    highlightPlaying();
+    requestAnimationFrame(tick);
+  }
+}
+
+// ---------- tapping ----------
+function canRun() {
+  if (!st.lines.length) { status('קודם להדביק את המילים בשלב 1.', 'err'); return false; }
+  if (st.mode === 'file' && !player.src) { status('קודם לבחור את קובץ השיר בשלב 2, או לעבור ל״השיר יתנגן ממקום אחר״.', 'err'); return false; }
+  return true;
+}
+async function startStop() {
+  if (!canRun()) return;
+  if (st.running) { pause(); return; }
+  status('');
+  if (st.mode === 'file') {
+    try { await player.play(); } catch (e) { status('הדפדפן לא הצליח לנגן את הקובץ. כדאי לנסות קובץ mp3.', 'err'); return; }
+  } else st.t0 = performance.now();
+  st.running = true;
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {}
+  render(); tick();
+}
+function pause() {
+  if (st.mode === 'file') player.pause();
+  else st.acc += (performance.now() - st.t0) / 1000;
+  st.running = false;
+  try { wakeLock?.release(); } catch (e) {}
+  wakeLock = null;
+  render();
+}
+function tap() {
+  if (!st.running) return;
+  const t = r3(now());
+  if (st.taps.length < st.lines.length) st.taps.push(t);
+  else if (st.end == null) st.end = t;
+  st.dirty = true;
+  const b = $('#tap');
+  b.classList.remove('hit'); void b.offsetWidth; b.classList.add('hit');
+  if (st.end != null) { pause(); save(); }
+  render();
+}
+function undo() {
+  if (st.end != null) st.end = null;
+  else if (st.taps.length) {
+    const t = st.taps.pop();
+    if (st.mode === 'file') player.currentTime = Math.max(0, t - 3);
+  }
+  st.dirty = true;
+  render();
+}
+function restart() {
+  st.taps = []; st.end = null; st.dirty = true;
+  if (st.mode === 'file') player.currentTime = 0;
+  else { st.acc = 0; st.t0 = performance.now(); }
+  render();
+}
+
+// ---------- review ----------
+function nudge(i, d) {
+  if (st.taps[i] == null) return;
+  st.taps[i] = r3(Math.max(0, st.taps[i] + d));
+  st.dirty = true;
+  render();
+}
+function playFrom(t) {
+  if (st.mode !== 'file' || !player.src || t == null) return;
+  player.currentTime = Math.max(0, t - 1);
+  player.play().then(() => tick()).catch(() => {});
+  render();
+}
+function highlightPlaying() {
+  const t = now();
+  let idx = -1;
+  for (let i = 0; i < st.taps.length; i++) if (st.taps[i] <= t) idx = i;
+  if (idx === playingIdx) return;
+  playingIdx = idx;
+  document.querySelectorAll('#lines li[data-i]').forEach(li => li.classList.toggle('playing', +li.dataset.i === idx));
+}
+
+// ---------- render ----------
+function render() {
+  const n = st.lines.length, k = st.taps.length;
+  const done = n && k === n && st.end != null;
+  $('#progress').textContent = done ? `כל ${n} השורות מסונכרנות` : `שורה ${Math.min(k + 1, n)} מתוך ${n}`;
+  const now = $('#nowLine');
+  if (!n) { now.textContent = 'השורות יופיעו כאן אחרי ההדבקה'; now.className = 'now placeholder'; $('#nextLabel').textContent = 'השורה הבאה'; }
+  else if (k < n) {
+    const line = st.lines[k];
+    now.textContent = line.text; now.className = 'now';
+    $('#nextLabel').textContent = line.label ? `השורה הבאה · ${line.label}` : 'השורה הבאה';
+  } else if (st.end == null) {
+    now.textContent = 'להקיש כשהשורה האחרונה נגמרת'; now.className = 'now placeholder';
+    $('#nextLabel').textContent = 'סוף השיר';
+  } else {
+    now.textContent = 'סיימנו. הזמנים נשמרים.'; now.className = 'now placeholder';
+    $('#nextLabel').textContent = '';
+  }
+  $('#prevLine').textContent = k ? `${fmt(st.taps[k - 1])}  ${st.lines[k - 1].text}` : '';
+  $('#tap').disabled = !st.running || done;
+  $('#tap').textContent = k >= n && n ? 'סוף' : 'עכשיו';
+  $('#startBtn').textContent = st.running ? 'עצירה' : (k || st.acc || player.currentTime ? 'המשך' : 'התחלה');
+  $('#undoBtn').disabled = !k;
+  $('#restartBtn').disabled = !k && !st.running;
+  $('#previewBtn').disabled = !(st.mode === 'file' && player.src && k);
+  $('#saveBtn').disabled = !k;
+  $('#copyBtn').disabled = !k;
+  $('#fileRow').hidden = st.mode !== 'file';
+  renderList();
+}
+function renderList() {
+  const ol = $('#lines');
+  ol.textContent = '';
+  $('#listEmpty').hidden = st.taps.length > 0;
+  if (!st.taps.length) return;
+  let li = 0;
+  for (const it of st.items) {
+    const el = document.createElement('li');
+    if (it.kind === 'label') { el.className = 'label'; el.textContent = it.text; ol.appendChild(el); continue; }
+    const i = li++;
+    const t = st.taps[i];
+    el.dataset.i = i;
+    if (t == null) el.className = 'missing';
+    const time = document.createElement('button');
+    time.type = 'button'; time.className = 'time'; time.textContent = fmt(t);
+    time.addEventListener('click', () => playFrom(t));
+    const text = document.createElement('span');
+    text.className = 'text'; text.textContent = it.text;
+    const nd = document.createElement('span');
+    nd.className = 'nudge';
+    for (const [lbl, d] of [['−0.1', -0.1], ['+0.1', 0.1]]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = lbl; b.disabled = t == null;
+      b.setAttribute('aria-label', `${d < 0 ? 'מוקדם' : 'מאוחר'} בעשירית שנייה: ${it.text}`);
+      b.addEventListener('click', () => nudge(i, d));
+      nd.appendChild(b);
+    }
+    el.append(time, text, nd);
+    ol.appendChild(el);
+  }
+  if (st.end != null) {
+    const el = document.createElement('li');
+    el.className = 'label';
+    el.textContent = `סוף השורה האחרונה · ${fmt(st.end)}`;
+    ol.appendChild(el);
+  }
+  playingIdx = -1;
+}
+function status(msg, kind) {
+  const s = $('#status');
+  s.textContent = msg;
+  s.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+// ---------- save ----------
+function payload() {
+  return {
+    version: 1,
+    title: 'הטוב הרע ועודיה',
+    lyricsRaw: st.lyrics,
+    lines: st.lines.map((l, i) => ({ i, text: l.text, label: l.label || '', t: st.taps[i] ?? null })),
+    end: st.end,
+    mode: st.mode,
+    audio: st.audio,
+    savedAt: new Date().toISOString(),
+  };
+}
+async function save() {
+  if (!st.taps.length) return;
+  if (!db) { status('השמירה האוטומטית לא זמינה בתצוגה הזאת. אפשר ללחוץ ״העתקת הנתונים״ ולהדביק בצ׳אט.', 'err'); return; }
+  if (saving) return;
+  saving = true;
+  status('שומר…');
+  const data = payload();
+  try {
+    try { await db.doc('sync/current').set(data); }
+    catch (e) {
+      if (e?.code !== 'unavailable') throw e;
+      await new Promise(r => setTimeout(r, 800 + Math.random() * 800));
+      await db.doc('sync/current').set(data);
+    }
+    st.dirty = false;
+    const hm = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const all = st.taps.length === st.lines.length && st.end != null;
+    status(all ? `נשמר ב-${hm}. אפשר לחזור לצ׳אט ולכתוב ״סיימתי״.` : `נשמרו ${st.taps.length} מתוך ${st.lines.length} שורות (${hm}).`, 'ok');
+  } catch (e) {
+    status(`השמירה לא הצליחה (${e?.code || 'שגיאה'}). אפשר ללחוץ ״העתקת הנתונים״ ולהדביק בצ׳אט.`, 'err');
+  } finally { saving = false; }
+}
+async function copyData() {
+  const text = JSON.stringify(payload());
+  const box = $('#copyBox');
+  try { await navigator.clipboard.writeText(text); status('הנתונים הועתקו. אפשר להדביק אותם בצ׳אט.', 'ok'); box.hidden = true; }
+  catch (e) { box.hidden = false; box.value = text; box.focus(); box.select(); status('הטקסט מסומן למטה. להעתיק אותו ולהדביק בצ׳אט.', ''); }
+}
+
+// ---------- beat analysis (runs in the browser; the song never leaves the device) ----------
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang), h = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < h; k++) {
+        const a = i + k, b = a + h;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+async function onsetEnvelope(y, sr, progress) {
+  const WIN = 1024, HOP = 512, pad = WIN / 2, half = WIN / 2 + 1;
+  const n = Math.floor((y.length + 2 * pad - WIN) / HOP) + 1;
+  const hann = new Float64Array(WIN);
+  for (let i = 0; i < WIN; i++) hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / WIN);
+  const re = new Float64Array(WIN), im = new Float64Array(WIN);
+  let prev = new Float64Array(half), cur = new Float64Array(half);
+  const env = new Float64Array(n);
+  for (let f = 0; f < n; f++) {
+    const off = f * HOP - pad;
+    for (let i = 0; i < WIN; i++) { const k = off + i; re[i] = k >= 0 && k < y.length ? y[k] * hann[i] : 0; im[i] = 0; }
+    fft(re, im);
+    let flux = 0;
+    for (let b = 0; b < half; b++) {
+      const m = Math.log1p(100 * Math.sqrt(re[b] * re[b] + im[b] * im[b]));
+      if (f) { const d = m - prev[b]; if (d > 0) flux += d; }
+      cur[b] = m;
+    }
+    env[f] = flux;
+    const t = prev; prev = cur; cur = t;
+    if (f % 600 === 0) { progress(f / n); await new Promise(r => setTimeout(r)); }
+  }
+  // remove the slow trend, keep the positive part, normalise
+  const out = new Float64Array(n);
+  let sum = 0, max = 0;
+  for (let i = 0; i < n; i++) {
+    sum += env[i] - (i >= 16 ? env[i - 16] : 0);
+    const v = Math.max(0, env[i] - sum / Math.min(16, i + 1));
+    out[i] = v; if (v > max) max = v;
+  }
+  for (let i = 0; i < n; i++) out[i] /= max || 1;
+  return { env: out, fps: sr / HOP };
+}
+function smooth(x) {
+  const k = [], s = 1.5;
+  for (let i = -4; i <= 4; i++) k.push(Math.exp(-0.5 * (i / s) ** 2));
+  const ks = k.reduce((a, b) => a + b);
+  const out = new Float64Array(x.length);
+  for (let i = 0; i < x.length; i++) {
+    let v = 0;
+    for (let j = -4; j <= 4; j++) { const q = i + j; if (q >= 0 && q < x.length) v += x[q] * k[j + 4]; }
+    out[i] = v / ks;
+  }
+  return out;
+}
+function tempo(env, fps) {
+  const lo = Math.floor(fps * 60 / 240), hi = Math.ceil(fps * 60 / 40);
+  const ac = new Float64Array(hi + 2);
+  for (let L = Math.max(1, lo - 1); L <= hi + 1; L++) { let s = 0; for (let i = L; i < env.length; i++) s += env[i] * env[i - L]; ac[L] = s; }
+  let bestL = lo, best = -1;
+  for (let L = lo; L <= hi; L++) {
+    const w = Math.exp(-0.5 * Math.log2(60 * fps / L / 120) ** 2);
+    if (ac[L] * w > best) { best = ac[L] * w; bestL = L; }
+  }
+  let lag = bestL;
+  const y0 = ac[bestL - 1], y1 = ac[bestL], y2 = ac[bestL + 1], den = y0 - 2 * y1 + y2;
+  if (den < 0) lag += 0.5 * (y0 - y2) / den;
+  let bpm = 60 * fps / lag;
+  while (bpm < 70) bpm *= 2;
+  while (bpm > 180) bpm /= 2;
+  return bpm;
+}
+function trackBeats(env, fps, bpm) {
+  const period = 60 * fps / bpm, n = env.length;
+  const score = Float64Array.from(env), back = new Int32Array(n).fill(-1);
+  const wLo = -Math.round(2 * period), wHi = -Math.round(period / 2), cost = [];
+  for (let w = wLo; w <= wHi; w++) cost.push(-100 * Math.log(-w / period) ** 2);
+  for (let i = 0; i < n; i++) {
+    let bv = -Infinity, bj = -1;
+    for (let w = wLo, c = 0; w <= wHi; w++, c++) {
+      const j = i + w;
+      if (j < 0) continue;
+      const v = score[j] + cost[c];
+      if (v > bv) { bv = v; bj = j; }
+    }
+    if (bj >= 0) { score[i] = env[i] + bv; back[i] = bj; }
+  }
+  let bi = Math.max(0, n - Math.round(period));
+  for (let k = bi; k < n; k++) if (score[k] > score[bi]) bi = k;
+  const beats = [];
+  for (let k = bi; k >= 0; k = back[k]) beats.push(r3(k / fps));
+  return beats.reverse();
+}
+function peaks(env, fps) {
+  const out = [];
+  let last = -1e9;
+  for (let i = 1; i < env.length - 1; i++) {
+    if (env[i] > 0.25 && env[i] >= env[i - 1] && env[i] > env[i + 1] && (i - last) / fps >= 0.08) { out.push(r3(i / fps)); last = i; }
+  }
+  return out;
+}
+async function analyzeFile(file) {
+  const info = $('#audioInfo');
+  info.className = 'chip warn';
+  info.textContent = 'מנתח את הקצב…';
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    const buf = await file.arrayBuffer();
+    const audio = await new Promise((res, rej) => ctx.decodeAudioData(buf, res, rej));
+    try { ctx.close(); } catch (e) {}
+    const sr = audio.sampleRate, step = Math.max(1, Math.round(sr / 22050));
+    const a = audio.getChannelData(0), b = audio.numberOfChannels > 1 ? audio.getChannelData(1) : null;
+    const n = Math.floor(a.length / step), y = new Float32Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += step) {
+      let s = 0;
+      for (let k = 0; k < step; k++) s += a[j + k] + (b ? b[j + k] : 0);
+      y[i] = s / (step * (b ? 2 : 1));
+    }
+    const { env, fps } = await onsetEnvelope(y, sr / step, p => { info.textContent = `מנתח את הקצב… ${Math.round(p * 100)}%`; });
+    const env2 = smooth(env);
+    const bpm = tempo(env2, fps);
+    st.audio = { name: file.name, duration: r3(audio.duration), bpm: Math.round(bpm * 100) / 100, beats: trackBeats(env2, fps, bpm), onsets: peaks(env, fps) };
+    info.className = 'chip ok';
+    info.textContent = `${file.name} · ${fmt(audio.duration).replace(/\.\d$/, '')} · קצב ${Math.round(bpm)}`;
+  } catch (e) {
+    st.audio = { name: file.name, duration: null, bpm: null, beats: [], onsets: [] };
+    info.className = 'chip';
+    info.textContent = `${file.name} · אפשר לסנכרן, אבל ניתוח הקצב לא הצליח`;
+  }
+}
+
+// ---------- wiring ----------
+$('#lyrics').addEventListener('input', e => setLyrics(e.target.value));
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', e => {
+  if (st.running) pause();
+  st.mode = e.target.value;
+  render();
+}));
+$('#file').addEventListener('change', e => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  if (st.running) pause();
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl = URL.createObjectURL(f);
+  player.src = objectUrl;
+  st.mode = 'file';
+  $('#modeFile').checked = true;
+  analyzeFile(f).then(render);
+  render();
+});
+player.addEventListener('ended', () => { if (st.running) pause(); });
+player.addEventListener('pause', () => { if (st.running && st.mode === 'file') { st.running = false; render(); } });
+$('#startBtn').addEventListener('click', startStop);
+$('#undoBtn').addEventListener('click', undo);
+$('#restartBtn').addEventListener('click', restart);
+$('#tap').addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+$('#tap').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tap(); } });
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.target.matches('textarea, input')) return;
+  e.preventDefault();
+  if (st.running) tap();
+});
+$('#previewBtn').addEventListener('click', () => {
+  if (!player.paused) { player.pause(); return; }
+  st.running = false;
+  player.play().then(() => tick()).catch(() => {});
+});
+$('#saveBtn').addEventListener('click', save);
+$('#copyBtn').addEventListener('click', copyData);
+window.addEventListener('beforeunload', e => { if (st.dirty && st.taps.length) e.preventDefault(); });
+
+// ---------- start ----------
+try { const d = localStorage.getItem('lyric-sync-draft'); if (d) $('#lyrics').value = d; } catch (e) {}
+setLyrics($('#lyrics').value);
+(async () => {
+  try { db = (await window.claude?.use?.('db')) || null; } catch (e) { db = null; }
+  if (!db) return;
+  try {
+    const snap = await db.doc('sync/current').get();
+    if (!snap.exists) return;
+    const d = snap.data();
+    if (!$('#lyrics').value.trim() || $('#lyrics').value === d.lyricsRaw) {
+      $('#lyrics').value = d.lyricsRaw || '';
+      setLyrics($('#lyrics').value, true);
+      st.taps = [];
+      for (const l of d.lines || []) { if (l.t == null) break; st.taps.push(l.t); }
+      st.end = d.end ?? null;
+      st.mode = d.mode === 'stopwatch' ? 'stopwatch' : 'file';
+      $(st.mode === 'file' ? '#modeFile' : '#modeWatch').checked = true;
+      if (d.audio) st.audio = d.audio;
+      const when = d.savedAt ? new Date(d.savedAt).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      status(`נטען סנכרון שמור${when ? ' מ-' + when : ''}.`, 'ok');
+      render();
+    }
+  } catch (e) {}
+})();
+</script>
